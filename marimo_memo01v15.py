@@ -742,11 +742,27 @@ def algorithm_tracer_controls(fac_graph, mo):
         step,
         show_path,
     ])
-    return
+    return algoo, show_path, step, target
 
 
-app._unparsable_cell(
-    r"""
+@app.cell
+def algorithm_tracer(
+    COL_CURRENT,
+    COL_FRONTIER,
+    COL_VISITED,
+    algoo,
+    deque,
+    draw_facility,
+    fac_entry,
+    fac_exit_a,
+    fac_exit_b,
+    fac_graph,
+    fac_supplies,
+    mo,
+    show_path,
+    step,
+    target,
+):
     algo   = algoo.value
     target1 = fac_exit_a if target.value == "a" else fac_exit_b
 
@@ -804,8 +820,6 @@ app._unparsable_cell(
                     seen.add(nb)
                     came_from[nb] = current
                     stack.append(nb)
-    elif algoo == "CRUDY-1-NPV-1":
-    
 
     total  = len(steps)
     idx    = min(int(step.value), total - 1) if total > 0 else 0
@@ -852,9 +866,7 @@ app._unparsable_cell(
         result = mo.md("*No trace available — check that your facility loaded correctly.*")
 
     result
-    """,
-    name="algorithm_tracer"
-)
+    return
 
 
 @app.cell

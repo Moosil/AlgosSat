@@ -30,7 +30,7 @@ def _(mpatches, nx, plt, random, seed_input):
             for c in range(cols):
                 for r in range(rows):
                     graph.add_node((c, r), pos=(c + 0.5, r + 0.5))
-    
+
             def carve(c, r):
                 visited[c][r] = True
                 dirs = list(self._neighbours(cols, rows, c, r))
@@ -39,7 +39,7 @@ def _(mpatches, nx, plt, random, seed_input):
                     if not visited[nc][nr]:
                         graph.add_edge((c, r), (nc, nr), weight=1)
                         carve(nc, nr)
-    
+
             carve(0, 0)
             for c in range(cols):
                 for r in range(rows):
@@ -90,7 +90,7 @@ def _(mpatches, nx, plt, random, seed_input):
             rng2 = random.Random(int(seed))
             supplies = self._place_supplies(graph, COLS, ROWS, rng2, reserved)
             return graph, entry, exit_a, exit_b, supplies
-    
+
         def _draw_facility(self, graph, entry, exit_a, exit_b, supplies,
                       highlight_path=None, title="Facility Layout",
                       node_colors=None, supply_collected=None,
@@ -106,21 +106,21 @@ def _(mpatches, nx, plt, random, seed_input):
             COL_VISITED  = '#B8D8D7'
             COL_FRONTIER = '#F4C97A'
             COL_CURRENT  = '#E8603C'
-    
+
             fig, ax = plt.subplots(figsize=figsize)
             ax.set_facecolor(COL_BG)
             fig.patch.set_facecolor(COL_BG)
-    
+
             # Grid
             for c in range(COLS + 1):
                 ax.plot([c, c], [0, ROWS], color=COL_GRID, lw=0.4, zorder=1)
             for r in range(ROWS + 1):
                 ax.plot([0, COLS], [r, r], color=COL_GRID, lw=0.4, zorder=1)
-    
+
             # Border
             for x0,y0,x1,y1 in [(0,0,COLS,0),(COLS,0,COLS,ROWS),(COLS,ROWS,0,ROWS),(0,ROWS,0,0)]:
                 ax.plot([x0,x1],[y0,y1], color=COL_WALL, lw=2.2, zorder=3)
-    
+
             # Internal walls
             for c in range(COLS):
                 for r in range(ROWS):
@@ -128,14 +128,14 @@ def _(mpatches, nx, plt, random, seed_input):
                         ax.plot([c+1,c+1],[r,r+1], color=COL_WALL, lw=1.6, zorder=3)
                     if r+1 < ROWS and not graph.has_edge((c,r),(c,r+1)):
                         ax.plot([c,c+1],[r+1,r+1], color=COL_WALL, lw=1.6, zorder=3)
-    
+
             # Highlighted nodes
             if node_colors:
                 for node, color in node_colors.items():
                     c, r = node
                     rect = plt.Rectangle((c, r), 1, 1, color=color, alpha=0.50, zorder=2)
                     ax.add_patch(rect)
-    
+
             # Solution path
             if highlight_path and len(highlight_path) > 1:
                 px = [c + 0.5 for c,r in highlight_path]
@@ -151,13 +151,13 @@ def _(mpatches, nx, plt, random, seed_input):
                         markeredgecolor=COL_ENTRY if not already else '#999',
                         markeredgewidth=0.8, zorder=5)
                 ax.text(sc+0.62, sr+0.58, f'S{i+1}', fontsize=6, color=COL_WALL, zorder=6)
-    
+
             # Entry circle
             ec, er = entry
             ax.add_patch(plt.Circle((ec+0.5,er+0.5), 0.22, color=COL_ENTRY, zorder=6))
             ax.text(ec+0.5, er+0.5, 'E', ha='center', va='center',
                     fontsize=6, color='white', fontweight='bold', zorder=7)
-    
+
             # Exit circles
             for lbl, node in [('A', exit_a), ('B', exit_b)]:
                 xc, xr = node
@@ -379,7 +379,175 @@ def _(mo):
     | Informed (Meta-heuristic) | Tabu-search, swarm algorhithms | No          | Yes          | Yes                           | Needs an algorithm to generate solutions (ok) |
     |                           |                                |             |              |                               |                                               |
 
-    A meta-heuristic algorithm is likely overkill for this problem, as |V| and |E| are small enough that other design patterns are more efficient. An greedy informed search algorithm like A* will be used for its fast $O(\space(|V|+|E|)\log(|V|)\space)$ time efficiency and simple implementation. The downside of A* is it requires knowledge of the entire graph.
+    #### Justification
+    Due to small $|V|$ and $|E|$, meta-heuristic algorithms are overkill in complexity.
+
+    The approach of finding pair-distances between supplies, entrances and exits, all of which there is a constant amount of, allows for otherwise too inefficient algorithms to be considered.
+
+    Pairwise-paths can be found in quasi-linear time with dijkstra's algorithm, which is used over Floyd-Warshall due needing these paths between only a subset of $V$, allowing for $O(|V|log|V|) time complexity. A more complex algorithm like the one in [Thorup's 1999 paper](https://doi.org/10.1145/316542.316548).
+
+    After pairwise-paths have been found, a super-path can be found from an entrance through supplies and to an exit by a simply brute force in $O(1)$ time, due to this constant amount of vertices in this super-path. A faster algorithm like branch and bound is overkill for this problem, as the constant factor is so small.
+
+    This path may be then collapsed to a path through $G$ by storing the shortest paths found in the dijkstra's step in a map and retrieving them in constant time.
+
+    ### Verbose Algorithm Explanation
+    The algorithm first finds and stores the shortest paths and distances between each pair of vertices $u,v \in V_s$, $v_e \text{ and } v \in V_x$, and $u \in V_s, v \in V_x$ using Dijkstra's with total time complexity of $O(|V|(|V_s| + |V_x|) \log(|V|))$. It then uses a brute-force algorithm to select an order of supplies, starting from $v_e$ and ending at $v_x \in V_x$ with time complexity of $O(|V_s| + |V_x|)$. It then reconstructs the walk on $G$ from the shortest paths found at the beginning of the algorithm in $O(|V|)$ time, for a total time complexity of $O(|V|(|V_s| + |V_x|) \log(|V|) + |V|)$.
+
+    Dijkstra’s is a search algorithm that starts at a vertex $s$ and expands it by adding all its neighbours to a priority queue of vertices seen but not expanded. Each vertex in this priority queue has priority based on distance from $s$. It then expands the next vertex in the pq and repeats until all the target vertices if found, where it returns the paths from $s$ to those vertices, otherwise returning the paths found from $s$ to those vertices that can be reached from $s$.
+
+    ### Pseudocode
+    ```
+    FUNCTION dijkstra(G: Graph, source: Vertex, sinks: Set[Vertex]) -> Map[Vertex, List[Vertex]]
+    	res <- empty List for all s in sinks
+    	dist <- infinity for all v in G
+    	dist[source] <- 0
+    	prev <- empty Map
+    	pq <- priority queue containing all vertices keyed by dist
+    	WHILE pq is not empty DO
+    		u <- extractMin(pq)
+    		IF u in targets THEN
+    			res[u] <- reconstruct_path(prev, u)
+    			IF |res| = |sinks| THEN
+    				RETURN res
+    			END IF
+    		END IF
+    		FOR EACH (u, v, w) IN get_neighbours(G, u) DO
+    			IF dist[u] + w < dist[v] THEN
+    				prev[v] <- u
+    				dist[v] <- dist[u] + w
+    				update(PQ, v)
+    			END IF
+    		END FOR
+    	RETURN res
+    END FUNCTION
+
+    FUNCTION some_pairs_shortest_path(G: Graph, sources: Set[Vertex], sinks: Set[Vertex]) -> Map[Vertex, Map[Vertex, List[Vertex]]]
+    	res <- empty Map
+    	FOR EACH source IN sources DO
+    		paths <- dijkstra(G, source, sinks)
+    		FOR EACH sink IN sinks DO
+    			res[source][sink] <- paths[sink]
+    		END FOR
+    	END FOR
+    	RETURN res
+    END FUNCTION
+
+    FUNCTION get_path_length(G: Graph, path: List[Vertex]) -> positive interger:
+    	res <- 0
+    	FOR i <- 1 TO length(path) - 1 DO
+    		res <- res + G.get_edge_weight(path[i], path[i + 1])
+    	END FOR
+    	RETURN res
+    END FUNCTION
+
+    FUNCTION get_pairs_path_distances(G: Graph, pair_path_map: Map[Vertex, Map[Vertex, List[Vertex]]]) -> Map[Vertex, Map[Vertex, positive interger]]
+    	res <- empty Map
+    	FOR EACH (key_0, value_0) IN pair_path_map DO
+    		FOR EACH (key_1, value_1) IN value_0 DO
+    			res[key_0][key_1] <- get_path_length(G, value_1)
+    		END FOR
+    	END FOR
+    	RETURN res
+    END FUNCTION
+
+    FUNCTION get_unfound_supplies(V_s: Set[Vertex], M_s: Map[Vertex, String OR NULL], S: Set[String]) -> Set[Vertex]:
+    	res <- empty set
+
+    	FOR EACH supply IN V_s DO
+    		IF M_s[S] isn't NULL and M_s[S] NOT IN S THEN
+    			add(res, supply)
+    		END IF
+    	END FOR
+
+    	RETURN res
+    END FUNCTION
+
+    FUNCTION generate_permutations(L: List) -> List[List]:
+    	res <- empty List
+    	FOR EACH item IN L DO
+    		sublist <- L without item
+    		FOR EACH perm IN generate_permutations(sublist) DO
+    			curr <- List with item
+    			FOR EACH perm_item IN perm DO
+    				push(curr, perm_item)
+    			END FOR
+    			push(res, curr)
+    		END FOR
+    	END FOR
+    	RETURN res
+    END FUNCTION
+
+    FUNCTION brute_force(G: Graph, v_e: Vertex, V_s: Set[Vertex], V_x: Set[Vertex], pair_path_map: Map[Vertex, Map[Vertex, List[Vertex]]]) -> List[Vertex]
+
+    	pair_path_cost_map <- get_pairs_path_distances(G, pair_path_map)
+
+    	min_cost_found <- infinity
+    	min_cost_walk <- null
+
+    	FOR EACH permutation IN generate_permutations(List with the items in V_s)
+    		cost <- pair_path_cost_map[v_e][permutation[1]]
+    		FOR i <- 1 IN length(permutation) DO
+    			cost <- cost + pair_path_cost_map[permutation[i]][permutation[i + 1]]
+    		END FOR
+
+    		min_exit_cost <- infinity
+    		min_exit <- null
+    		end <- permutation[length(permutation)]
+    		FOR EACH exit IN V_x DO
+    			IF pair_path_cost_map[end][exit] < min_exit_cost THEN
+    				min_exit <- exit
+    				min_exit_cost <- pair_path_cost_map[end][exit]
+    			END IF
+    		END FOR
+
+    		IF cost + min_exit_cost < min_cost_found THEN
+    			walk <- List containing v_e
+    			FOR EACH vertex IN permutation DO
+    				push(walk, vertex)
+    			END FOR
+    			push(walk, min_exit)
+    			min_cost_walk <- walk
+    			min_cost_found <- cost + min_exit_cost
+    		END IF
+    	END FOR
+
+    	return min_cost_walk
+    END FUNCTION
+
+    FUNCTION ember_rescue(G: Graph, v_e: Vertex, V_x: Set[Vertex], V_s: Set[Vertex], M_s: Map[Vertex, String], A: Array[Vertex, size:5], S: Set[String]) -> List[Vertex]
+
+    	unfound_supplies <- get_unfound_supplies(V_s, M_s, S)
+
+    	pairs_paths <- some_pairs_shortest_path(G, unfound_supplies union {v_e}, unfound_supplies union V_x)
+
+    	super_path <- brute_force(G, v_e, unfound_supplies, V_x, pairs_paths)
+
+    	res <- empty List
+
+    	FOR i <- 1 to length(super_path) - 1 DO
+    		pair_path <- pairs_paths[super_path[i][super_path[i + 1]]]
+    		last_add <- if i == length(super_path) - 1 then 1 else 0
+    		FOR j <- 1 to length(pair_path) - 1 + last_add DO
+    			push(res, pair_path[j])
+    		END FOR
+    	END FOR
+
+    	return res
+
+    END FUNCTION
+
+    FUNCTION reconstruct_path(came_from: Map, e: Vertex) -> List[Vertex]
+        res <- empty List
+        curr <- e
+        WHILE has(came_from, curr) DO
+    	    push(res, curr)
+    	    curr <- came_from[curr]
+    	END WHILE
+    	return reverse(res)
+    END FUNCTION
+    ```
+
+    ### Python Implementation
     """)
     return
 

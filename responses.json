@@ -358,5 +358,27 @@
     "C1 pseudocode": "FUNCTION ember_rescue(graph: Graph, entry: Vertex,\n                      exits: Set[Vertex], supplies: Set[Vertex]) -> Path\n\n    // Initialise data structures\n\n    // Main loop\n\n    // Return the path\n\nEND FUNCTION\n\n\nFUNCTION reconstruct_path(came_from: Map, current: Vertex) -> Path\n    ...\nEND FUNCTION",
     "C2 algorithm": "def my_algorithm(graph, entry, exit_a, exit_b, supplies):\n\n    \"\"\"\n\n    Implement your algorithm here.\n\n\n    Returns\n\n    -------\n\n    path : list of (col, row) tuples\n\n    The sequence of sectors CRUDY-1 visits, ending at an exit.\n\n    collected : list of (col, row) tuples\n\n    The supply nodes collected along the way (in order collected).\n\n    \"\"\"\n\n    from collections import deque\n\n\n    # --- Replace everything below this line with your algorithm ---\n\n    # Blah Blah Blah \u2014 this is just a placeholder to show you where to write your code.\n\n    # --- End of your algorithm ---",
     "D1 response": ""
+  },
+  {
+    "timestamp": "2026-06-09T12:59:29.882773",
+    "A1 response": "",
+    "A2 response": "A2",
+    "A3 response": "A3",
+    "B1 response": "B1",
+    "B2 response": "B2",
+    "C1 pseudocode": "FUNCTION ember_rescue(graph: Graph, entry: Vertex,\n                      exits: Set[Vertex], supplies: Set[Vertex]) -> Path\n\n    // Initialise data structures\n\n    // Main loop\n\n    // Return the path\n\nEND FUNCTION\n\n\nFUNCTION reconstruct_path(came_from: Map, current: Vertex) -> Path\n    ...\nEND FUNCTION",
+    "C2 algorithm": "def my_algorithm(graph, entry, exit_a, exit_b, supplies):\n\n    \"\"\"\n\n    Implement your algorithm here.\n\n\n    Returns\n\n    -------\n\n    path : list of (col, row) tuples\n\n    The sequence of sectors CRUDY-1 visits, ending at an exit.\n\n    collected : list of (col, row) tuples\n\n    The supply nodes collected along the way (in order collected).\n\n    \"\"\"\n\n    from collections import deque\n\n\n    # --- Replace everything below this line with your algorithm ---\n\n    # Blah Blah Blah \u2014 this is just a placeholder to show you where to write your code.\n\n    # --- End of your algorithm ---",
+    "D1 response": ""
+  },
+  {
+    "timestamp": "2026-06-10T11:47:32.660849",
+    "A1 response": "",
+    "A2 response": "A2",
+    "A3 response": "A3",
+    "B1 response": "B1",
+    "B2 response": "B2",
+    "C1 pseudocode": "FUNCTION ember_rescue(graph: Graph, entry: Vertex,\n                      exits: Set[Vertex], supplies: Set[Vertex]) -> Path\n\n    // Initialise data structures\n\n    // Main loop\n\n    // Return the path\n\nEND FUNCTION\n\n\nFUNCTION reconstruct_path(came_from: Map, current: Vertex) -> Path\n    ...\nEND FUNCTION",
+    "C2 algorithm": "def my_algorithm(graph, entry, exit_a, exit_b, supplies):\n\n    \"\"\"\n\n    Implement your algorithm here.\n\n\n    Returns\n\n    -------\n\n    path : list of (col, row) tuples\n\n    The sequence of sectors CRUDY-1 visits, ending at an exit.\n\n    collected : list of (col, row) tuples\n\n    The supply nodes collected along the way (in order collected).\n\n    \"\"\"\n\n    from collections import deque\n\n\n    # --- Replace everything below this line with your algorithm ---\n\n    # Blah Blah Blah \u2014 this is just a placeholder to show you where to write your code.\n\n    # --- End of your algorithm ---",
+    "D1 response": ""
   }
 ]

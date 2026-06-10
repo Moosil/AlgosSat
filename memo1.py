@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.23.6"
-app = marimo.App(width="medium")
+__generated_with = "0.23.9"
+app = marimo.App(width="medium", app_title="Memo1", css_file="custom.css")
 
 
 @app.cell
@@ -11,13 +11,17 @@ def _():
     import networkx as nx
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
+    import copy
 
-    return mo, mpatches, nx, plt, random
+    return copy, mo, mpatches, nx, plt, random
 
 
 @app.cell
-def _(mpatches, nx, plt, random, seed_input):
+def _(copy, mpatches, nx, plt, random, seed_input):
     class GraphDrawer:
+        def __init__(self) -> None:
+            self.graph, self.entry, self.exit_a, self.exit_b, self.supplies = self._get_facility(seed_input.value)
+
         def _neighbours(self, cols, rows, c, r):
             for dc, dr in [(1,0),(-1,0),(0,1),(0,-1)]:
                 nc, nr = c+dc, r+dr
@@ -44,12 +48,33 @@ def _(mpatches, nx, plt, random, seed_input):
             for c in range(cols):
                 for r in range(rows):
                     if not visited[c][r]:
-                        for nc, nr in _neighbours(cols, rows, c, r):
+                        for nc, nr in self._neighbours(cols, rows, c, r):
                             if visited[nc][nr]:
                                 graph.add_edge((c, r), (nc, nr), weight=1)
                                 carve(c, r)
                                 break
             return graph
+
+        def get_abstracted_graph(self) -> nx.Graph:
+            res = copy.deepcopy(self.graph)
+            for u, d in self.graph.degree:
+                if d == 2 and u not in self.supplies and u not in {self.exit_a, self.exit_b, self.entry}:
+                    n0 = list(res.neighbors(u))[0]
+                    n1 = list(res.neighbors(u))[1]
+                    w = res.get_edge_data(u, n0)["weight"] + res.get_edge_data(u, n1)["weight"]
+                    res.remove_node(u)
+                    res.add_edge(n0, n1, weight=w)
+            return res
+
+        def get_path_from_super_path(self, path: list) -> list:
+            res = []
+            for i in range(len(path) - 1):
+                for n in nx.shortest_path(self.graph, source=path[i], target=path[i + 1], weight="weight"):
+                    res.append(n)
+                res.pop()
+            res.append(path[-1])
+            return res
+
 
         def _place_supplies(self, graph, cols, rows, rng, reserved):
             dead_ends = [n for n in graph.nodes
@@ -185,8 +210,7 @@ def _(mpatches, nx, plt, random, seed_input):
 
         def draw_facility(self, seed, highlight_path=None, title="Facility Layout",
                           node_colors=None,  supply_collected=None,figsize=(8, 8)):
-            _graph, _entry, _exit_a, _exit_b, _supplies = self._get_facility(seed_input.value)
-            return self._draw_facility(_graph, _entry, _exit_a, _exit_b, _supplies)
+            return self._draw_facility(self.graph, self.entry, self.exit_a, self.exit_b, self.supplies, highlight_path=None, title="Facility Layout", node_colors=None,  supply_collected=None,figsize=(8, 8))
 
     facility_drawer = GraphDrawer()
     return (facility_drawer,)
@@ -553,8 +577,128 @@ def _(mo):
 
 
 @app.cell
-def _(facility_drawer, seed_input):
-    facility_drawer.draw_facility(seed_input.value)
+def python_impl(mo):
+    _impl_code_viewer: mo.md
+    with open("memo1_algorithm.py","r") as f:
+        _python_code = f.read()
+        _impl_code_viewer = mo.md("```python\n" + _python_code + "\n```")
+
+    _impl_code_viewer
+    return
+
+
+@app.cell
+def algorithm_explorer_controls(facility_drawer, mo):
+    import memo1_algorithm
+
+    def _get_matrix(data: list[list[str | list]]) -> str:
+        return rf"""$$\text{{res}}_{{\text{{distances}}}} = \begin{{bmatrix}}
+                {r"\\".join(" & ".join([i if i  else str(len(i)) for i in j]) for j in data)}
+                \end{{bmatrix}}$$"""
+
+    def _get_list(data: list) -> str:
+        return r"\{" + ",".join(data) + r"\}"
+
+    def _get_highlighted_pseudocode(pseudocode: str, line: int) -> str:
+        splits = pseudocode.split("\n")
+        return "\n".join(splits[:line + 1]) + "\n" + splits[line + 1] + " <--\n" + "\n".join(splits[line + 2:])
+
+    class AlgorithmState:
+        def __init__(self, g) -> None:
+            self._pseudocode = """```\nFUNCTION some_pairs_shortest_path(...) -> ...
+            res <- empty Map
+            FOR EACH source IN sources DO
+                    paths <- dijkstra(G, source, sinks)
+                    FOR EACH sink IN sinks DO
+                            res[source][sink] <- paths[sink]
+                    END FOR
+            END FOR
+            RETURN res
+    END FUNCTION\n```"""
+            self.function = "some_pairs_shortest_path"
+            self.line = 0
+            self.pseudocode = _get_highlighted_pseudocode(self._pseudocode, self.line)
+            self.data = {"graph": g, "sources": [facility_drawer.entry] + facility_drawer.supplies, "sinks": [facility_drawer.exit_a, facility_drawer.exit_b] + facility_drawer.supplies}
+
+        def next(self) -> AlgorithmState:
+            match self.function:
+                case "some_pairs_shortest_path":
+                    match self.line:
+                        case 0:
+                            self.data["res"] = [[r"\infty" if i != j else "0" for j in range(8)] for i in range(8)]
+
+                            self.line += 1
+                        case 1:
+                            self.data["source"] = self.data.get("source", -1) + 1
+                            if len(self.data["sources"]) > 0:
+                                self.line += 1
+                            else:
+                                self.line = 7
+                        case 2:
+                            self.data["paths"] = memo1_algorithm.dijkstra(self.data["graph"], self.data["sources"][self.data["source"]], self.data["sinks"])
+                            self.line += 1
+                        case 3:
+                            self.data["sink"] = self.data.get("sink", -1) + 1
+                            if len(self.data["sinks"]) > 0:
+                                self.line += 1
+                            else:
+                                self.line = 6
+                        case 4:
+                            self.data["res"][self.data["source"]][self.data["sink"]] = self.data["paths"][self.data["sinks"][self.data["sink"]]]
+                            self.line += 1
+                        case 5:
+                            self.line += 1
+                        case 6:
+                            if self.data["sink"] < len(self.data["sinks"]):
+                                self.line = 4
+                            else:
+                                self.line += 1
+                        case 7:
+                            if self.data["source"] < len(self.data["sources"]):
+                                self.line = 2
+                            else:
+                                self.line += 1
+                        case 8:
+                            prev = self.data["prev"]
+                            self.function = prev.function
+                            self.line = prev.line
+                            self._pseudocode = prev._pseudocode
+                            self.pseudocode = prev.pseudocode
+                            self.data = prev.data
+
+            match self.function:
+                case "some_pairs_shortest_path":
+                    self.data["matrix_latex"] = _get_matrix(self.data["res"])
+
+
+            self.pseudocode = _get_highlighted_pseudocode(self._pseudocode, self.line)
+            return self
+
+    next_button = mo.ui.button(on_click=lambda v: v.next(), label="Next", value=AlgorithmState(facility_drawer.get_abstracted_graph()))
+    next_button
+    return (next_button,)
+
+
+@app.cell(hide_code=True)
+def _(facility_drawer, mo, next_button, seed_input):
+    class AlgorithmVisualiser:
+        def __init__(self) -> None:
+            self.pseudocode_viewer = mo.md(next_button.value.pseudocode)
+            self.shortest_path_matrix = mo.md(next_button.value.data.get("matrix_latex", r"$\text{res}_{\text{distances}} = \text{not defined}$"))
+
+            self.facility_viewer = facility_drawer.draw_facility(seed_input.value)
+
+            self.tabs = mo.ui.tabs({
+                "Some Pairs Shortest Paths": mo.vstack([self.facility_viewer, self.pseudocode_viewer, self.shortest_path_matrix]),
+                "Brute-Force Super-Path": mo.vstack([self.facility_viewer, self.pseudocode_viewer]),
+                "Reconstruct Path": mo.vstack([self.facility_viewer, self.pseudocode_viewer])
+            }, on_change=lambda tab_name: _vis.jump_to(tab_name))
+
+    _vis = AlgorithmVisualiser()
+
+    _title = mo.md("Algorithm Tracer")
+
+    _vis.tabs
     return
 
 

@@ -16,6 +16,14 @@ def _():
     return copy, mo, mpatches, nx, plt, random
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <mark></mark>
+    """)
+    return
+
+
 @app.cell
 def _(copy, mpatches, nx, plt, random, seed_input):
     class GraphDrawer:
@@ -301,13 +309,18 @@ def _(mo):
     - $\text{is\_empty}: \text{List} \to \text{Boolean}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
 
+    ### Array
+    - $\text{set}: \text{Array} \times \mathbb{Z}^+ \times \text{Item} \to \text{List}$
+    - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
+    - $\text{length}:\text{List} \to \mathbb{Z}^+$
+
     ## Algorithm
 
     ### Worded defintion
-    Given Graph $G = (V, E, w)$, vertex $v_e \in V$, Set of vertices $V_x \subseteq V$, Set of vertices $V_s \subseteq V$, Map $M_s: V \to \text{string or null}$, and Set $S$, return $W$
+    Given Graph $G = (V, E, w)$, vertex $v_e \in V$, Set of vertices $V_x \subseteq V$, Set of vertices $V_s \subseteq V$, Map $M_s: V \to \text{string or null}$, Set $S$ and Array $A$, return $W \times A_1$
 
     ### Signature specification
-    $G \times v_e \times V_x \times V_s \times M_s \times S \to W$
+    $G \times v_e \times V_x \times V_s \times M_s \times S \times A \to W \times A_1$
 
     ### Output Constraints
 
@@ -353,6 +366,13 @@ def _(mo):
 
     A set allows for fast checking of containing, which is important because CRUDY-1 must quickly evaluate if a supply unit should be collected (or if it has already previously been collected).
 
+    #### $A$
+
+    What does it model?
+    Array $A$ models CRUDY-1's limited supply unit storage
+
+    An array has fixed size, like CRUDY-1's supply unit storage.
+
     #### $W$
 
     List $W$ abstracts valid movement on the facility, and is a walk on $G$
@@ -364,6 +384,7 @@ def _(mo):
     ### Salient features
     - **Junctions** and **crossroads** in the facility. Each represent a decision point. These are modelled as vertices in $G$
     - Entry and exit points. The entry point represents where CRUDY-1 starts and exit points represent where it must end. These are modelled as vertices in $G$.
+
     ### Non-salient features
     - **Dead-ends**  and **corridors** without supply units in the facility. **Dead-ends** will never be traversed to as they cannot lead to exits or supply units, which are the only two sectors CRUDY-1 has a need to traverse. **Tunnels** connect two **salient sectors**, and can be thus modelled with the weight map $w$, increasing the cost of traversing the edge between those two **salient sectors**. Abstracting away tunnels reduces all non-salient **corridors**
     - As CRUDY-1 traverses the facility, its position is not stored as the facility layout is known and will not change due to the structural stability
@@ -387,7 +408,7 @@ def _(mo):
 
     For this facility, an adjacency list would be more compact
 
-    ### NetworkX signature specifications → Python[^3]
+    ### NetworkX signature specifications → Pythonc
     - `Graph.add_node(node_for_adding, **attr)` is an operation synonymous of the `add_vertex` function
     - `Graph.add_edge(u_of_edge, v_of_edge, **attr)` is an operation synonymous of the `add_edge` function (using `Graph.add_edge(u, v, weight=w`))
     - `Graph.remove_node(n)` is an operation synonymous of the `remove_vertex` function
@@ -421,25 +442,51 @@ def _(mo):
 
     ### Pseudocode
     ```
+    FUNCTION swap(L: List, i: postive interger, j: positive interger) -> List
+        res <- L
+        res[i] <- L[j]
+        res[j] <- L[i]
+        return res
+    END FUNCTION
+
+    FUNCTION reverse(L: List) -> List
+        res <- L
+        FOR i <- 1 to ceil(length(L) / 2) DO
+            res <- swap(res, i, length(L) - i)
+        END FOR
+        RETURN res
+    END FUNCTION
+
+    FUNCTION reconstruct_path(came_from: Map[Vertex, Vertex], e: Vertex) -> List[Vertex]
+        res <- empty List
+        curr <- e
+        WHILE has(came_from, curr) DO
+    	    push(res, curr)
+    	    curr <- came_from[curr]
+    	END WHILE
+    	return reverse(res)
+    END FUNCTION
+
     FUNCTION dijkstra(G: Graph, source: Vertex, sinks: Set[Vertex]) -> Map[Vertex, List[Vertex]]
-    	res <- empty List for all s in sinks
-    	dist <- infinity for all v in G
+    	res <- Map with empty List FOR EACH s in sinks
+    	dist <- ∞ FOR EACH v in G
     	dist[source] <- 0
     	prev <- empty Map
     	pq <- priority queue containing all vertices keyed by dist
     	WHILE pq is not empty DO
     		u <- extractMin(pq)
     		IF u in targets THEN
-    			res[u] <- reconstruct_path(prev, u)
-    			IF |res| = |sinks| THEN
+    			res[u] <- list with source then reconstruct_path(prev, u)
+    			IF size(res) = res(sinks) THEN
     				RETURN res
     			END IF
     		END IF
-    		FOR EACH (u, v, w) IN get_neighbours(G, u) DO
+    		FOR EACH v IN get_neighbours(G, u) DO
+                w <- get_edge_weight(u, v)
     			IF dist[u] + w < dist[v] THEN
     				prev[v] <- u
     				dist[v] <- dist[u] + w
-    				update(PQ, v)
+    				update(pq, v)
     			END IF
     		END FOR
     	RETURN res
@@ -448,23 +495,23 @@ def _(mo):
     FUNCTION some_pairs_shortest_path(G: Graph, sources: Set[Vertex], sinks: Set[Vertex]) -> Map[Vertex, Map[Vertex, List[Vertex]]]
     	res <- empty Map
     	FOR EACH source IN sources DO
-    		paths <- dijkstra(G, source, sinks)
-    		FOR EACH sink IN sinks DO
+    		paths <- dijkstra(G, source, difference(sinks, {source}))
+    		FOR EACH sink IN difference(sinks, {source}) DO
     			res[source][sink] <- paths[sink]
     		END FOR
     	END FOR
     	RETURN res
     END FUNCTION
 
-    FUNCTION get_path_length(G: Graph, path: List[Vertex]) -> positive interger:
+    FUNCTION get_path_length(G: Graph, path: List[Vertex]) -> positive interger or 0
     	res <- 0
     	FOR i <- 1 TO length(path) - 1 DO
-    		res <- res + G.get_edge_weight(path[i], path[i + 1])
+    		res <- res + get_edge_weight(G, path[i], path[i + 1])
     	END FOR
     	RETURN res
     END FUNCTION
 
-    FUNCTION get_pairs_path_distances(G: Graph, pair_path_map: Map[Vertex, Map[Vertex, List[Vertex]]]) -> Map[Vertex, Map[Vertex, positive interger]]
+    FUNCTION get_pairs_path_distances(G: Graph, pair_path_map: Map[Vertex, Map[Vertex, List[Vertex]]]) -> Map[Vertex, Map[Vertex, positive interger or 0]]
     	res <- empty Map
     	FOR EACH (key_0, value_0) IN pair_path_map DO
     		FOR EACH (key_1, value_1) IN value_0 DO
@@ -474,11 +521,19 @@ def _(mo):
     	RETURN res
     END FUNCTION
 
-    FUNCTION get_unfound_supplies(V_s: Set[Vertex], M_s: Map[Vertex, String OR NULL], S: Set[String]) -> Set[Vertex]:
+    FUNCTION get_set(arr: Array) -> Set
+        res <- empty set
+        FOR EACH a IN arr DO
+            add(res, a)
+        END FOR
+        return res
+    END FUNCTION
+
+    FUNCTION get_unfound_supplies(V_s: Set[Vertex], M_s: Map[Vertex, String OR NULL], S: Set[String], A: Array[String]) -> Set[Vertex]
     	res <- empty set
 
     	FOR EACH supply IN V_s DO
-    		IF M_s[S] isn't NULL and M_s[S] NOT IN S THEN
+    		IF has(M_s, supply) and M_s[supply] is not NULL and not element_of(S, M_s[supply]) and not element_of(S, get_set(A)) THEN
     			add(res, supply)
     		END IF
     	END FOR
@@ -486,11 +541,28 @@ def _(mo):
     	RETURN res
     END FUNCTION
 
-    FUNCTION generate_permutations(L: List) -> List[List]:
+    FUNCTION get_sublist(L: List, i) -> List[List]
+        res <- empty List
+        FOR j <- 1 TO i - 1 DO
+            push(res, L[j])
+        END FOR
+        FOR j <- i + 1 TO length(L) DO
+            push(res, L[j])
+        END FOR
+        push(res, res)
+        return res
+    END FUNCTION
+
+    FUNCTION generate_permutations(L: List, len_left: positive interger or 0) -> List[List[Vertex]]
+        IF len_left == 0 THEN
+            RETURN empty List
+        END IF
+
     	res <- empty List
-    	FOR EACH item IN L DO
-    		sublist <- L without item
-    		FOR EACH perm IN generate_permutations(sublist) DO
+    	FOR i <- 1 TO length(L) DO
+            item <- L[i]
+    		sublist <- get_sublist(L, i)
+    		FOR EACH perm IN generate_permutations(sublist, len_left - 1) DO
     			curr <- List with item
     			FOR EACH perm_item IN perm DO
     				push(curr, perm_item)
@@ -501,14 +573,14 @@ def _(mo):
     	RETURN res
     END FUNCTION
 
-    FUNCTION brute_force(G: Graph, v_e: Vertex, V_s: Set[Vertex], V_x: Set[Vertex], pair_path_map: Map[Vertex, Map[Vertex, List[Vertex]]]) -> List[Vertex]
+    FUNCTION brute_force(G: Graph, v_e: Vertex, V_s: Set[Vertex], V_x: Set[Vertex], pair_path_map: Map[Vertex, Map[Vertex, List[Vertex]]], max_supplies: positive interger or 0) -> List[Vertex]
 
     	pair_path_cost_map <- get_pairs_path_distances(G, pair_path_map)
 
     	min_cost_found <- infinity
     	min_cost_walk <- null
 
-    	FOR EACH permutation IN generate_permutations(List with the items in V_s)
+    	FOR EACH permutation IN generate_permutations(List with the items in V_s, max_supplies)
     		cost <- pair_path_cost_map[v_e][permutation[1]]
     		FOR i <- 1 IN length(permutation) DO
     			cost <- cost + pair_path_cost_map[permutation[i]][permutation[i + 1]]
@@ -538,13 +610,25 @@ def _(mo):
     	return min_cost_walk
     END FUNCTION
 
+    FUNCTION get_not_null_length(arr: Array) -> positive interger or 0
+        res <- 0
+        FOR EACH a in arr DO
+            IF a isn't NULL THEN
+                res <- res + 1
+            END IF
+        END FOR
+        return res
+    END FUNCTION
+
     FUNCTION ember_rescue(G: Graph, v_e: Vertex, V_x: Set[Vertex], V_s: Set[Vertex], M_s: Map[Vertex, String], A: Array[Vertex, size:5], S: Set[String]) -> List[Vertex]
 
-    	unfound_supplies <- get_unfound_supplies(V_s, M_s, S)
+    	unfound_supplies <- get_unfound_supplies(V_s, M_s, S, A)
 
-    	pairs_paths <- some_pairs_shortest_path(G, unfound_supplies union {v_e}, unfound_supplies union V_x)
+    	pairs_paths <- some_pairs_shortest_path(G, union(unfound_supplies, {v_e}), union(unfound_supplies, V_x))
 
-    	super_path <- brute_force(G, v_e, unfound_supplies, V_x, pairs_paths)
+        num_supplies_carrying <- get_not_null_length(A)
+
+    	super_path <- brute_force(G, v_e, unfound_supplies, V_x, pairs_paths, 5 - num_supplies_carrying)
 
     	res <- empty List
 
@@ -558,16 +642,6 @@ def _(mo):
 
     	return res
 
-    END FUNCTION
-
-    FUNCTION reconstruct_path(came_from: Map, e: Vertex) -> List[Vertex]
-        res <- empty List
-        curr <- e
-        WHILE has(came_from, curr) DO
-    	    push(res, curr)
-    	    curr <- came_from[curr]
-    	END WHILE
-    	return reverse(res)
     END FUNCTION
     ```
 
@@ -593,7 +667,7 @@ def algorithm_explorer_controls(facility_drawer, mo):
 
     def _get_matrix(data: list[list[str | list]]) -> str:
         return rf"""$$\text{{res}}_{{\text{{distances}}}} = \begin{{bmatrix}}
-                {r"\\".join(" & ".join([i if i  else str(len(i)) for i in j]) for j in data)}
+                {r"\\".join(" & ".join((i if type(i) == str else str(len(i))) for i in j) for j in data)}
                 \end{{bmatrix}}$$"""
 
     def _get_list(data: list) -> str:
@@ -680,7 +754,15 @@ def algorithm_explorer_controls(facility_drawer, mo):
 
 
 @app.cell(hide_code=True)
-def _(facility_drawer, mo, next_button, seed_input):
+def _(mo):
+    mo.md(r"""
+    ### Algorithm Explorer
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def algorithm_explorer(facility_drawer, mo, next_button, seed_input):
     class AlgorithmVisualiser:
         def __init__(self) -> None:
             self.pseudocode_viewer = mo.md(next_button.value.pseudocode)
@@ -699,6 +781,108 @@ def _(facility_drawer, mo, next_button, seed_input):
     _title = mo.md("Algorithm Tracer")
 
     _vis.tabs
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Justification
+
+    ### Suitability
+    - There is a constant number of supplies, entrances and exits in the facility
+    - This causes the algorithm's time complexity only to scale with the dijkstra's step: $|V|\log|V|$
+    - The facilities size: 12x12 sectors means that max number of vertices in abstraction is 144 and this small size favours an algorithm that is easier to implement
+    - Since the algorithm always finds the shortest route that collects all supplies to an exit, an edge case would be the seed that gives the worst facility for the algorithm
+    - Assumptions removed that will cause need for changes:
+      - Facility isn't full connected
+      - Facility sector adjacency becomes directed and $G$ isn't a fully connected component
+      - Supply units have weight and CRUDY-1 should avoid carrying too many
+      - Supply units have non-uniform weight
+      - Facility isn't fully known when algorithm starts
+      - More than 5 supplies (algorithm time grows quickly with supplies)
+      - More drones
+      - Sectors that break when you go through them (CRUDY-1 cannot revisit)
+      - Many other things
+
+    ### Coherance
+    - I use $\text{get\_neighbours}: \text{Graph} \times \text{Vertex} \to \text{Vertex}$ in the dijkstra's algorithm implementation in the algorithm to get the neighbours of the current visited vertex
+    - I use $\text{has}: \text{Map} \times \text{Key} \to \text{Boolean}$ to reconstruct the shortest paths found by dijkstra's algorithm
+    - My pseudocode prefers square bracket notation to the ADT $\text{get}$ operation in Map and Array
+
+    ### Operational Constraints
+    - Load capacity: $A$ holds the supplies that CRUDY-1 currently holds
+    - Extraction: The algorithm always terminates at an exit (proved below)
+    - Energy budget: The algorithm always finds a minimum cost walk through the facility that collects all supplies and exits at an exit
+    - Revisiting sectors: N/A (not a constraint)
+    - Supply collection: $\text{get\_unfound\_supplies}: \text{Set}[\text{Vertex}] \times \{\text{Vertex} \to \text{String or NULL}\} \times Set[String] \to \text{Set}[\text{Vertex}]$ makes sure CRUDY-1 ignores already collected supplies
+    - Objective: All supplies will be collected (proved below) and there are no energy constraints
+    - Mission Directive:
+      - The algorithm does not care about structural stability, as it will cross over a sector at most 3 times (proved below)
+      - The algorithm will always have a successful extraction if one exists.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Proofs
+    ### Time complexity
+    I will analyse each functions' time complexity in order to find the overall complexity
+
+    #### $\text{swap}: \text{List} \to \text{List}$
+    Trivially $T(n) = O(1) = \Omega(1) = \Theta(1)$
+
+    #### $\text{reverse}: \text{List} \to \text{List}$
+    For $L$ being the List input and $n = |L|$,
+
+    Calls `swap` $\lceil{\frac{n}{2}}\rceil$ times $\therefore T(n) \frac{n}{2} = O(n) = \Omega(n) = \Theta(n)$
+
+    #### $\text{reconstruct\_path}: \text{Map}[\text{Vertex}, \text{Vertex}] \times \text{Vertex} \to \text{List}[\text{Vertex}]$
+
+    For $M$ being the Map input and $n = |keys(M)|$,
+
+    Calls $O(1)$ operations up to $n$ times, then `reverse` with $n = n \\ \therefore T(n) = O(n) = \Omega(n) = \Theta(1)$
+
+    #### $\text{dijkstra}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \to \text{Map}[\text{Vertex}, \text{List}[\text{Vertex}]]$
+
+    For $G = (V, E)$ being the graph input, $n = |V|, m = |E|$, and $S$ being the third input and $s = |S|$,
+
+    Creates a priority queue with $n$ elements, changes priorities in this pq at most $n^2$ times, removes from this priority queue at most $n$ times, and calls `reconstruct_path` $|S|$ times
+
+    $\therefore T(n) = n^2 \log n + n \log n + n + ns = O((m + n^2) \log n + ns) = \Omega((m + n) \log n + ns) = \Theta((m + n) \log n + s)$
+
+    #### $\text{some\_pairs\_shortest\_path}: \text{Graph} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \to \text{Map}[\text{Vertex}, \text{Map}[\text{Vertex}, \text{List}[\text{Vertex}]]]$
+
+    For $G = (V, E)$ being the graph input, $n = |V|, m = |E|$, $S_0$ being the first set input, $s_0 = |S_0|$, and $S_1$ being the second set input, $s_1 = |S_1|$,
+
+    Calls `dijkstra` $s_0$ times with $n = n, m = m, s = s_1 - 1$, then adds the return value to return value $s_0 (s_1 - 1)$ times
+
+    $\therefore T(n) = s_0(n^2 \log n + n \log n + n + n(s_1 - 1) + s_1 - 1) = O(s_0((m + n^2) \log n + n s_1)) = \Omega(s_0((m + n) \log n + n s_1)) = \Theta(s_0((m + n) \log n + n s_1))$
+
+    #### $\text{get\_path\_length}: \text{Graph} \times \text{List}[\text{Vertex}] \to \mathbb{Z}^+ \cup \{0\}$
+
+    $P$ being the list input, $n = |P|$,
+
+    Calls `get_edge_weight` $n$ times
+
+    $\therefore T(n) = n = O(n) = \Omega(n) = \Theta(n)$
+
+    #### $\text{get\_pairs\_path\_distances}: \text{Graph} \times \text{Map}[\text{Vertex}, \text{Map}[\text{Vertex}, \text{List}[\text{Vertex}]]] \to \text{Map}[\text{Vertex}, \text{Map}[\text{Vertex}, \mathbb{Z}^+ \cup \{0\}]]$
+
+    For $G = (V, E)$ being the graph input, $n = |V|, m = |E|$,
+
+    Calls `get_path_length` $n^2$ times with $n <= n$
+
+    $\therefore T(n) = n^3 = O(n^3) = \Omega(n^3) = \Theta(n^3)$
+
+    ### Space complexity
+
+    ### Correctness
+
+    ### Optimality
+    """)
     return
 
 

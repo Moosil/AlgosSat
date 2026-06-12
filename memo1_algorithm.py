@@ -1,11 +1,13 @@
 import heapq
-import itertools
 from collections import defaultdict
 
 import networkx as nx
 
+class VertexT:
+	pass
 
-def reconstruct_path(came_from: dict, e) -> list:
+
+def reconstruct_path(came_from: dict[VertexT, VertexT], e: VertexT) -> list:
 	res = []
 	curr = e
 	while curr in came_from:
@@ -14,15 +16,17 @@ def reconstruct_path(came_from: dict, e) -> list:
 	res.reverse()
 	return res
 
-def dijkstra(g: nx.Graph, source, sinks: set):
+def dijkstra(g: nx.Graph, source: VertexT, sinks: set[VertexT]) -> dict[VertexT, list[VertexT]]:
 	res = {}
 	dist = {s: float('infinity') for s in g}
 
 	dist[source] = 0
+
+	# visited set replaced update(PQ, v)
 	visited = set()
 
 	prev = {}
-	pq = [(0, source)]
+	pq = [(0., source)]
 	heapq.heapify(pq)
 	while len(pq) > 0:
 		_, u = heapq.heappop(pq)
@@ -46,7 +50,7 @@ def dijkstra(g: nx.Graph, source, sinks: set):
 
 	return res
 
-def some_pairs_shortest_path(g: nx.Graph, sources: set, sinks: set) -> dict:
+def some_pairs_shortest_path(g: nx.Graph, sources: set[VertexT], sinks: set[VertexT]) -> dict[VertexT, dict[VertexT, list[VertexT]]]:
 	res = defaultdict(dict)
 	for source in sources:
 		paths = dijkstra(g, source, sinks.difference({source}))
@@ -55,10 +59,10 @@ def some_pairs_shortest_path(g: nx.Graph, sources: set, sinks: set) -> dict:
 
 	return res
 
-def get_path_length(g: nx.Graph, path: list) -> int:
+def get_path_length(g: nx.Graph, path: list[VertexT]) -> int:
 	return sum(g.get_edge_data(path[i], path[i + 1])["weight"] for i in range(len(path) - 2))
 
-def get_pairs_path_distances(g: nx.Graph, pair_path_map: dict) -> dict:
+def get_pairs_path_distances(g: nx.Graph, pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> dict[VertexT, dict[VertexT, int]]:
 	res = defaultdict(dict)
 	for key_0, value_0 in pair_path_map.items():
 		for key_1, value_1 in value_0.items():
@@ -66,23 +70,39 @@ def get_pairs_path_distances(g: nx.Graph, pair_path_map: dict) -> dict:
 
 	return res
 
-def get_unfound_supplies(supplies: set, supply_id: dict, collected_supplies: set[str]) -> set:
+def get_unfound_supplies(supplies: set[VertexT], supply_id: dict[VertexT, str], collected_supplies: set[str], supply_storage: list[str]) -> set[VertexT]:
 	res = set()
 	for supply in supplies:
-		if supply_id[supply] is not None and supply_id[supply] not in collected_supplies:
+		curr_id = supply_id.get(supply, None)
+		if curr_id is not None and curr_id not in collected_supplies and curr_id not in supply_storage:
 			res.add(supply)
 
 	return res
 
-def generate_permutations(items):
-	return itertools.permutations(items)
+def generate_permutations(items: list, len_left: int) -> list[list]:
+	if len(items) == 1 and len_left >= 1:
+		return [items]
+	if len_left == 1:
+		res = []
+		for i in items:
+			res.append([i])
+		return res
 
-def brute_force(g: nx.Graph, v_e, sources: set, exits: set, pair_path_map: dict) -> list:
+	res = []
+	for i in range(len(items)):
+		item = items[i]
+		sublist = [items[j] for j in range(len(items)) if j != i]
+		for perm in generate_permutations(sublist, len_left - 1):
+			res.append([item] + perm)
+
+	return res
+
+def brute_force(g: nx.Graph, v_e: VertexT, sources: set[VertexT], exits: set[VertexT], pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]], max_supplies: int) -> list[VertexT]:
 	pair_path_cost_map = get_pairs_path_distances(g, pair_path_map)
 	min_cost_found = float('infinity')
 	min_cost_walk = None
-	for permutation in generate_permutations(sources):
-		cost = pair_path_cost_map[v_e][permutation[1]] + \
+	for permutation in generate_permutations(list(sources), max_supplies):
+		cost = pair_path_cost_map[v_e][permutation[0]] + \
 			sum(pair_path_cost_map[permutation[i]][permutation[i + 1]] for i in range(len(permutation) - 1))
 
 		min_exit_cost = float('infinity')
@@ -99,12 +119,14 @@ def brute_force(g: nx.Graph, v_e, sources: set, exits: set, pair_path_map: dict)
 			min_cost_found = cost + min_exit_cost
 	return min_cost_walk
 
-def ember_rescue(g: nx.Graph, v_e, exits: set, supplies: set, supply_id: dict, collected_supplies: set[str]) -> list:
-	unfound_supplies = get_unfound_supplies(supplies, supply_id, collected_supplies)
+def ember_rescue(g: nx.Graph, v_e: VertexT, exits: set[VertexT], supplies: set[VertexT], supply_id: dict[VertexT, str], supply_storage: list[str], collected_supplies: set[str]) -> list[VertexT]:
+	unfound_supplies = get_unfound_supplies(supplies, supply_id, collected_supplies, supply_storage)
 
 	pairs_paths = some_pairs_shortest_path(g, unfound_supplies.union({v_e}), unfound_supplies.union(exits))
 
-	super_path = brute_force(g, v_e, unfound_supplies, exits, pairs_paths)
+	num_supplies_carrying = len([i for i in supply_storage if i is not None])
+
+	super_path = brute_force(g, v_e, unfound_supplies, exits, pairs_paths, 5 - num_supplies_carrying)
 
 	res = []
 

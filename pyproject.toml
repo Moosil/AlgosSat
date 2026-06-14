@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.14"
 dependencies = [
+    "manim>=0.20.1",
+    "manim-slides>=5.6.0",
     "marimo>=0.23.4",
     "matplotlib>=3.10.9",
     "networkx>=3.6.1",

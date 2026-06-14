@@ -206,13 +206,14 @@ class GraphDrawer:
 
 facility_drawer = GraphDrawer()
 
-res = memo1_algorithm.ember_rescue(facility_drawer.get_abstracted_graph(), facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), {i: str(i) for i in facility_drawer.supplies}, list(), set())
+if __name__ == "__main__":
+    res = memo1_algorithm.ember_rescue(facility_drawer.get_abstracted_graph(), facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), {i: str(i) for i in facility_drawer.supplies}, list(), set())
 
-print(f"super path: {res}")
-print(f"len of super path: {len(res)}")
-print(f"super path: {facility_drawer.get_path_from_super_path(res)}")
-print(f"len of super path: {len(facility_drawer.get_path_from_super_path(res)   )}")
+    print(f"super path: {res}")
+    print(f"len of super path: {len(res)}")
+    print(f"super path: {facility_drawer.get_path_from_super_path(res)}")
+    print(f"len of super path: {len(facility_drawer.get_path_from_super_path(res)   )}")
 
-print(f"entry: {facility_drawer.entry}")
-print(f"exit_a: {facility_drawer.exit_a}")
-print(f"exit_b: {facility_drawer.exit_b}")
+    print(f"entry: {facility_drawer.entry}")
+    print(f"exit_a: {facility_drawer.exit_a}")
+    print(f"exit_b: {facility_drawer.exit_b}")

@@ -80,6 +80,8 @@ def get_unfound_supplies(supplies: set[VertexT], supply_id: dict[VertexT, str], 
 	return res
 
 def generate_permutations(items: list, len_left: int) -> list[list]:
+	if len(items) == 0 or len_left == 0:
+		return []
 	if len(items) == 1 and len_left >= 1:
 		return [items]
 	if len_left == 1:
@@ -101,7 +103,16 @@ def brute_force(g: nx.Graph, v_e: VertexT, sources: set[VertexT], exits: set[Ver
 	pair_path_cost_map = get_pairs_path_distances(g, pair_path_map)
 	min_cost_found = float('infinity')
 	min_cost_walk = None
-	for permutation in generate_permutations(list(sources), max_supplies):
+	permutations = generate_permutations(list(sources), max_supplies)
+	if len(permutations) == 0:
+		min_exit_cost = float('infinity')
+		min_exit = list(exits)[0]
+		for exit_vertex in exits:
+			if pair_path_cost_map[v_e][exit_vertex] < min_exit_cost:
+				min_exit = exit_vertex
+				min_exit_cost = pair_path_cost_map[v_e][exit_vertex]
+		return [v_e, min_exit]
+	for permutation in permutations:
 		cost = pair_path_cost_map[v_e][permutation[0]] + \
 			sum(pair_path_cost_map[permutation[i]][permutation[i + 1]] for i in range(len(permutation) - 1))
 
@@ -122,7 +133,7 @@ def brute_force(g: nx.Graph, v_e: VertexT, sources: set[VertexT], exits: set[Ver
 def ember_rescue(g: nx.Graph, v_e: VertexT, exits: set[VertexT], supplies: set[VertexT], supply_id: dict[VertexT, str], supply_storage: list[str], collected_supplies: set[str]) -> list[VertexT]:
 	unfound_supplies = get_unfound_supplies(supplies, supply_id, collected_supplies, supply_storage)
 
-	pairs_paths = some_pairs_shortest_path(g, unfound_supplies.union({v_e}), unfound_supplies.union(exits))
+	pairs_paths = some_pairs_shortest_path(g, unfound_supplies.union({v_e}), unfound_supplies.union(exits).union({v_e}))
 
 	num_supplies_carrying = len([i for i in supply_storage if i is not None])
 

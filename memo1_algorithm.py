@@ -31,7 +31,7 @@ def dijkstra(g: nx.Graph, source: VertexT, sinks: set[VertexT]) -> dict[VertexT,
 	while len(pq) > 0:
 		_, u = heapq.heappop(pq)
 
-		# required for the python heapq that:esn't allow changing priority
+		# required for the python heapq that doesn't allow changing priority
 		if u in visited:
 			continue
 		visited.add(u)

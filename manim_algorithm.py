@@ -1,7 +1,7 @@
 import heapq
 
 from manim import *
-from manim.utils.rate_functions import ease_out_quart, ease_in_quart
+import manim.utils.rate_functions
 from manim_slides.slide import *
 
 from memo1_algorithm_test import GraphDrawer
@@ -66,12 +66,14 @@ def get_square(x, y, scale=1.):
 def pq_len(pq: list) -> int:
     return len(set(pq))
 
+
 def get_mobj_edge(g: Graph, u, v):
     if (u, v) in g.edges:
         return u, v
     elif (v, u) in g.edges:
         return v, u
     return None
+
 
 def get_vert_name(v) -> str:
     if v == facility_drawer.entry:
@@ -86,6 +88,7 @@ def get_vert_name(v) -> str:
         return "fuck this wasn't supposed to happen"
 
 
+# noinspection PyUnresolvedReferences,PyPep8Naming
 class Memo1(Slide):
     input_supply_storage = ["s2"] + [None] * 4
     supplies = [f"s{i}" for i in range(5)]
@@ -110,7 +113,11 @@ class Memo1(Slide):
         self.wait()
         self.next_slide()
 
-        self.play_some_pairs_shortest_paths(g1, get_unfound_supplies(facility_drawer.supplies, {facility_drawer.supplies[i]: self.supplies[i] for i in range(len(facility_drawer.supplies))}, set(self.found_supplies), self.input_supply_storage))
+        self.play_some_pairs_shortest_paths(g1, get_unfound_supplies(facility_drawer.supplies,
+                                                                     {facility_drawer.supplies[i]: self.supplies[i] for
+                                                                      i in range(len(facility_drawer.supplies))},
+                                                                     set(self.found_supplies),
+                                                                     self.input_supply_storage))
 
         self.wait(10)
 
@@ -128,8 +135,8 @@ class Memo1(Slide):
             r"\}", font_size=36 * scale)
         new_fs_set.move_to(fs[2], aligned_edge=LEFT)
         self.play(Succession(
-            fs[3].animate(rate_func=ease_in_quart).move_to(fs[2], aligned_edge=LEFT),
-            ReplacementTransform(VGroup(fs[2], fs[3]), new_fs_set, rate_func=ease_out_quart)
+            fs[3].animate(rate_func=manim.utils.rate_functions.ease_in_quart).move_to(fs[2], aligned_edge=LEFT),
+            ReplacementTransform(VGroup(fs[2], fs[3]), new_fs_set, rate_func=manim.utils.rate_functions.ease_out_quart)
         ))
         fs[2] = new_fs_set
         del new_fs_set
@@ -144,8 +151,8 @@ class Memo1(Slide):
             r"\}", font_size=36 * scale)
         new_fs_vert_set.move_to(fs[1], aligned_edge=LEFT)
         self.play(Succession(
-            fs[2].animate(rate_func=ease_in_quart).move_to(fs[1], aligned_edge=LEFT),
-            ReplacementTransform(VGroup(fs[1], fs[2]), new_fs_vert_set, rate_func=ease_out_quart)
+            fs[2].animate(rate_func=manim.utils.rate_functions.ease_in_quart).move_to(fs[1], aligned_edge=LEFT),
+            ReplacementTransform(VGroup(fs[1], fs[2]), new_fs_vert_set, rate_func=manim.utils.rate_functions.ease_out_quart)
         ))
         fs[1] = new_fs_vert_set
         del new_fs_vert_set
@@ -161,8 +168,8 @@ class Memo1(Slide):
             r"\}", font_size=36 * scale)
         new_vert_set.move_to(fs[0], aligned_edge=LEFT)
         self.play(Succession(
-            fs[1].animate(rate_func=ease_in_quart).move_to(fs[0], aligned_edge=LEFT),
-            ReplacementTransform(VGroup(fs[0], fs[1]), new_vert_set, rate_func=ease_out_quart)
+            fs[1].animate(rate_func=manim.utils.rate_functions.ease_in_quart).move_to(fs[0], aligned_edge=LEFT),
+            ReplacementTransform(VGroup(fs[0], fs[1]), new_vert_set, rate_func=manim.utils.rate_functions.ease_out_quart)
         ))
         fs[0] = new_vert_set
         del new_vert_set
@@ -220,7 +227,7 @@ class Memo1(Slide):
             self.wait()
         self.next_slide()
 
-        self.play_dijkstras(g, source_mobj, sinks_mobj, source, facility_drawer.supplies[0],
+        self.play_dijkstras(g, source_mobj, new_sinks_mobj, source, facility_drawer.supplies[0],
                             unfound_supplies.difference({source}).union(
                                 {facility_drawer.exit_a, facility_drawer.exit_b}), scale, do_wait)
 
@@ -234,7 +241,8 @@ class Memo1(Slide):
             edges = None
             if prev is not None:
                 super_path_v = facility_drawer.get_path_from_super_path([prev, curr])
-                edges = [get_mobj_edge(g_mobj, super_path_v[i], super_path_v[i + 1]) for i in range(len(super_path_v) - 1)]
+                edges = [get_mobj_edge(g_mobj, super_path_v[i], super_path_v[i + 1]) for i in
+                         range(len(super_path_v) - 1)]
             if edges is not None:
                 for edge in edges:
                     reset_colours_e[edge] = g_mobj.edges[edge].get_color()
@@ -242,7 +250,7 @@ class Memo1(Slide):
             animations = []
             if edges is not None:
                 for i in range(len(edges)):
-                    rate_func = ease_in_quart if i == 0 else (ease_out_quart if i == len(edges) - 1 else linear)
+                    rate_func = manim.utils.rate_functions.ease_in_quart if i == 0 else (manim.utils.rate_functions.ease_out_quart if i == len(edges) - 1 else linear)
                     animations.append(g_mobj.edges[edges[i]].animate(run_time=.1, rate_func=rate_func).set_color(TEAL))
             animations.append(g_mobj.vertices[curr].animate(run_time=.1).set_color(TEAL))
             self.play(Succession(*animations))
@@ -274,9 +282,9 @@ class Memo1(Slide):
 
         res_mobj = MathTex(r"\text{res} := \varnothing", font_size=36 * scale).next_to(source_mobj, DOWN, .1, LEFT)
         dist_mobj = MathTex(r"\text{dist} := \{ \dots \}", font_size=36 * scale).next_to(res_mobj, DOWN, .1, LEFT)
-        prev_mobj = MathTex(r"prev := \{ \dots \}", font_size=36 * scale).next_to(dist_mobj, DOWN, .1, LEFT)
+        prev_mobj = MathTex(r"\text{prev} := \{ \dots \}", font_size=36 * scale).next_to(dist_mobj, DOWN, .1, LEFT)
         pq_mobj = MathTex(r"\text{pq} := [\ " + source_name + r"\ ]", font_size=36 * scale).next_to(prev_mobj, DOWN, .1,
-                                                                                                   LEFT)
+                                                                                                    LEFT)
         VGroup(sinks_mobj, source_mobj, res_mobj, dist_mobj, prev_mobj, pq_mobj).move_to((0, 0, 0), ORIGIN, (0, 1, 0))
 
         self.play(Write(res_mobj), Write(dist_mobj), Write(prev_mobj), Write(pq_mobj))
@@ -289,12 +297,12 @@ class Memo1(Slide):
 
         u_mobj = MathTex(r"u := " + source_name, font_size=36 * scale).next_to(pq_mobj, DOWN, .1, LEFT)
         new_pq_mobj = MathTex(r"\text{pq} := [\ ]", font_size=36 * scale).move_to(pq_mobj, aligned_edge=LEFT)
-        self.play(Succession(
-            AnimationGroup(g_mobj.vertices[u].animate.set_color(YELLOW), ReplacementTransform(pq_mobj, new_pq_mobj)),
-            AnimationGroup(Write(u_mobj),
-                           VGroup(sinks_mobj, source_mobj, res_mobj, dist_mobj, prev_mobj, new_pq_mobj, u_mobj).animate.move_to((0, 0, 0), ORIGIN,
-                                                                                              (0, 1, 0)))
-        ))
+        self.play(
+            AnimationGroup(g_mobj.vertices[u].animate.set_color(YELLOW), ReplacementTransform(pq_mobj, new_pq_mobj),
+                           Write(u_mobj)))
+        self.play(AnimationGroup(
+            VGroup(sinks_mobj, source_mobj, res_mobj, dist_mobj, prev_mobj, new_pq_mobj, u_mobj).animate.move_to(
+                (0, 0, 0), ORIGIN, (0, 1, 0))))
         pq_mobj = new_pq_mobj
         if do_wait:
             self.wait()
@@ -331,7 +339,7 @@ class Memo1(Slide):
             self.play(ReplacementTransform(u_mobj, new_u_mobj, run_time=.1))
             u_mobj = new_u_mobj
 
-            # required for the python heapq that:esn't allow changing priority
+            # required for the python heapq that doesn't allow changing priority
             if u in visited:
                 continue
             visited.add(u)
@@ -347,13 +355,16 @@ class Memo1(Slide):
                 pq_mobj = new_pq_mobj
             super_path_v = facility_drawer.get_path_from_super_path([prev[u], u])
             self.play(g_mobj.vertices[u].animate(run_time=.1).set_color(YELLOW),
-                      *[g_mobj.edges[get_mobj_edge(g_mobj, super_path_v[i+1], super_path_v[i])].animate(run_time=.1).set_color(YELLOW) for i in range(len(super_path_v) - 1)])
+                      *[g_mobj.edges[get_mobj_edge(g_mobj, super_path_v[i + 1], super_path_v[i])].animate(
+                          run_time=.1).set_color(YELLOW) for i in range(len(super_path_v) - 1)])
 
             if u in sinks:
                 res[u] = [source_vertex] + self.play_reconstruct_path(g_mobj, prev, u)
                 new_res_mobj = MathTex(r"\text{res} := \{" + ",".join(
-                    (r"v_{" + source_name + r"}: v_{" + source_name + r"} \rightsquigarrow v_{" + get_vert_name(v) + r"}" for v in
-                     res.keys())) + r"\}", font_size=36 * scale).move_to(pq_mobj, aligned_edge=LEFT)
+                    (
+                    r"v_{" + source_name + r"}: v_{" + source_name + r"} \rightsquigarrow v_{" + get_vert_name(v) + r"}"
+                    for v in
+                    res.keys())) + r"\}", font_size=36 * scale).move_to(res_mobj, aligned_edge=LEFT)
                 self.play(ReplacementTransform(res_mobj, new_res_mobj, run_time=.1))
                 res_mobj = new_res_mobj
                 if do_wait:

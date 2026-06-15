@@ -243,8 +243,8 @@ class Memo1(Slide):
             if edges is not None:
                 for i in range(len(edges)):
                     rate_func = ease_in_quart if i == 0 else (ease_out_quart if i == len(edges) - 1 else linear)
-                    animations.append(g_mobj.edges[edge].animate(run_time=.1, rate_func=rate_func).set_color(GREEN))
-            animations.append(g_mobj.vertices[curr].animate(run_time=.1).set_color(GREEN))
+                    animations.append(g_mobj.edges[edges[i]].animate(run_time=.1, rate_func=rate_func).set_color(TEAL))
+            animations.append(g_mobj.vertices[curr].animate(run_time=.1).set_color(TEAL))
             self.play(Succession(*animations))
 
             res.append(curr)
@@ -277,7 +277,7 @@ class Memo1(Slide):
         prev_mobj = MathTex(r"prev := \{ \dots \}", font_size=36 * scale).next_to(dist_mobj, DOWN, .1, LEFT)
         pq_mobj = MathTex(r"\text{pq} := [\ " + source_name + r"\ ]", font_size=36 * scale).next_to(prev_mobj, DOWN, .1,
                                                                                                    LEFT)
-        VGroup(res_mobj, dist_mobj, prev_mobj, pq_mobj).move_to((0, 0, 0), ORIGIN, (0, 1, 0))
+        VGroup(sinks_mobj, source_mobj, res_mobj, dist_mobj, prev_mobj, pq_mobj).move_to((0, 0, 0), ORIGIN, (0, 1, 0))
 
         self.play(Write(res_mobj), Write(dist_mobj), Write(prev_mobj), Write(pq_mobj))
         if do_wait:
@@ -287,7 +287,7 @@ class Memo1(Slide):
         _, u = heapq.heappop(pq)
         visited.add(u)
 
-        u_mobj = MathTex(r"u := " + source_name).next_to(pq_mobj, DOWN, .1, LEFT)
+        u_mobj = MathTex(r"u := " + source_name, font_size=36 * scale).next_to(pq_mobj, DOWN, .1, LEFT)
         new_pq_mobj = MathTex(r"\text{pq} := [\ ]", font_size=36 * scale).move_to(pq_mobj, aligned_edge=LEFT)
         self.play(Succession(
             AnimationGroup(g_mobj.vertices[u].animate.set_color(YELLOW), ReplacementTransform(pq_mobj, new_pq_mobj)),
@@ -327,6 +327,10 @@ class Memo1(Slide):
             old_len = pq_len(pq)
 
             _, u = heapq.heappop(pq)
+            new_u_mobj = MathTex(r"u := " + source_name, font_size=36 * scale).move_to(u_mobj, aligned_edge=LEFT)
+            self.play(ReplacementTransform(u_mobj, new_u_mobj, run_time=.1))
+            u_mobj = new_u_mobj
+
             # required for the python heapq that:esn't allow changing priority
             if u in visited:
                 continue
@@ -348,8 +352,8 @@ class Memo1(Slide):
             if u in sinks:
                 res[u] = [source_vertex] + self.play_reconstruct_path(g_mobj, prev, u)
                 new_res_mobj = MathTex(r"\text{res} := \{" + ",".join(
-                    (r"v_{" + source_name + r"}: v_{" + source_name + r"}\rightsquigarrow" + get_vert_name(v)) for v in
-                     res.keys()) + r"\}", font_size=36 * scale).move_to(pq_mobj, aligned_edge=LEFT)
+                    (r"v_{" + source_name + r"}: v_{" + source_name + r"} \rightsquigarrow v_{" + get_vert_name(v) + r"}" for v in
+                     res.keys())) + r"\}", font_size=36 * scale).move_to(pq_mobj, aligned_edge=LEFT)
                 self.play(ReplacementTransform(res_mobj, new_res_mobj, run_time=.1))
                 res_mobj = new_res_mobj
                 if do_wait:

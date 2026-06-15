@@ -251,8 +251,8 @@ class Memo1(Slide):
             if edges is not None:
                 for i in range(len(edges)):
                     rate_func = manim.utils.rate_functions.ease_in_quart if i == 0 else (manim.utils.rate_functions.ease_out_quart if i == len(edges) - 1 else linear)
-                    animations.append(g_mobj.edges[edges[i]].animate(run_time=.1, rate_func=rate_func).set_color(TEAL))
-            animations.append(g_mobj.vertices[curr].animate(run_time=.1).set_color(TEAL))
+                    animations.append(g_mobj.edges[edges[i]].animate(run_time=.05, rate_func=rate_func).set_color(TEAL))
+            animations.append(g_mobj.vertices[curr].animate(run_time=.05).set_color(TEAL))
             self.play(Succession(*animations))
 
             res.append(curr)
@@ -260,7 +260,7 @@ class Memo1(Slide):
             curr = came_from[curr]
         res.reverse()
         for v in reset_colours_v:
-            g_mobj.vertices[curr].set_color(reset_colours_v[v])
+            g_mobj.vertices[v].set_color(reset_colours_v[v])
         for e in reset_colours_e:
             g_mobj.edges[e].set_color(reset_colours_e[e])
         return res
@@ -336,7 +336,7 @@ class Memo1(Slide):
 
             _, u = heapq.heappop(pq)
             new_u_mobj = MathTex(r"u := " + source_name, font_size=36 * scale).move_to(u_mobj, aligned_edge=LEFT)
-            self.play(ReplacementTransform(u_mobj, new_u_mobj, run_time=.1))
+            self.play(ReplacementTransform(u_mobj, new_u_mobj, run_time=.2))
             u_mobj = new_u_mobj
 
             # required for the python heapq that doesn't allow changing priority
@@ -347,25 +347,27 @@ class Memo1(Slide):
             if old_len == 0 and pq_len(pq) > 0:
                 new_pq_mobj = MathTex(r"\text{pq} := [\ \dots\ ]", font_size=36 * scale).move_to(pq_mobj,
                                                                                                  aligned_edge=LEFT)
-                self.play(ReplacementTransform(pq_mobj, new_pq_mobj, run_time=.1))
+                self.play(ReplacementTransform(pq_mobj, new_pq_mobj, run_time=.2))
                 pq_mobj = new_pq_mobj
             elif old_len > 0 and pq_len(pq) == 0:
                 new_pq_mobj = MathTex(r"\text{pq} := [\ ]", font_size=36 * scale).move_to(pq_mobj, aligned_edge=LEFT)
-                self.play(ReplacementTransform(pq_mobj, new_pq_mobj, run_time=.1))
+                self.play(ReplacementTransform(pq_mobj, new_pq_mobj, run_time=.2))
                 pq_mobj = new_pq_mobj
             super_path_v = facility_drawer.get_path_from_super_path([prev[u], u])
-            self.play(g_mobj.vertices[u].animate(run_time=.1).set_color(YELLOW),
+            self.play(g_mobj.vertices[u].animate(run_time=.2).set_color(YELLOW),
                       *[g_mobj.edges[get_mobj_edge(g_mobj, super_path_v[i + 1], super_path_v[i])].animate(
                           run_time=.1).set_color(YELLOW) for i in range(len(super_path_v) - 1)])
 
             if u in sinks:
                 res[u] = [source_vertex] + self.play_reconstruct_path(g_mobj, prev, u)
-                new_res_mobj = MathTex(r"\text{res} := \{" + ",".join(
-                    (
+                res_tex = [
                     r"v_{" + source_name + r"}: v_{" + source_name + r"} \rightsquigarrow v_{" + get_vert_name(v) + r"}"
                     for v in
-                    res.keys())) + r"\}", font_size=36 * scale).move_to(res_mobj, aligned_edge=LEFT)
-                self.play(ReplacementTransform(res_mobj, new_res_mobj, run_time=.1))
+                    res.keys()]
+                if len(res_tex) > 1:
+                    res_tex = res_tex[:1] + [r"\dots"]
+                new_res_mobj = MathTex(r"\text{res} := \{" + ",".join(res_tex) + r"\}", font_size=36 * scale).move_to(res_mobj, aligned_edge=LEFT)
+                self.play(ReplacementTransform(res_mobj, new_res_mobj, run_time=.2))
                 res_mobj = new_res_mobj
                 if do_wait:
                     self.wait()
@@ -374,7 +376,7 @@ class Memo1(Slide):
                     return res
 
             for v in abs_graph.neighbors(u):
-                self.play(Indicate(g_mobj.vertices[v], run_time=.1))
+                self.play(Indicate(g_mobj.vertices[v], run_time=.2))
                 w = abs_graph.get_edge_data(u, v)["weight"]
                 if dist[u] + w < dist[v]:
                     prev[v] = u
@@ -384,12 +386,12 @@ class Memo1(Slide):
                     if old_len == 0 and pq_len(pq) > 0:
                         new_pq_mobj = MathTex(r"\text{pq} := [\ \dots\ ]", font_size=36 * scale).move_to(pq_mobj,
                                                                                                          aligned_edge=LEFT)
-                        self.play(ReplacementTransform(pq_mobj, new_pq_mobj, run_time=.1))
+                        self.play(ReplacementTransform(pq_mobj, new_pq_mobj, run_time=.2))
                         pq_mobj = new_pq_mobj
                     elif old_len > 0 and pq_len(pq) == 0:
                         new_pq_mobj = MathTex(r"\text{pq} := [\ ]", font_size=36 * scale).move_to(pq_mobj,
                                                                                                   aligned_edge=LEFT)
-                        self.play(ReplacementTransform(pq_mobj, new_pq_mobj, run_time=.1))
+                        self.play(ReplacementTransform(pq_mobj, new_pq_mobj, run_time=.2))
                         pq_mobj = new_pq_mobj
 
         return res

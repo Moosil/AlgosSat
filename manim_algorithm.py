@@ -292,7 +292,7 @@ class Memo1(Slide):
         self.play(Succession(
             AnimationGroup(g_mobj.vertices[u].animate.set_color(YELLOW), ReplacementTransform(pq_mobj, new_pq_mobj)),
             AnimationGroup(Write(u_mobj),
-                           VGroup(res_mobj, dist_mobj, prev_mobj, new_pq_mobj, u_mobj).animate.move_to((0, 0, 0), ORIGIN,
+                           VGroup(sinks_mobj, source_mobj, res_mobj, dist_mobj, prev_mobj, new_pq_mobj, u_mobj).animate.move_to((0, 0, 0), ORIGIN,
                                                                                               (0, 1, 0)))
         ))
         pq_mobj = new_pq_mobj

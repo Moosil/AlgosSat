@@ -281,7 +281,7 @@ class Memo1(Slide):
                 AnimationGroup(VGroup(sinks_mobj, source_mobj).animate(run_time=4/60.).move_to((0, 0, 0), ORIGIN, (0, 1, 0))),
                 LaggedStart(FocusOn(source_vertex_mobj, run_time=4/60.), Indicate(source_vertex_mobj, run_time=4/60.), lag_ratio=.4)
             ))
-            self.play_dijkstras_quick(g, source_vertex, sinks.difference({s}), 1./60.)
+            self.play_dijkstras_quick(g, source_vertex, set(sinks).difference({source_vertex}), 1./60.)
 
     def play_reconstruct_path(self, g_mobj: Graph, came_from: dict, source, run_time: float) -> list:
         res = []
@@ -414,7 +414,7 @@ class Memo1(Slide):
                           run_time=.1).set_color(YELLOW) for i in range(len(super_path_v) - 1)])
 
             if u in sinks:
-                res[u] = reconstruct_path(prev, u)
+                res[u] = self.play_reconstruct_path(g_mobj, prev, u, 1./60.)
                 res_tex = [
                     r"v_{" + source_name + r"}: v_{" + source_name + r"} \rightsquigarrow v_{" + get_vert_name(v) + r"}"
                     for v in
@@ -481,16 +481,16 @@ class Memo1(Slide):
 
             if u != source_vertex:
                 super_path_v = facility_drawer.get_path_from_super_path([prev[u], u])
-                self.play(g_mobj.vertices[u].animate(run_time=run_time).set_color(YELLOW),
-                          *[g_mobj.edges[get_mobj_edge(g_mobj, super_path_v[i + 1], super_path_v[i])].animate(
-                              run_time=.1).set_color(YELLOW) for i in range(len(super_path_v) - 1)])
-            else:
-                self.play(g_mobj.vertices[u].animate(run_time=run_time).set_color(YELLOW))
+                for i in range(len(super_path_v) - 1):
+                    g_mobj.edges[get_mobj_edge(g_mobj, super_path_v[i + 1], super_path_v[i])].set_color(YELLOW)
 
             if u in sinks:
-                res[u] = self.play_reconstruct_path(g_mobj, prev, u, run_time=1./60.)
+                self.play(g_mobj.vertices[u].animate(run_time=run_time).set_color(CYAN))
+                res[u] = reconstruct_path(prev, u)
                 if len(res) == len(sinks):
                     return res
+            else:
+                self.play(g_mobj.vertices[u].animate(run_time=run_time).set_color(YELLOW))
 
             for v in abs_graph.neighbors(u):
                 w = abs_graph.get_edge_data(u, v)["weight"]

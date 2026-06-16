@@ -7,7 +7,7 @@ class VertexT:
 	pass
 
 
-def reconstruct_path(came_from: dict[VertexT, VertexT], e: VertexT) -> list:
+def reconstruct_path(came_from: dict[VertexT, VertexT | None], e: VertexT) -> list:
 	res = []
 	curr = e
 	while curr in came_from:
@@ -25,7 +25,7 @@ def dijkstra(g: nx.Graph, source: VertexT, sinks: set[VertexT]) -> dict[VertexT,
 	# visited set replaced update(PQ, v)
 	visited = set()
 
-	prev = {}
+	prev: dict[VertexT, VertexT | None] = {source: None}
 	pq = [(0., source)]
 	heapq.heapify(pq)
 	while len(pq) > 0:
@@ -37,7 +37,7 @@ def dijkstra(g: nx.Graph, source: VertexT, sinks: set[VertexT]) -> dict[VertexT,
 		visited.add(u)
 
 		if u in sinks:
-			res[u] = [source] + reconstruct_path(prev, u)
+			res[u] = reconstruct_path(prev, u)
 			if len(res) == len(sinks):
 				return res
 
@@ -70,7 +70,7 @@ def get_pairs_path_distances(g: nx.Graph, pair_path_map: dict[VertexT, dict[Vert
 
 	return res
 
-def get_unfound_supplies(supplies: set[VertexT], supply_id: dict[VertexT, str], collected_supplies: set[str], supply_storage: list[str]) -> set[VertexT]:
+def get_unfound_supplies(supplies: set[VertexT], supply_id: dict[VertexT, str], collected_supplies: set[str], supply_storage: list[str | None]) -> set[VertexT]:
 	res = set()
 	for supply in supplies:
 		curr_id = supply_id.get(supply, None)

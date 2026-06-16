@@ -5,7 +5,7 @@ import manim.utils.rate_functions
 from manim_slides.slide import *
 
 from memo1_algorithm_test import GraphDrawer
-from memo1_algorithm import get_unfound_supplies
+from memo1_algorithm import get_unfound_supplies, reconstruct_path
 
 facility_drawer = GraphDrawer()
 
@@ -72,6 +72,7 @@ def get_mobj_edge(g: Graph, u, v):
         return u, v
     elif (v, u) in g.edges:
         return v, u
+    print("edge not in graph: ", (u, v))
     return None
 
 
@@ -90,9 +91,9 @@ def get_vert_name(v) -> str:
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
 class Memo1(Slide):
-    input_supply_storage = ["s2"] + [None] * 4
+    input_supply_storage = [None] * 5
     supplies = [f"s{i}" for i in range(5)]
-    found_supplies = ["s0"]
+    found_supplies = []
 
     def construct(self):
         f = self.get_facility()
@@ -110,14 +111,21 @@ class Memo1(Slide):
         self.next_slide()
 
         self.play(ReplacementTransform(g0, g1))
+        del g0
         self.wait()
         self.next_slide()
 
-        self.play_some_pairs_shortest_paths(g1, get_unfound_supplies(facility_drawer.supplies,
-                                                                     {facility_drawer.supplies[i]: self.supplies[i] for
-                                                                      i in range(len(facility_drawer.supplies))},
-                                                                     set(self.found_supplies),
-                                                                     self.input_supply_storage))
+        self.play(Uncreate(g1))
+
+        unfound_supplies_mobj = self.play_unfound_supplies()
+
+        self.wait()
+        self.next_slide()
+
+        self.play(Create(g1))
+        self.play_some_pairs_shortest_paths(g1, unfound_supplies_mobj,
+                                            [s for s in self.supplies if (s not in self.input_supply_storage and s not in self.found_supplies)],
+                                            [facility_drawer.supplies[i] for i in range(len(facility_drawer.supplies)) if self.supplies[i] not in self.found_supplies + self.input_supply_storage])
 
         self.wait(10)
 
@@ -152,7 +160,8 @@ class Memo1(Slide):
         new_fs_vert_set.move_to(fs[1], aligned_edge=LEFT)
         self.play(Succession(
             fs[2].animate(rate_func=manim.utils.rate_functions.ease_in_quart).move_to(fs[1], aligned_edge=LEFT),
-            ReplacementTransform(VGroup(fs[1], fs[2]), new_fs_vert_set, rate_func=manim.utils.rate_functions.ease_out_quart)
+            ReplacementTransform(VGroup(fs[1], fs[2]), new_fs_vert_set,
+                                 rate_func=manim.utils.rate_functions.ease_out_quart)
         ))
         fs[1] = new_fs_vert_set
         del new_fs_vert_set
@@ -169,69 +178,112 @@ class Memo1(Slide):
         new_vert_set.move_to(fs[0], aligned_edge=LEFT)
         self.play(Succession(
             fs[1].animate(rate_func=manim.utils.rate_functions.ease_in_quart).move_to(fs[0], aligned_edge=LEFT),
-            ReplacementTransform(VGroup(fs[0], fs[1]), new_vert_set, rate_func=manim.utils.rate_functions.ease_out_quart)
+            ReplacementTransform(VGroup(fs[0], fs[1]), new_vert_set,
+                                 rate_func=manim.utils.rate_functions.ease_out_quart)
         ))
         fs[0] = new_vert_set
         del new_vert_set
         if do_wait:
             self.wait()
         self.next_slide()
+        return fs[0]
 
-    def play_some_pairs_shortest_paths(self, g: Graph, unfound_supplies: set, scale=1., do_wait=True):
+    def play_some_pairs_shortest_paths(self, g: Graph, unfound_supplies_mobj, unfound_supplies_pretty: list[str], unfound_supplies: list, scale=1.,
+                                       do_wait=True):
         self.play(g.animate.move_to(LEFT * 3.5))
 
-        sources = self.supplies + ["e"]
-        inner_sources = [r"v_{" + v + "}" for v in sources]
+        sources = unfound_supplies + [facility_drawer.entry]
+        sources_pretty = unfound_supplies_pretty + ["v_e"]
+        sinks = unfound_supplies + [facility_drawer.exit_a, facility_drawer.exit_b]
+        sinks_pretty = unfound_supplies_pretty + ["xa", "xb"]
+
+        inner_sources = [r"v_{" + v + "}" for v in sources_pretty]
         for i in range(len(inner_sources) - 1, 0, -1):
             inner_sources.insert(i, r",\ ")
-        sources_mobj = MathTex(r"\text{sources} := [\ ", *inner_sources, r"\ ]", font_size=36 * scale).next_to(g, RIGHT,
-                                                                                                               .4)
+        sources_mobj = MathTex(r"\text{sources} := [\ ", *inner_sources, r"\ ]",
+                               font_size=36 * scale).next_to(g, RIGHT, .4)
 
-        sinks = self.supplies + ["xa", "xb"]
-        inner_sinks = [r"v_{" + v + "}" for v in sinks]
+        inner_sinks = [r"v_{" + v + "}" for v in sinks_pretty]
         for i in range(len(inner_sinks) - 1, 0, -1):
             inner_sinks.insert(i, r",\ ")
-        sinks_mobj = MathTex(r"\text{sinks} := [\ ", *inner_sinks, r"\ ]", font_size=36 * scale).next_to(sources_mobj,
-                                                                                                         DOWN, .1, LEFT)
+        sinks_mobj = MathTex(r"\text{sinks} := [\ ", *inner_sinks, r"\ ]",
+                             font_size=36 * scale).next_to(sources_mobj, DOWN, .1, LEFT)
 
         VGroup(sources_mobj, sinks_mobj).move_to((0, 0, 0), ORIGIN, (0, 1, 0))
 
-        self.play(Write(sources_mobj), Write(sinks_mobj))
+        self.play(ReplacementTransform(unfound_supplies_mobj, VGroup(sources_mobj, sinks_mobj)))
+        del unfound_supplies_mobj
         if do_wait:
             self.wait()
         self.next_slide()
 
-        source = sources[0]
-        source_mobj = MathTex(r"\text{source} := v_{" + source + "}", font_size=36 * scale).next_to(sinks_mobj, DOWN,
-                                                                                                    .1, LEFT)
-        source_vertex_mobj = g.vertices[facility_drawer.supplies[0]]
+        source_vertex = sources[0]
+        source_pretty = sources_pretty[0]
+        source_mobj = MathTex(r"\text{source} := v_{" + source_pretty + "}",
+                              font_size=36 * scale).next_to(sinks_mobj, DOWN, .1, LEFT)
+        source_vertex_mobj = g.vertices[source_vertex]
 
-        sinks = [v for v in self.supplies + ["xa", "xb"] if v != source]
-        inner_sinks = [r"v_{" + v + "}" for v in sinks]
+        inner_sinks = [r"v_{" + v + "}" for v in sinks_pretty if v != source_pretty]
         for i in range(len(inner_sinks) - 1, 0, -1):
             inner_sinks.insert(i, r",\ ")
-        new_sinks_mobj = MathTex(r"\text{sinks} := [\ ", *inner_sinks, r"\ ]", font_size=36 * scale).next_to(
-            sources_mobj, DOWN, .1, LEFT)
+        new_sinks_mobj = MathTex(r"\text{sinks} := [\ ", *inner_sinks, r"\ ]",
+                                 font_size=36 * scale).next_to( sources_mobj, DOWN, .1, LEFT)
         new_sinks_mobj.move_to(sinks_mobj, aligned_edge=LEFT)
 
         self.play(AnimationGroup(Indicate(sources_mobj[1]), Write(source_mobj),
                                  ReplacementTransform(sinks_mobj, new_sinks_mobj)))
+        sinks_mobj = new_sinks_mobj
+        del new_sinks_mobj
+
         self.play(Succession(
             AnimationGroup(
-                VGroup(sources_mobj, new_sinks_mobj, source_mobj).animate.move_to((0, 0, 0), ORIGIN, (0, 1, 0))),
+                VGroup(sources_mobj, sinks_mobj, source_mobj).animate.move_to((0, 0, 0), ORIGIN, (0, 1, 0))),
             AnimationGroup(Uncreate(sources_mobj),
-                           VGroup(new_sinks_mobj, source_mobj).animate.move_to((0, 0, 0), ORIGIN, (0, 1, 0))),
+                           VGroup(sinks_mobj, source_mobj).animate.move_to((0, 0, 0), ORIGIN, (0, 1, 0))),
             LaggedStart(FocusOn(source_vertex_mobj), Indicate(source_vertex_mobj), lag_ratio=.4)
         ))
         if do_wait:
             self.wait()
         self.next_slide()
 
-        self.play_dijkstras(g, source_mobj, new_sinks_mobj, source, facility_drawer.supplies[0],
-                            unfound_supplies.difference({source}).union(
-                                {facility_drawer.exit_a, facility_drawer.exit_b}), scale, do_wait)
+        self.play_dijkstras(g, source_mobj, sinks_mobj, source_pretty, source_vertex,
+                            set(sinks).difference({source_vertex}), scale, do_wait)
 
-    def play_reconstruct_path(self, g_mobj: Graph, came_from, source) -> list:
+        for i in range(1, len(sources)):
+            source_vertex = sources[i]
+            source_pretty = sources_pretty[i]
+
+            for v in g.vertices.keys():
+                g.vertices[v].set_color(WHITE)
+            for e in g.edges.keys():
+                g.edges[e].set_color(WHITE)
+
+            new_source_mobj = MathTex(r"\text{source} := v_{" + source_pretty + "}",
+                                      font_size=36 * scale).next_to(sinks_mobj, DOWN, .1, LEFT)
+            source_vertex_mobj = g.vertices[source_vertex]
+
+            inner_sinks = [r"v_{" + v + "}" for v in unfound_supplies_pretty + ["xa", "xb"] if v != source_pretty]
+            for i in range(len(inner_sinks) - 1, 0, -1):
+                inner_sinks.insert(i, r",\ ")
+            new_sinks_mobj = MathTex(r"\text{sinks} := [\ ", *inner_sinks, r"\ ]",
+                                     font_size=36 * scale).next_to(sources_mobj, DOWN, .1, LEFT)
+            new_sinks_mobj.move_to(sinks_mobj, aligned_edge=LEFT)
+
+            self.play(ReplacementTransform(source_mobj, new_source_mobj), ReplacementTransform(sinks_mobj, new_sinks_mobj))
+            sources_mobj = new_source_mobj
+            del new_source_mobj
+            sinks_mobj = new_sinks_mobj
+            del new_sinks_mobj
+
+            self.play(Succession(
+                AnimationGroup(
+                    VGroup(sources_mobj, sinks_mobj, source_mobj).animate(run_time=4/60.).move_to((0, 0, 0), ORIGIN, (0, 1, 0))),
+                AnimationGroup(VGroup(sinks_mobj, source_mobj).animate(run_time=4/60.).move_to((0, 0, 0), ORIGIN, (0, 1, 0))),
+                LaggedStart(FocusOn(source_vertex_mobj, run_time=4/60.), Indicate(source_vertex_mobj, run_time=4/60.), lag_ratio=.4)
+            ))
+            self.play_dijkstras_quick(g, source_vertex, sinks.difference({s}), 1./60.)
+
+    def play_reconstruct_path(self, g_mobj: Graph, came_from: dict, source, run_time: float) -> list:
         res = []
         reset_colours_v = {}
         reset_colours_e = {}
@@ -250,9 +302,10 @@ class Memo1(Slide):
             animations = []
             if edges is not None:
                 for i in range(len(edges)):
-                    rate_func = manim.utils.rate_functions.ease_in_quart if i == 0 else (manim.utils.rate_functions.ease_out_quart if i == len(edges) - 1 else linear)
-                    animations.append(g_mobj.edges[edges[i]].animate(run_time=.05, rate_func=rate_func).set_color(TEAL))
-            animations.append(g_mobj.vertices[curr].animate(run_time=.05).set_color(TEAL))
+                    rate_func = manim.utils.rate_functions.ease_in_quart if i == 0 else (
+                        manim.utils.rate_functions.ease_out_quart if i == len(edges) - 1 else linear)
+                    animations.append(g_mobj.edges[edges[i]].animate(run_time=run_time, rate_func=rate_func).set_color(TEAL))
+            animations.append(g_mobj.vertices[curr].animate(run_time=run_time).set_color(TEAL))
             self.play(Succession(*animations))
 
             res.append(curr)
@@ -276,18 +329,20 @@ class Memo1(Slide):
         # visited set replaced update(PQ, v)
         visited = set()
 
-        prev = {}
+        prev = {source_vertex: None}
         pq = [(0., source_vertex)]
         heapq.heapify(pq)
 
         res_mobj = MathTex(r"\text{res} := \varnothing", font_size=36 * scale).next_to(source_mobj, DOWN, .1, LEFT)
         dist_mobj = MathTex(r"\text{dist} := \{ \dots \}", font_size=36 * scale).next_to(res_mobj, DOWN, .1, LEFT)
         prev_mobj = MathTex(r"\text{prev} := \{ \dots \}", font_size=36 * scale).next_to(dist_mobj, DOWN, .1, LEFT)
-        pq_mobj = MathTex(r"\text{pq} := [\ " + source_name + r"\ ]", font_size=36 * scale).next_to(prev_mobj, DOWN, .1,
-                                                                                                    LEFT)
-        VGroup(sinks_mobj, source_mobj, res_mobj, dist_mobj, prev_mobj, pq_mobj).move_to((0, 0, 0), ORIGIN, (0, 1, 0))
+        pq_mobj = MathTex(r"\text{pq} := [\ " + source_name + r"\ ]",
+                          font_size=36 * scale).next_to(prev_mobj, DOWN, .1, LEFT)
 
-        self.play(Write(res_mobj), Write(dist_mobj), Write(prev_mobj), Write(pq_mobj))
+        self.play(AnimationGroup(
+            VGroup(sinks_mobj, source_mobj, res_mobj, dist_mobj, prev_mobj, pq_mobj).animate.move_to((0, 0, 0), ORIGIN, (0, 1, 0)),
+            Write(res_mobj), Write(dist_mobj), Write(prev_mobj), Write(pq_mobj)
+        ))
         if do_wait:
             self.wait()
         self.next_slide()
@@ -359,14 +414,15 @@ class Memo1(Slide):
                           run_time=.1).set_color(YELLOW) for i in range(len(super_path_v) - 1)])
 
             if u in sinks:
-                res[u] = [source_vertex] + self.play_reconstruct_path(g_mobj, prev, u)
+                res[u] = reconstruct_path(prev, u)
                 res_tex = [
                     r"v_{" + source_name + r"}: v_{" + source_name + r"} \rightsquigarrow v_{" + get_vert_name(v) + r"}"
                     for v in
                     res.keys()]
                 if len(res_tex) > 1:
                     res_tex = res_tex[:1] + [r"\dots"]
-                new_res_mobj = MathTex(r"\text{res} := \{" + ",".join(res_tex) + r"\}", font_size=36 * scale).move_to(res_mobj, aligned_edge=LEFT)
+                new_res_mobj = MathTex(r"\text{res} := \{" + ",".join(res_tex) + r"\}", font_size=36 * scale).move_to(
+                    res_mobj, aligned_edge=LEFT)
                 self.play(ReplacementTransform(res_mobj, new_res_mobj, run_time=.2))
                 res_mobj = new_res_mobj
                 if do_wait:
@@ -393,6 +449,55 @@ class Memo1(Slide):
                                                                                                   aligned_edge=LEFT)
                         self.play(ReplacementTransform(pq_mobj, new_pq_mobj, run_time=.2))
                         pq_mobj = new_pq_mobj
+
+        self.play(AnimationGroup(
+            Unwrite(res_mobj), Unwrite(dist_mobj), Unwrite(prev_mobj), Unwrite(pq_mobj), Unwrite(u_mobj),
+            VGroup(sinks_mobj, source_mobj).animate.move_to((0, 0, 0), ORIGIN, (0, 1, 0))
+        ))
+
+        return res
+
+    def play_dijkstras_quick(self, g_mobj: Graph, source_vertex, sinks: set, run_time: float):
+        abs_graph = facility_drawer.get_abstracted_graph()
+
+        res = {}
+        dist = {s: float('infinity') for s in abs_graph}
+        dist[source_vertex] = 0
+
+        # visited set replaced update(PQ, v)
+        visited = set()
+
+        prev = {source_vertex: None}
+        pq = [(0., source_vertex)]
+        heapq.heapify(pq)
+
+        while len(pq) > 0:
+            _, u = heapq.heappop(pq)
+
+            # required for the python heapq that doesn't allow changing priority
+            if u in visited:
+                continue
+            visited.add(u)
+
+            if u != source_vertex:
+                super_path_v = facility_drawer.get_path_from_super_path([prev[u], u])
+                self.play(g_mobj.vertices[u].animate(run_time=run_time).set_color(YELLOW),
+                          *[g_mobj.edges[get_mobj_edge(g_mobj, super_path_v[i + 1], super_path_v[i])].animate(
+                              run_time=.1).set_color(YELLOW) for i in range(len(super_path_v) - 1)])
+            else:
+                self.play(g_mobj.vertices[u].animate(run_time=run_time).set_color(YELLOW))
+
+            if u in sinks:
+                res[u] = self.play_reconstruct_path(g_mobj, prev, u, run_time=1./60.)
+                if len(res) == len(sinks):
+                    return res
+
+            for v in abs_graph.neighbors(u):
+                w = abs_graph.get_edge_data(u, v)["weight"]
+                if dist[u] + w < dist[v]:
+                    prev[v] = u
+                    dist[v] = dist[u] + w
+                    heapq.heappush(pq, (dist[v], v))
 
         return res
 

@@ -79,65 +79,38 @@ def get_unfound_supplies(supplies: set[VertexT], supply_id: dict[VertexT, str], 
 
 	return res
 
-def generate_permutations(items: list, len_left: int) -> list[list]:
-	if len(items) == 0 or len_left == 0:
-		return []
-	if len(items) == 1 and len_left >= 1:
-		return [items]
-	if len_left == 1:
-		res = []
-		for i in items:
-			res.append([i])
-		return res
-
-	res = []
-	for i in range(len(items)):
-		item = items[i]
-		sublist = [items[j] for j in range(len(items)) if j != i]
-		for perm in generate_permutations(sublist, len_left - 1):
-			res.append([item] + perm)
-
-	return res
-
-def brute_force(g: nx.Graph, v_e: VertexT, sources: set[VertexT], exits: set[VertexT], pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]], max_supplies: int) -> list[VertexT]:
-	pair_path_cost_map = get_pairs_path_distances(g, pair_path_map)
-	min_cost_found = float('infinity')
+def brute_force_recursive(g: nx.Graph, source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
+	min_cost = float('infinity')
 	min_cost_walk = None
-	permutations = generate_permutations(list(sources), max_supplies)
-	if len(permutations) == 0:
-		min_exit_cost = float('infinity')
-		min_exit = list(exits)[0]
-		for exit_vertex in exits:
-			if pair_path_cost_map[v_e][exit_vertex] < min_exit_cost:
-				min_exit = exit_vertex
-				min_exit_cost = pair_path_cost_map[v_e][exit_vertex]
-		return [v_e, min_exit]
-	for permutation in permutations:
-		cost = pair_path_cost_map[v_e][permutation[0]] + \
-			sum(pair_path_cost_map[permutation[i]][permutation[i + 1]] for i in range(len(permutation) - 1))
 
-		min_exit_cost = float('infinity')
-		min_exit = list(exits)[0]
-		end = permutation[len(permutation) - 1]
-		for exit_vertex in exits:
-			if pair_path_cost_map[end][exit_vertex] < min_exit_cost:
-				min_exit = exit_vertex
-				min_exit_cost = pair_path_cost_map[end][exit_vertex]
-		if cost + min_exit_cost < min_cost_found:
-			walk = [v_e] + list(permutation)
-			walk.append(min_exit)
-			min_cost_walk = walk
-			min_cost_found = cost + min_exit_cost
-	return min_cost_walk
+	if fuel == 0:
+		for exit in exits:
+			cost = pair_path_costs[source][exit]
+			if cost < min_cost:
+				min_cost_walk = [exit]
+				min_cost = cost
+
+	for sink in sinks:
+		min_walk_through, cost = brute_force_recursive(g, sink, sinks.difference({sink}), exits, pair_path_costs, fuel - 1)
+		cost += pair_path_costs[source][sink]
+		if cost < min_cost:
+			min_cost = cost
+			min_cost_walk = [sink] + min_walk_through
+
+	return min_cost_walk, min_cost
+
+def brute_force(g: nx.Graph, v_e: VertexT, supplies: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
+	return [v_e] + brute_force_recursive(g, v_e, supplies, exits, pair_path_costs, max_supplies)[0]
 
 def ember_rescue(g: nx.Graph, v_e: VertexT, exits: set[VertexT], supplies: set[VertexT], supply_id: dict[VertexT, str], supply_storage: list[str], collected_supplies: set[str]) -> list[VertexT]:
 	unfound_supplies = get_unfound_supplies(supplies, supply_id, collected_supplies, supply_storage)
 
 	pairs_paths = some_pairs_shortest_path(g, unfound_supplies.union({v_e}), unfound_supplies.union(exits).union({v_e}))
+	pairs_paths_costs = get_pairs_path_distances(g, pairs_paths)
 
 	num_supplies_carrying = len([i for i in supply_storage if i is not None])
 
-	super_path = brute_force(g, v_e, unfound_supplies, exits, pairs_paths, 5 - num_supplies_carrying)
+	super_path = brute_force(g, v_e, unfound_supplies, exits, pairs_paths_costs, 5 - num_supplies_carrying)
 
 	res = []
 

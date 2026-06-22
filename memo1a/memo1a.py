@@ -349,23 +349,29 @@ def _(mo):
     CRUDY-1's limited supply storage is represented by $A$, with $F$ being already collected supplies <span>&ndash;</span> CRUDY-1 does not need to collect these supplies <span>&ndash;</span> and $M$ finding the `SupplyID` of a particular supply vertex.
     # 2.4 Hierarchical vs Flat graph
     #todo
+    %%graph of time to complete of different sizes%%
     ## 2.5 Justification of Each ADT
     #todo
     # 3 Algorithm Design
     ## 3.1 Algorithmic Design approaches
     #todo
+    %%add some animations for each approach cause it looks cool%%
     ## 3.2 Balancing Priorities
     #todo
+    %%add some animations for different goals cause it looks cool%%
     ## 3.3 Wing traversal strategy
     ### 3.3.1 Sub-problems
     #todo
     ### 3.3.2 Two strategies
     #todo
+    %%graph of time of each%%
     ## 3.4 Revised Algorithm
     ### 3.4.1 Explanation
     #todo
     ### 3.4.2 Justification
     #todo
+    
+    %%ANIMATION%%
     # 4 Pseudocode
     %%This time I'm going to do each function separately and explain what it does%%
     #todo

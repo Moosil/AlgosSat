@@ -16,14 +16,6 @@ def _():
     return copy, mo, mpatches, nx, plt, random
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    <mark></mark>
-    """)
-    return
-
-
 @app.cell
 def _(copy, mpatches, nx, plt, random, seed_input):
     class GraphDrawer:
@@ -407,12 +399,6 @@ def _(mo):
     - Adjacency matrix: $|V|^2$ entries
 
     For this facility, an adjacency list would be more compact
-
-    ### NetworkX signature specifications → Python
-    - `Graph.add_node(node_for_adding, **attr)` is an operation synonymous of the `add_vertex` function
-    - `Graph.add_edge(u_of_edge, v_of_edge, **attr)` is an operation synonymous of the `add_edge` function (using `Graph.add_edge(u, v, weight=w`))
-    - `Graph.remove_node(n)` is an operation synonymous of the `remove_vertex` function
-    - `Graph.remove_edge(u, v)` is an operation synonymous of the `remove_edge` function
 
     ### Design patterns
 

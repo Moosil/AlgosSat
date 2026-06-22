@@ -1,3 +1,4 @@
+import math
 import random
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -206,23 +207,28 @@ class GraphDrawer:
                                    title="Facility Layout", node_colors=None, supply_collected=None, figsize=(8, 8))
 
 if __name__ == "__main__":
-    for i in tqdm(range(10102000, 31122026)):
-        facility_drawer = GraphDrawer(28122007)
+    # for i in tqdm(range(10102000, 31122026)):
+    facility_drawer = GraphDrawer(300)
+    abs_graph = facility_drawer.get_abstracted_graph()
 
-        res = memo1_algorithm.ember_rescue(facility_drawer.get_abstracted_graph(), facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), {i: str(i) for i in facility_drawer.supplies}, list(), set())
+    import time
+    start = time.time_ns()
+    res = memo1_algorithm.ember_rescue(abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), {i: str(i) for i in facility_drawer.supplies}, list(), set())
+    end = time.time_ns()
 
-        super_path = facility_drawer.get_path_from_super_path(res)
+    print(f"found walk in {end - start}ns = {math.floor((end - start)/1000)}ms")
 
-        # print(f"super path: {res}")
-        # print(f"len of super path: {len(res)}")
-        # print(f"super path: {super_path}")
-        # print(f"len of super path: {len(super_path)}")
-        #
-        # print(f"entry: {facility_drawer.entry}")
-        # print(f"exit_a: {facility_drawer.exit_a}")
-        # print(f"exit_b: {facility_drawer.exit_b}")
+    super_path = facility_drawer.get_path_from_super_path(res)
 
-        is_correct = super_path[0] == facility_drawer.entry
-        is_correct &= (super_path[-1] == facility_drawer.exit_a or super_path[-1] == facility_drawer.exit_b)
-        if not is_correct:
-            print(f"correctness: {is_correct}")
+    print(f"super path: {res}")
+    print(f"len of super path: {len(res)}")
+    print(f"super path: {super_path}")
+    print(f"len of super path: {len(super_path)}")
+
+    print(f"entry: {facility_drawer.entry}")
+    print(f"exit_a: {facility_drawer.exit_a}")
+    print(f"exit_b: {facility_drawer.exit_b}")
+
+    is_correct = super_path[0] == facility_drawer.entry
+    is_correct &= (super_path[-1] == facility_drawer.exit_a or super_path[-1] == facility_drawer.exit_b)
+    print(f"correctness: {is_correct}")

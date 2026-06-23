@@ -21,7 +21,7 @@ def _(mpatches, nx, plt, random, seed_input):
     class GraphDrawer:
         def __init__(self) -> None:
             self.WING_COLS, self.WING_ROWS = 10, 10
-        
+
             self.n_wings, self.wing_names, self.wings, self.entry, self.exit_a, self.exit_b, self.supplies, self.junctions = self._get_multi_wing_facility(seed_input.value)
 
         @staticmethod
@@ -124,7 +124,7 @@ def _(mpatches, nx, plt, random, seed_input):
             COL_FRONTIER = '#F4C97A'
             COL_CURRENT = '#E8603C'
             COL_JUNCTION = '#7A1E2C'
-            _GAP = 3  # grid-unit gap between wings in the visualisation
+            _GAP = 1  # grid-unit gap between wings in the visualisation
 
             total_w = self.n_wings * self.WING_COLS + (self.n_wings - 1) * _GAP
 
@@ -288,9 +288,9 @@ def _(mo):
     # Memo 1 Amendment 1
     # 1 Introduction
     We have been tasked to design a **decision architecture** for a robot. To do this, we will create a abstraction for this problem, and subsequently an algorithm to solve it.
-    
+
     We will first abstract this problem, discuss and evaluate multiple approaches, before outlining the final chosen approach.
-    
+
     After which, the algorithm will be implemented in python and run on multiple facilities, we will rigorously prove its correctness and completeness and visualise the running of the algorithm on a representation of the facility.
     ## 1.1 Limitations of Previous Model
     The previous model assumed the facility was just the one wing
@@ -299,13 +299,13 @@ def _(mo):
     #todo
     # 2 Abstraction
     Let $G = (V_w, E_w, w)$ be a super-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
-    
+
     $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the spans of sectors between two salient sectors which are adjacent to just two other sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
-    
+
     We will designate source vertex $s \in V$, the set of sink vertices $X \subseteq V$, and the set of prize vertices $S \subseteq V$, each representing the entry, exit, and supply unit-containing sectors respectively.
-    
+
     We will have $A$ be an array of size 5 representing CRUDY-1's supply unit storage, which contains `SupplyID`s or the null ID: 0, function $M: S \to \text{SupplyID}$ mapping each supply vertex to its `SupplyID`, and set $F$ be the set of found `SupplyID`s. When a supply is collected, it will be added to $A$, and $A_\text{new}$ will be returned.
-    
+
     We will be designing an algorithm to traverse super-graph $G$, from $s$ to an $x$, returning an ordered sequence of vertices in list $W$, and CRUDY-1's updated supply unit storage.
     ## 2.1 Inputs & Outputs
     The specificities of the inputs and outputs are above, and both concise lists are below:
@@ -322,7 +322,7 @@ def _(mo):
     2. $A_\text{new}$
     ## 2.2 Output Constraints
     The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many prize vertices as possible.
-    
+
     $\forall i \leq \text{length}(A), A_\text{new}[i] \neq A[i] \implies A[i] = \varnothing$ and $A[i] \neq \varnothing \iff A_\text{new} = A[i]$
     ## 2.3 Assumptions
     Assumptions about the problem allow use of more efficient or informed algorithms to be used. Outlined below are properties observed from all of a subset of facility maps examined:
@@ -330,22 +330,22 @@ def _(mo):
     - Each sector is adjacent to at most 4 other sectors: This means $\forall v \in V$, $\deg(v) \leq 4$
     - Sectors are never adjacent to themselves
     - Each junction vertex connects to a junction vertex in a different wing.
-    
+
     Additionally, we make some assumptions that guide why our certain algorithm is chosen:
     - $|V_w|$, $|E_w|$, $|S|$ and $|X|$ are small
     - $|V_n|$, $|E_n|$ could be large for $n \leq k$
-    
+
     Thus, our algorithm must scale well with $|V_n|$ and $|E_n|$, and there is less restriction of scaling with $|V_w|$, $|E_w|$, $|S|$ and $|X|$.
-    
+
     ## 2.3 Salient Features
     Decisions made for how much abstraction is done on certain properties of the problem are guided by maintaining correctness, completeness, and allowing for an appropriate run-time given the size of each variable in the current problem. In particular, finding an exact solution requires searching through a portion of the solution space, and thus we have an at most exponential growth in $O(b^d)$. Reducing $b$ and $d$ allow for further depth and will allow the algorithm to run faster, allow for exact algorithms/better heuristic upper-bounds, and allow for this algorithm to be considered on larger facilities.
-    
+
     By representing the facility as a hierarchical graph, we can use strategies to reduce the depth of the combinatorial explosion of algorithms that can be used to assist with the objective. Instead of $O(b^d)$ exploding with $d = |E|$, we can instead have it increase with $d = |V_w|$ instead. We have each wing be a vertex on $G$, and each junction and inter-wing corridor.
-    
+
     We choose to abstract individual sectors of the facility, opting to instead represent a subset of salient sectors to be on any wing graph $W_n$, abstracting the sectors on the paths between these salient sectors as edge weight through the function $w$.
-    
+
     These salient sectors are sectors adjacent to 1, 3 or 4 other sectors, and sectors containing supply units, entrances, junctions or exits. Without any one of these, we do not fully capture each wing of the facility in our abstraction.
-    
+
     CRUDY-1's limited supply storage is represented by $A$, with $F$ being already collected supplies <span>&ndash;</span> CRUDY-1 does not need to collect these supplies <span>&ndash;</span> and $M$ finding the `SupplyID` of a particular supply vertex.
     # 2.4 Hierarchical vs Flat graph
     #todo
@@ -370,7 +370,7 @@ def _(mo):
     #todo
     ### 3.4.2 Justification
     #todo
-    
+
     %%ANIMATION%%
     # 4 Pseudocode
     %%This time I'm going to do each function separately and explain what it does%%

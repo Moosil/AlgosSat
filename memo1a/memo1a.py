@@ -286,19 +286,46 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     # Memo 1 Amendment 1
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     # 1 Introduction
     We have been tasked to design a **decision architecture** for a robot. To do this, we will create a abstraction for this problem, and subsequently an algorithm to solve it.
 
     We will first abstract this problem, discuss and evaluate multiple approaches, before outlining the final chosen approach.
 
     After which, the algorithm will be implemented in python and run on multiple facilities, we will rigorously prove its correctness and completeness and visualise the running of the algorithm on a representation of the facility.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 1.1 Limitations of Previous Model
-    The previous model assumed the facility was just the one wing
-    #todo
+    - The previous model assumed the facility was just the one wing
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 1.2 Amendment Revisions
-    #todo
+    - Changed struture of how the abstraction is communicated to be more verbose and briefly talk about key properties of the graph
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     # 2 Abstraction
-    Let $G = (V_w, E_w, w)$ be a super-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
+    Let $G = (V_w, E_w, w)$ be a meta-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
 
     $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the spans of sectors between two salient sectors which are adjacent to just two other sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
 
@@ -306,9 +333,23 @@ def _(mo):
 
     We will have $A$ be an array of size 5 representing CRUDY-1's supply unit storage, which contains `SupplyID`s or the null ID: 0, function $M: S \to \text{SupplyID}$ mapping each supply vertex to its `SupplyID`, and set $F$ be the set of found `SupplyID`s. When a supply is collected, it will be added to $A$, and $A_\text{new}$ will be returned.
 
-    We will be designing an algorithm to traverse super-graph $G$, from $s$ to an $x$, returning an ordered sequence of vertices in list $W$, and CRUDY-1's updated supply unit storage.
+    We will be designing an algorithm to traverse meta-graph $G$, from $s$ to an $x$, returning an ordered sequence of vertices in list $W$, and CRUDY-1's updated supply unit storage.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 2.1 Inputs & Outputs
     The specificities of the inputs and outputs are above, and both concise lists are below:
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ### 2.1.1 Inputs
     1. $G$
     2. $s$
@@ -317,13 +358,34 @@ def _(mo):
     5. $A$
     6. $M$
     7. $F$
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ### 2.1.2 Outputs
     1. $W$
     2. $A_\text{new}$
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 2.2 Output Constraints
     The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many prize vertices as possible.
 
     $\forall i \leq \text{length}(A), A_\text{new}[i] \neq A[i] \implies A[i] = \varnothing$ and $A[i] \neq \varnothing \iff A_\text{new} = A[i]$
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 2.3 Assumptions
     Assumptions about the problem allow use of more efficient or informed algorithms to be used. Outlined below are properties observed from all of a subset of facility maps examined:
     - Each wing is a tree: there is exactly 1 path CRUDY-1 can take through a wing from one sector to another, and thus this path **must** be a shortest path. This also means $\forall v \in V$, $\deg(v) \geq 1$
@@ -336,8 +398,14 @@ def _(mo):
     - $|V_n|$, $|E_n|$ could be large for $n \leq k$
 
     Thus, our algorithm must scale well with $|V_n|$ and $|E_n|$, and there is less restriction of scaling with $|V_w|$, $|E_w|$, $|S|$ and $|X|$.
+    """)
+    return
 
-    ## 2.3 Salient Features
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 2.4 Salient Features
     Decisions made for how much abstraction is done on certain properties of the problem are guided by maintaining correctness, completeness, and allowing for an appropriate run-time given the size of each variable in the current problem. In particular, finding an exact solution requires searching through a portion of the solution space, and thus we have an at most exponential growth in $O(b^d)$. Reducing $b$ and $d$ allow for further depth and will allow the algorithm to run faster, allow for exact algorithms/better heuristic upper-bounds, and allow for this algorithm to be considered on larger facilities.
 
     By representing the facility as a hierarchical graph, we can use strategies to reduce the depth of the combinatorial explosion of algorithms that can be used to assist with the objective. Instead of $O(b^d)$ exploding with $d = |E|$, we can instead have it increase with $d = |V_w|$ instead. We have each wing be a vertex on $G$, and each junction and inter-wing corridor.
@@ -347,42 +415,6 @@ def _(mo):
     These salient sectors are sectors adjacent to 1, 3 or 4 other sectors, and sectors containing supply units, entrances, junctions or exits. Without any one of these, we do not fully capture each wing of the facility in our abstraction.
 
     CRUDY-1's limited supply storage is represented by $A$, with $F$ being already collected supplies <span>&ndash;</span> CRUDY-1 does not need to collect these supplies <span>&ndash;</span> and $M$ finding the `SupplyID` of a particular supply vertex.
-    # 2.4 Hierarchical vs Flat graph
-    #todo
-    %%graph of time to complete of different sizes%%
-    ## 2.5 Justification of Each ADT
-    #todo
-    # 3 Algorithm Design
-    ## 3.1 Algorithmic Design approaches
-    #todo
-    %%add some animations for each approach cause it looks cool%%
-    ## 3.2 Balancing Priorities
-    #todo
-    %%add some animations for different goals cause it looks cool%%
-    ## 3.3 Wing traversal strategy
-    ### 3.3.1 Sub-problems
-    #todo
-    ### 3.3.2 Two strategies
-    #todo
-    %%graph of time of each%%
-    ## 3.4 Revised Algorithm
-    ### 3.4.1 Explanation
-    #todo
-    ### 3.4.2 Justification
-    #todo
-
-    %%ANIMATION%%
-    # 4 Pseudocode
-    %%This time I'm going to do each function separately and explain what it does%%
-    #todo
-    # 5 Justification
-    ## 5.1 Suitability
-    #todo
-    ## 5.2 Coherence
-    #todo
-    ## 5.3 Fit for Purpose
-    #todo
-    %%Talk about the making the algorithm without assuming the size of the facility is just what we have right now%%
     """)
     return
 
@@ -390,7 +422,180 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Algorithm Explorer
+    # 2.4 Hierarchical vs Flat graph
+    When adapting from a single-wing facility to a multi-wing one, there are two obvious ways to represent the multiple wings.
+
+    Recall in Memo 1, the facility's singular wing was represented as a graph, with each vertex representing a salient sector and each edge a connecting walk between thoses salient sectors.
+
+    The **Hierarchical graph** representation uses a meta-graph, a graph where each vertex is a graph, to represent the wings of the facility. Each wing is an vertex in the meta-graph and the connecting coridoors between each wing will be the edges. These vertex-graphs will be represented the same way as in Memo 1.
+
+    The **Flat graph** representation uses a graph to representing the facility. The facility will be represented the same way as in Memo 1, except edges can now also represent inter-wing coridoors between junction sectors.
+
+    First we can notice that, with an algorithmic process, it is possible to flatten the hierarchical graph into the flat graph by adding each vertex and edge in each vertex of the meta-graph to a empty graph and then adding each edge from the meta-graph as an edge in this graph. Therefore we can conclude that the hierarchical graph has more information than the flat graph, and the flat graph _loses_ information.
+
+    If we were to adopt the flat representation and continue to use the previous algorithm, we would notice a performance penalty, as our dijkstra's algorithm cost scales with the number of vertices in the full flat representation. With 4 wings, this is barely noticable, but if new information was to reveal a larger facility, the cost would quickly become enough to make the algorithm not feasable.
+
+    This hierarchical graph represents the physical properties of the facility more closely, and this additional information can be used to inform a more efficient algorithm. There is only a small, linear-time cost associated with converting the hierarchical graph to the flat graph representation, and therefore it is worth using the hierarchical representation to allow a better algorithm to be used.
+    """)
+    return
+
+
+@app.cell
+def _():
+    """Hierarchical vs Flat graph algorithm time"""
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 2.5 Justification of Each ADT
+    Above, I justified the use of the meta-graph in the hierarchical representation.
+
+    TODO
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 3 Algorithm Design
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 3.1 Algorithmic Design approaches
+    """)
+    return
+
+
+@app.cell
+def _():
+    """Animations of different aproaches"""
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 3.2 Balancing Priorities
+    """)
+    return
+
+
+@app.cell
+def _():
+    """add some animations for different goals cause it looks cool"""
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 3.3 Wing traversal strategy
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.3.1 Sub-problems
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.3.2 Two strategies
+    """)
+    return
+
+
+@app.cell
+def _():
+    """graph of time of each"""
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 3.4 Revised Algorithm
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.4.1 Explanation
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.4.2 Justification
+    """)
+    return
+
+
+@app.cell
+def _():
+    """animation of algorithm"""
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 4 Pseudocode
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.ui.code_editor(r"'''This time I'm going to do each function separately and explain what it does'''", disabled=True)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 5 Justification
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 5.1 Suitability
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 5.2 Coherence
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 5.3 Fit for Purpose
+    - Talk about the making the algorithm without assuming the size of the facility is just what we have right now
     """)
     return
 
@@ -398,62 +603,6 @@ def _(mo):
 @app.cell(hide_code=True)
 def algorithm_explorer(facility_drawer):
     facility_drawer.draw_multi_wing()
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Justification
-
-    ### Suitability
-    - The number of supplies in the facility is low, and the number of verticies is much higher. This suits the time complexity scaling well with number of verticies and badly with number of supplies
-    - The facilities size: 12x12 sectors means that max number of vertices in abstraction is 144 and this small size favours an algorithm that is easier to implement
-    - Since the algorithm always finds the shortest route that collects all supplies to an exit, an edge case would be the seed that gives the worst facility for the algorithm
-    - The algorithm was implemented in python and has an average runtime of 100 milliseconds, which allows CRUDY-1 to
-    - Assumptions removed that will cause need for changes:
-      - Facility isn't full connected
-      - Facility sector adjacency becomes directed and $G$ isn't a fully connected component
-      - Supply units have weight and CRUDY-1 should avoid carrying too many
-      - Supply units have non-uniform weight
-      - Facility isn't fully known when algorithm starts
-      - More than 5 supplies (algorithm time grows quickly with supplies)
-      - More drones
-      - Sectors that break when you go through them (CRUDY-1 cannot revisit)
-      - Many other things
-
-    ### Coherance
-    - I use $\text{get\_neighbours}: \text{Graph} \times \text{Vertex} \to \text{Vertex}$ in the dijkstra's algorithm implementation in the algorithm to get the neighbours of the current visited vertex
-    - I use $\text{has}: \text{Map} \times \text{Key} \to \text{Boolean}$ to reconstruct the shortest paths found by dijkstra's algorithm
-    - My pseudocode prefers square bracket notation to the ADT $\text{get}$ operation in Map and Array
-
-    ### Operational Constraints
-    - Load capacity: $A$ holds the supplies that CRUDY-1 currently holds
-    - Extraction: The algorithm always terminates at an exit (proved below)
-    - Energy budget: The algorithm always finds a minimum cost walk through the facility that collects all supplies and exits at an exit
-    - Revisiting sectors: N/A (not a constraint)
-    - Supply collection: $\text{get\_unfound\_supplies}: \text{Set}[\text{Vertex}] \times \{\text{Vertex} \to \text{String or NULL}\} \times Set[String] \to \text{Set}[\text{Vertex}]$ makes sure CRUDY-1 ignores already collected supplies
-    - Objective: All supplies will be collected (proved below) and there are no energy constraints
-    - Mission Directive:
-      - The algorithm does not care about structural stability, as it will cross over a sector at most 3 times (proved below)
-      - The algorithm will always have a successful extraction if one exists.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Proofs (barely)
-
-    ### Tractablilibity
-
-    The algorithm checked on a subset of 85000 facilities was correct for all such facilities
-
-    ### Optimality
-
-    Since the algorithm finds the shortest distance between each entry, supply and exit, and it the checks each ordering of entry to each supply to an exit, the walk found must be the shortest path
-    """)
     return
 
 

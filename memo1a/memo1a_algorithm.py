@@ -7,39 +7,21 @@ import networkx as nx
 class VertexT: pass
 
 
+EdgeT = frozenset
+
+WingT = nx.Graph
+
 SupplyID = int
 
 SupplyStorage = tuple[
 	list[VertexT], tuple[SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None]]
 
+# Source - https://stackoverflow.com/a/8702435
+# Posted by Hugo Walter, modified by community. See post 'Timeline' for change history
+# Retrieved 2026-06-23, License - CC BY-SA 3.0
+from collections import defaultdict
 
-# # Source - https://stackoverflow.com/a/13276237
-# # Posted by Sasha Chedygov, modified by community. See post 'Timeline' for change history
-# # Retrieved 2026-06-23, License - CC BY-SA 3.0
-# class TwoWayDict(dict):
-#     def __init__(self, dictionary: dict):
-#         super().__init__(chain.from_iterable(((k, v), (v, k)) for k, v in dictionary.items()))
-#
-#     @classmethod
-#     def __class_getitem__(cls, key):
-#         return f"TwoWayDict[{key.__name__}]"
-#
-#     def __setitem__(self, key, value):
-#         # Remove any previous connections with these values
-#         if key in self:
-#             del self[key]
-#         if value in self:
-#             del self[value]
-#         dict.__setitem__(self, key, value)
-#         dict.__setitem__(self, value, key)
-#
-#     def __delitem__(self, key):
-#         dict.__delitem__(self, self[key])
-#         dict.__delitem__(self, key)
-#
-#     def __len__(self):
-#         """Returns the number of connections"""
-#         return dict.__len__(self) // 2
+nested_dict = lambda: defaultdict(nested_dict)
 
 
 def dijkstra(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
@@ -94,20 +76,60 @@ def get_pair_shortest_path(source: VertexT, sink: VertexT, prev: dict[VertexT, V
 	raise ValueError(f"prev does not contain the vertices: {source} and {sink}")
 
 
-def get_supplies_to_collect(supplies: set[VertexT], vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID], supply_storage: SupplyStorage) -> set[VertexT]:
-	return supplies.difference((s for s in supplies if vertex_to_supply_id[s] in found_supply_ids or vertex_to_supply_id[s] in supply_storage))
+def get_supplies_to_collect(
+	supplies: set[VertexT], vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID],
+	supply_storage: SupplyStorage
+) -> set[VertexT]:
+	return supplies.difference(
+		(s for s in supplies if vertex_to_supply_id[s] in found_supply_ids or vertex_to_supply_id[s] in supply_storage)
+	)
+
+
+def get_which_wing(G: tuple[set[nx.Graph], set[tuple[VertexT, VertexT]]], vertex: VertexT) -> nx.Graph:
+	for g in G[0]:
+		if vertex in g.nodes:
+			return g
+	raise ValueError(f"vertex {vertex} is not in any graph in G")
+
+
+def get_wing_rewards_shortest_path(
+	source: VertexT, sink: VertexT, prev: dict[VertexT, VertexT | None], supplies: list[VertexT]
+) -> list[VertexT]:
+	shortest_path = get_pair_shortest_path(source, sink, prev)
+
+	for supply in supplies:
+		supply_path = []
+		curr = supply
+		while curr not in shortest_path:
+			supply_path.append(curr)
+			curr = prev[curr]
+
+		insert_idx = shortest_path.index(curr)
+		shortest_path = shortest_path[:insert_idx + 1] + list(reversed(supply_path)) + [
+			supply
+		] + supply_path + shortest_path[insert_idx:]
+
+	return shortest_path
+
+
+def get_apsp_graph(
+	G: tuple[set[WingT], set[EdgeT[VertexT]]], supplies: set[VertexT],
+	wing_cost_rewards: dict[WingT, dict[EdgeT[VertexT], dict[frozenset[VertexT], tuple[int, list[VertexT]]]]],
+	prevs: dict[WingT, dict[VertexT, VertexT | None]]
+) -> tuple[dict[EdgeT[WingT], dict[int, list[VertexT]]], dict[WingT, dict[EdgeT[VertexT], dict[frozenset[VertexT], tuple[int, list[VertexT]]]]]]:
+	pass
 
 
 def ember_rescue(
-		G: nx.Graph,
-		entry: VertexT,
-		exits: set[VertexT],
-		supplies: set[VertexT],
-		supply_storage: SupplyStorage,
-		vertex_to_supply_id: dict[VertexT, SupplyID],
-		found_supply_ids: set[SupplyID]
+	G: tuple[set[WingT], set[EdgeT[VertexT]]],
+	entry: VertexT,
+	exits: set[VertexT],
+	supplies: set[VertexT],
+	supply_storage: SupplyStorage,
+	vertex_to_supply_id: dict[VertexT, SupplyID],
+	found_supply_ids: set[SupplyID]
 ) -> SupplyStorage:
-	res: list[VertexT] = []
+	res: list[VertexT]
 
 	"""Get supplies that could be collected in the graph"""
 	supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
@@ -115,13 +137,16 @@ def ember_rescue(
 	"""Get number of supplies to find"""
 	number_of_supplies_to_collect = max(len(supplies), len([i for i in supply_storage if i is not None]))
 
-	prevs: dict = {}
-	wing: nx.Graph
-	for wing in G:
-		"""Get entry/junction -> exit/junction pair paths"""
-		prevs[wing] = dijkstra(wing, list(wing.nodes)[0])
+	"""Get entry/junction -> exit/junction pair paths"""
+	prevs: dict[WingT, dict[VertexT, VertexT | None]] = {wing: dijkstra(wing, list(wing.nodes)[0]) for wing in G[0]}
 
-	wing_cost_rewards: dict[nx.Graph, dict[VertexT, ]]
+	"""get cost of going from entry/junction -> exit/junction in each wing"""
+	"""we will use memoisation to lazily """
+	wing_cost_rewards: dict[
+		WingT, dict[EdgeT[VertexT], dict[frozenset[VertexT], tuple[int, list[VertexT]]]]] = nested_dict()
 
+	"""greedily find first solution"""
+	apsp_graph, wing_cost_rewards = get_apsp_graph(G, supplies, wing_cost_rewards, prevs)
+	res = nearest_neighbour(apsp_graph, )
 
 	return res, (None, None, None, None, None)

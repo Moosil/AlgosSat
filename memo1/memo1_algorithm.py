@@ -79,7 +79,7 @@ def get_unfound_supplies(supplies: set[VertexT], supply_id: dict[VertexT, str], 
 
 	return res
 
-def brute_force_recursive(g: nx.Graph, source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
+def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
 	min_cost = float('infinity')
 	min_cost_walk = None
 
@@ -91,7 +91,7 @@ def brute_force_recursive(g: nx.Graph, source: VertexT, sinks: set[VertexT], exi
 				min_cost = cost
 
 	for sink in sinks:
-		min_walk_through, cost = brute_force_recursive(g, sink, sinks.difference({sink}), exits, pair_path_costs, fuel - 1)
+		min_walk_through, cost = brute_force_recursive(sink, sinks.difference({sink}), exits, pair_path_costs, fuel - 1)
 		cost += pair_path_costs[source][sink]
 		if cost < min_cost:
 			min_cost = cost
@@ -99,8 +99,8 @@ def brute_force_recursive(g: nx.Graph, source: VertexT, sinks: set[VertexT], exi
 
 	return min_cost_walk, min_cost
 
-def brute_force(g: nx.Graph, v_e: VertexT, supplies: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
-	return [v_e] + brute_force_recursive(g, v_e, supplies, exits, pair_path_costs, max_supplies)[0]
+def brute_force(v_e: VertexT, supplies: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
+	return [v_e] + brute_force_recursive(v_e, supplies, exits, pair_path_costs, max_supplies)[0]
 
 def ember_rescue(g: nx.Graph, v_e: VertexT, exits: set[VertexT], supplies: set[VertexT], supply_id: dict[VertexT, str], supply_storage: list[str], collected_supplies: set[str]) -> list[VertexT]:
 	unfound_supplies = get_unfound_supplies(supplies, supply_id, collected_supplies, supply_storage)
@@ -110,7 +110,7 @@ def ember_rescue(g: nx.Graph, v_e: VertexT, exits: set[VertexT], supplies: set[V
 
 	num_supplies_carrying = len([i for i in supply_storage if i is not None])
 
-	super_path = brute_force(g, v_e, unfound_supplies, exits, pairs_paths_costs, 5 - num_supplies_carrying)
+	super_path = brute_force(v_e, unfound_supplies, exits, pairs_paths_costs, 5 - num_supplies_carrying)
 
 	res = []
 

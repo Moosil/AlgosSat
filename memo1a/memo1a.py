@@ -12,12 +12,13 @@ def _():
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
     import copy
+    from itertools import chain
 
-    return mo, mpatches, nx, plt, random
+    return chain, copy, mo, mpatches, nx, plt, random
 
 
 @app.cell(hide_code=True)
-def _(mpatches, nx, plt, random, seed_input):
+def _(chain, copy, mpatches, nx, plt, random, seed_input):
     class GraphDrawer:
         def __init__(self) -> None:
             self.WING_COLS, self.WING_ROWS = 10, 10
@@ -51,6 +52,39 @@ def _(mpatches, nx, plt, random, seed_input):
 
             carve(0, 0)
             return g
+
+        def get_abstracted_graph(self) -> tuple[set[nx.Graph], set[tuple]]:
+            wings = set()
+            for i in range(self.n_wings):
+                wing: nx.Graph = copy.deepcopy(self.wings[i])
+                for u, d in self.wings[i].degree:
+                    w_u = tuple([i] + list(u))
+                    if d == 2 and w_u not in self.supplies and w_u not in {self.exit_a, self.exit_b,
+                                                                           self.entry} and w_u not in set(
+                        chain(*self.junctions)):
+                        n0 = list(wing.neighbors(u))[0]
+                        n1 = list(wing.neighbors(u))[1]
+                        w = wing.get_edge_data(u, n0)["weight"] + wing.get_edge_data(u, n1)["weight"]
+                        wing.remove_node(u)
+                        wing.add_edge(n0, n1, weight=w)
+                wing = nx.relabel_nodes(wing, lambda x: tuple([i] + list(x)))
+                wings.add(wing)
+
+            return wings, set(self.junctions)
+
+        def get_path_from_super_path(self, path: list) -> list:
+            res = []
+            for i in range(len(path) - 1):
+                u = path[i]
+                v = path[i + 1]
+                if u[0] == v[0]:
+                    res += [tuple([u[0]] + list(w)) for w in
+                            nx.shortest_path(self.wings[u[0]], source=u[1:], target=v[1:], weight="weight")]
+                    res.pop()
+                else:
+                    res.append(u)
+            res.append(path[-1])
+            return res
 
         def _get_multi_wing_facility(self, seed):
             int_seed = int(seed)
@@ -600,9 +634,44 @@ def _(mo):
     return
 
 
+@app.cell
+def _(facility_drawer, mo):
+    import memo1a_algorithm
+    _abs_graph = facility_drawer.get_abstracted_graph()
+    _res = memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())
+
+    _path = facility_drawer.get_path_from_super_path(_res[0])
+
+    path_len = mo.ui.slider(
+        value=0,
+        start=0,
+        stop=len(_path),
+        step=1,
+        label="Path length",
+    )
+    return memo1a_algorithm, path_len
+
+
+@app.cell
+def _(facility_drawer, memo1a_algorithm, mo, path_len):
+    _abs_graph = facility_drawer.get_abstracted_graph()
+    _res = memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())
+
+    _path = facility_drawer.get_path_from_super_path(_res[0])
+    len_display = mo.md(f"{path_len.value}/{len(_path)}")
+    mo.hstack([path_len, len_display], justify="start")
+    return
+
+
 @app.cell(hide_code=True)
-def algorithm_explorer(facility_drawer):
-    facility_drawer.draw_multi_wing()
+def algorithm_explorer(facility_drawer, memo1a_algorithm, path_len):
+    _abs_graph = facility_drawer.get_abstracted_graph()
+
+    _res = memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())
+
+    _path = facility_drawer.get_path_from_super_path(_res[0])
+
+    facility_drawer.draw_multi_wing(highlight_path=_path[:path_len.value])
     return
 
 

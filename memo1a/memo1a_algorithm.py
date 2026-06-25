@@ -7,15 +7,11 @@ import networkx as nx
 
 class VertexT: pass
 
-
-EdgeT = frozenset
-
 WingT = nx.Graph
 
 SupplyID = int
 
-SupplyStorage = tuple[
-	list[VertexT], tuple[SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None]]
+SupplyStorage = tuple[SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None]
 
 # Source - https://stackoverflow.com/a/8702435
 # Posted by Hugo Walter, modified by community. See post 'Timeline' for change history
@@ -69,10 +65,10 @@ def get_pair_shortest_path(source: VertexT, sink: VertexT, prev: dict[VertexT, V
 
 	if right in left_path:
 		right_index = left_path.index(right)
-		return left_path[:right_index] + list(reversed(right_path[:-1]))
+		return left_path[:right_index] + list(reversed(right_path))
 	if left in right_path:
 		left_index = right_path.index(left)
-		return right_path[:left_index] + list(reversed(left_path[:-1]))
+		return left_path + right_path[:left_index]
 	raise ValueError(f"prev does not contain the vertices: {source} and {sink}")
 
 
@@ -84,7 +80,7 @@ def get_supplies_to_collect(
 		(s for s in supplies if vertex_to_supply_id[s] in found_supply_ids or vertex_to_supply_id[s] in supply_storage)
 	)
 
-def get_which_wing(G: tuple[set[WingT], set[EdgeT[VertexT]]], vertex: VertexT) -> WingT:
+def get_which_wing(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], vertex: VertexT) -> WingT:
 	for g in G[0]:
 		if vertex in g.nodes:
 			return g
@@ -93,40 +89,39 @@ def get_which_wing(G: tuple[set[WingT], set[EdgeT[VertexT]]], vertex: VertexT) -
 def get_vertices_in_wing(wing: WingT, vertices: Iterable[VertexT]) -> Generator[VertexT]:
 	return (v for v in vertices if v in wing.nodes)
 
-def get_junctions_in_wing(G: tuple[set[WingT], set[EdgeT[VertexT]]], wing: WingT) -> Generator[VertexT]:
+def get_junctions_in_wing(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], wing: WingT) -> Generator[VertexT]:
 	return get_vertices_in_wing(wing, chain(*G[1]))
 
-def get_junction_other(G: tuple[set[WingT], set[EdgeT[VertexT]]], junction: VertexT) -> VertexT:
-	edge = list(next(filter(lambda e: junction in e, G[1])))
+def get_junction_other(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], junction: VertexT) -> VertexT:
+	edge = tuple(next(filter(lambda e: junction in e, G[1])))
 	if edge[0] == junction:
 		return edge[1]
 	else:
 		return edge[0]
 
-def reconstruct_path(G: tuple[set[WingT], set[EdgeT[VertexT]]], came_from: dict[VertexT, VertexT | None], e: VertexT, prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> list:
+def reconstruct_path(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], came_from: dict[VertexT, VertexT | None], e: VertexT, prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> list:
 	meta_path = []
 	curr = e
 	while curr in came_from:
 		meta_path.append(curr)
 		curr = came_from[curr]
-	meta_path.reverse()
 
 	res = []
-	for i in range(len(meta_path) - 1):
-		u = meta_path[i]
-		v = meta_path[i + 1]
+	for i in range(len(meta_path) - 1, 0, -1):
+		u = meta_path[i - 1]
+		v = meta_path[i]
 		u_wing = get_which_wing(G, u)
 		v_wing = get_which_wing(G, v)
 		if u_wing == v_wing:
-			res += get_pair_shortest_path(u, v, prevs[u_wing])[:-1]
+			res += get_pair_shortest_path(v, u, prevs[u_wing])[:-1]
 		else:
-			res.append(u)
+			res.append(v)
 
-	res.append(meta_path[-1])
+	res.append(meta_path[0])
 
 	return res
 
-def dijkstra_meta(G: tuple[set[WingT], set[EdgeT[VertexT]]], source: VertexT, sinks: set[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> dict[VertexT, list[VertexT]]:
+def dijkstra_meta(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], source: VertexT, sinks: set[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> dict[VertexT, list[VertexT]]:
 	res = {}
 	dist = {source: 0}
 
@@ -152,7 +147,7 @@ def dijkstra_meta(G: tuple[set[WingT], set[EdgeT[VertexT]]], source: VertexT, si
 		u_wing = get_which_wing(G, u)
 
 		for v in get_junctions_in_wing(G, u_wing):
-			w = len(get_pair_shortest_path(u, v, prevs[u_wing]))
+			w = get_path_length(G, [u, v], prevs)
 			if v not in dist or dist[u] + w < dist[v]:
 				prev[v] = u
 				dist[v] = dist[u] + w
@@ -164,7 +159,7 @@ def dijkstra_meta(G: tuple[set[WingT], set[EdgeT[VertexT]]], source: VertexT, si
 				dist[other_v] = dist[v] + 1
 				heapq.heappush(pq, (dist[other_v], other_v))
 		for v in get_vertices_in_wing(u_wing, sinks):
-			w = len(get_pair_shortest_path(u, v, prevs[u_wing]))
+			w = get_path_length(G, [u, v], prevs)
 			if v not in dist or dist[u] + w < dist[v]:
 				prev[v] = u
 				dist[v] = dist[u] + w
@@ -172,16 +167,16 @@ def dijkstra_meta(G: tuple[set[WingT], set[EdgeT[VertexT]]], source: VertexT, si
 
 	return res
 
-def get_apsp(G: tuple[set[WingT], set[EdgeT[VertexT]]], entry: VertexT, exits: set[VertexT], supplies: set[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> dict[EdgeT[VertexT], list[VertexT]]:
-	res: dict[EdgeT[VertexT], list[VertexT]] = {}
+def get_apsp(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: VertexT, exits: set[VertexT], supplies: set[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> dict[VertexT, dict[VertexT, list[VertexT]]]:
+	res: dict[VertexT, dict[VertexT, list[VertexT]]] = defaultdict(dict)
 	for source in supplies.union((entry,)):
 		dijkstra_res = dijkstra_meta(G, source, supplies.union(exits), prevs)
 		for sink in dijkstra_res:
-			res[EdgeT((source, sink))] = dijkstra_res[sink]
+			res[source][sink] = dijkstra_res[sink]
 
 	return res
 
-def get_path_length(G: tuple[set[WingT], set[EdgeT[VertexT]]], path: list[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> int:
+def get_path_length(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], path: list[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> int:
 	res = 0
 	for i in range(len(path) - 1):
 		u = path[i]
@@ -189,52 +184,55 @@ def get_path_length(G: tuple[set[WingT], set[EdgeT[VertexT]]], path: list[Vertex
 		u_wing = get_which_wing(G, u)
 		v_wing = get_which_wing(G, v)
 		if u_wing == v_wing:
-			res += len(get_pair_shortest_path(u, v, prevs[u_wing])[:-1])
+			sub_path = get_pair_shortest_path(u, v, prevs[u_wing])
+			for j in range(len(sub_path) - 1):
+				res += u_wing.get_edge_data(sub_path[j], sub_path[j + 1])['weight']
 		else:
 			res += 1
 
 	return res
 
 
-def get_apsp_dist(G: tuple[set[WingT], set[EdgeT[VertexT]]], pair_path_map: dict[EdgeT[VertexT], list[VertexT]], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> dict[EdgeT[VertexT], int]:
-	res: dict[EdgeT[VertexT], int] = {}
-	for edge, path in pair_path_map.items():
-		res[edge] = get_path_length(G, path, prevs)
+def get_apsp_dist(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> dict[VertexT, dict[VertexT, int]]:
+	res: dict[VertexT, dict[VertexT, int]] = defaultdict(dict)
+	for source, sink_dict in pair_path_map.items():
+		for sink, path in sink_dict.items():
+			res[source][sink] = get_path_length(G, path, prevs)
 
 	return res
 
-def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[EdgeT[VertexT], int], fuel: int) -> tuple[list[VertexT], int]:
+def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
 	min_cost = float('infinity')
 	min_cost_walk = None
 
 	if fuel == 0:
 		for exit in exits:
-			cost = pair_path_costs[EdgeT((source, exit))]
+			cost = pair_path_costs[source][exit]
 			if cost < min_cost:
 				min_cost_walk = [exit]
 				min_cost = cost
 
 	for sink in sinks:
 		min_walk_through, cost = brute_force_recursive(sink, sinks.difference({sink}), exits, pair_path_costs, fuel - 1)
-		cost += pair_path_costs[EdgeT((source, sink))]
+		cost += pair_path_costs[source][sink]
 		if cost < min_cost:
 			min_cost = cost
 			min_cost_walk = [sink] + min_walk_through
 
 	return min_cost_walk, min_cost
 
-def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], pair_path_costs: dict[EdgeT[VertexT], int], max_supplies: int) -> list[VertexT]:
+def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
 	return [entry] + brute_force_recursive(entry, supplies, exits, pair_path_costs, max_supplies)[0]
 
 def ember_rescue(
-	G: tuple[set[WingT], set[EdgeT[VertexT]]],
+	G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
 	entry: VertexT,
 	exits: set[VertexT],
 	supplies: set[VertexT],
 	supply_storage: SupplyStorage,
 	vertex_to_supply_id: dict[VertexT, SupplyID],
 	found_supply_ids: set[SupplyID]
-) -> SupplyStorage:
+) -> tuple[list[VertexT], SupplyStorage]:
 	res: list[VertexT]
 
 	"""Get supplies that could be collected in the graph"""
@@ -253,11 +251,23 @@ def ember_rescue(
 	"""get good first guess"""
 	super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
 
-	res = [entry]
+	res = []
 	for i in range(len(super_path) - 1):
-		pair_path = apsp_map[EdgeT((super_path[i], super_path[i + 1]))]
+		pair_path = apsp_map[super_path[i]][super_path[i + 1]]
 		res += pair_path
 		if i != len(super_path) - 2:
 			res.pop()
 
-	return res, (None, None, None, None, None)
+	j: int = 0
+	collected_supplies = [v for v in res if v in supplies]
+	supply_storage = list(supply_storage)
+	for i in range(len(supply_storage)):
+		if j >= number_of_supplies_to_collect:
+			break
+		if supply_storage[i] is None:
+			supply_storage[i] = vertex_to_supply_id[collected_supplies[j]]
+			j += 1
+
+	supply_storage = tuple(supply_storage)
+
+	return res, supply_storage

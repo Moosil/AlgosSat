@@ -1,3 +1,4 @@
+import cProfile
 import math
 import random
 from itertools import chain
@@ -10,7 +11,6 @@ import copy
 from tqdm import tqdm
 
 import memo1a_algorithm
-
 
 
 class GraphDrawer:
@@ -48,13 +48,15 @@ class GraphDrawer:
 		carve(0, 0)
 		return g
 
-	def get_abstracted_graph(self) -> tuple[set[nx.Graph], set[frozenset]]:
+	def get_abstracted_graph(self) -> tuple[set[nx.Graph], set[tuple]]:
 		wings = set()
 		for i in range(self.n_wings):
 			wing: nx.Graph = copy.deepcopy(self.wings[i])
 			for u, d in self.wings[i].degree:
 				w_u = tuple([i] + list(u))
-				if d == 2 and w_u not in self.supplies and w_u not in {self.exit_a, self.exit_b, self.entry} and w_u not in set(chain(*self.junctions)):
+				if d == 2 and w_u not in self.supplies and w_u not in {self.exit_a, self.exit_b,
+																	   self.entry} and w_u not in set(
+						chain(*self.junctions)):
 					n0 = list(wing.neighbors(u))[0]
 					n1 = list(wing.neighbors(u))[1]
 					w = wing.get_edge_data(u, n0)["weight"] + wing.get_edge_data(u, n1)["weight"]
@@ -63,7 +65,7 @@ class GraphDrawer:
 			wing = nx.relabel_nodes(wing, lambda x: tuple([i] + list(x)))
 			wings.add(wing)
 
-		return wings, set(frozenset(j) for j in self.junctions)
+		return wings, set(self.junctions)
 
 	def get_path_from_super_path(self, path: list) -> list:
 		res = []
@@ -71,7 +73,8 @@ class GraphDrawer:
 			u = path[i]
 			v = path[i + 1]
 			if u[0] == v[0]:
-				res += [tuple([u[0]] + list(w)) for w in nx.shortest_path(self.wings[u[0]], source=u[1:], target=v[1:], weight="weight")]
+				res += [tuple([u[0]] + list(w)) for w in
+						nx.shortest_path(self.wings[u[0]], source=u[1:], target=v[1:], weight="weight")]
 				res.pop()
 			else:
 				res.append(u)
@@ -283,29 +286,38 @@ class GraphDrawer:
 		plt.tight_layout()
 		return fig
 
+
 if __name__ == "__main__":
-	# for i in tqdm(range(10102000, 31122026)):
-	facility_drawer = GraphDrawer(28122007)
-	abs_graph = facility_drawer.get_abstracted_graph()
+	if True:
+		facility_drawer = GraphDrawer(0)
+		abs_graph = facility_drawer.get_abstracted_graph()
 
-	import time
-	start = time.time_ns()
-	res = memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())
-	end = time.time_ns()
+		import time
 
-	print(f"found walk in {end - start}ns = {math.floor((end - start)/1000)}ms")
+		start = time.time_ns()
+		res = memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry,
+											{facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies),
+											tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())
+		end = time.time_ns()
 
-	path = facility_drawer.get_path_from_super_path(res[0])
+		print(f"found walk in {end - start}ns = {math.floor((end - start) / 1000)}ms")
 
-	print(f"super path: {res}")
-	print(f"len of super path: {len(res[0])}")
-	print(f"path: {path}")
-	print(f"len of path: {len(path)}")
+		path = facility_drawer.get_path_from_super_path(res[0])
 
-	print(f"entry: {facility_drawer.entry}")
-	print(f"exit_a: {facility_drawer.exit_a}")
-	print(f"exit_b: {facility_drawer.exit_b}")
+		print(f"super path: {res}")
+		print(f"len of super path: {len(res[0])}")
+		print(f"path: {path}")
+		print(f"len of path: {len(path)}")
 
-	is_correct = path[0] == facility_drawer.entry
-	is_correct &= (path[-1] == facility_drawer.exit_a or path[-1] == facility_drawer.exit_b)
-	print(f"correctness: {is_correct}")
+		print(f"entry: {facility_drawer.entry}")
+		print(f"exit_a: {facility_drawer.exit_a}")
+		print(f"exit_b: {facility_drawer.exit_b}")
+
+		is_correct = path[0] == facility_drawer.entry
+		is_correct &= (path[-1] == facility_drawer.exit_a or path[-1] == facility_drawer.exit_b)
+		print(f"correctness: {is_correct}")
+	else:
+		facility_drawer = GraphDrawer(0)
+		abs_graph = facility_drawer.get_abstracted_graph()
+
+		cProfile.run(r'''for i in range(1000): memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())''')

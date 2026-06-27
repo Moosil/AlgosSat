@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.23.11"
 app = marimo.App(width="medium", app_title="Memo1", css_file="../custom.css")
 
 
@@ -368,6 +368,41 @@ def _(mo):
     We will have $A$ be an array of size 5 representing CRUDY-1's supply unit storage, which contains `SupplyID`s or the null ID: 0, function $M: S \to \text{SupplyID}$ mapping each supply vertex to its `SupplyID`, and set $F$ be the set of found `SupplyID`s. When a supply is collected, it will be added to $A$, and $A_\text{new}$ will be returned.
 
     We will be designing an algorithm to traverse meta-graph $G$, from $s$ to an $x$, returning an ordered sequence of vertices in list $W$, and CRUDY-1's updated supply unit storage.
+
+    To do this, we will express the problem as a integer linear program
+
+    $$\begin{array}{lrrll}
+    \text{minimise} & \displaystyle\sum\limits_{u \in S \cup \{e\}} \displaystyle\sum\limits_{v \in S \cup X} c_{uv} x_{uv} & & & \\
+    \text{subject to } & \displaystyle\sum\limits_{u \in S \cup \{e\}} & x_{uv} & = 1 &\forall v \in S \cup X; \\
+    & \displaystyle\sum\limits_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
+    & \displaystyle\sum\limits_{u \in Q \cup \{e\}} \displaystyle\sum\limits_{v \in Q \cup X} & x_{uv} &\leq |S| + 1 & \forall Q \subseteq S; \\
+    & & x_{uv} &\in \{0, 1\} & &
+    \end{array}$$
+
+    where
+    $x_{uv} = \begin{cases}
+    1 &  \text{path goes from u to v} \\
+    x   &  \text{otherwise}
+    \end{cases}$
+
+    We can relax this problem to a linear program with
+
+    $$\begin{array}{lrrll}
+    \text{minimise} & \displaystyle\sum\limits_{u \in S \cup \{e\}} \displaystyle\sum\limits_{v \in S \cup X} c_{uv} x_{uv} & & & \\
+    \text{subject to} & \displaystyle\sum\limits_{u \in S \cup \{e\}} & x_{uv} & = 1 &\forall v \in S \cup X; \\
+    & \displaystyle\sum\limits_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
+    & \displaystyle\sum\limits_{u \in Q \cup \{e\}} \displaystyle\sum\limits_{v \in Q \cup X} & x_{uv} &\leq |S| + 1 & \forall Q \subseteq S; \\
+    & 0 \leq & x_{uv} &\leq 1 & &
+    \end{array}$$
+
+    We can also find the dual problem, with $y_v$ being the dual variable for $\displaystyle\sum\limits_{u \in S \cup \{e\}} x_{uv} = 1$, $z_u$ being the dual variable for $\displaystyle\sum\limits_{v \in S \cup X} x_{uv} = 1$ and $Y_Q \geq 0$ being the dual variable for $\displaystyle\sum\limits_{u \in Q \cup \{e\}} \displaystyle\sum\limits_{v \in Q \cup X} x_{uv}$:
+
+    $$\begin{array}{lrrll}
+    & \text{maximise} & \displaystyle\sum\limits_{v \in S \cup x} y_v + \displaystyle\sum\limits_{u \in S \cup \{e\}} z_u + \displaystyle\sum\limits_{Q \subseteq S} (|Q| + 1) Y_Q & & & \\
+    & \text{subject to} & y_u + z_v + \displaystyle\sum\limits_{Q: \{u, v\} \in Q} Y_Q &\leq c_{ij} &\forall u \in S \cup \{e\}, v \in S \cup X \\
+    & & Y_Q & \geq 0 & \forall Q \subseteq S \\
+    & & y_u, z_v &\in \mathbb{R} & &
+    \end{array}$$
     """)
     return
 
@@ -486,7 +521,9 @@ def _(mo):
     ## 2.5 Justification of Each ADT
     Above, I justified the use of the meta-graph in the hierarchical representation.
 
-    TODO
+    By using a graph, we can encapsulate only the salient features of a wubg, where other structures would introduce non-salient features.
+
+    Each other parameter represents physical salient features of the facility, and without them, the problem would not be encapsulated in this abstraction.
     """)
     return
 
@@ -503,6 +540,11 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 3.1 Algorithmic Design approaches
+    ### 3.1.1 Greedy
+    Greedy patterns are often efficient, but will be unlikely to find an optimal solution, unless the problem has the greedy property. Since the facility is still small, we can aim for an exact solution, so our main algorithm will not be a greedy one
+    ### 3.1.2 Backtracking
+    Backtracking algorithms are often efficient for exact solutions to combinatorial problems. Since the problem can be formulated as an **Interger Linear Program** (ILP), we can use backtracking techniques like branch and bound, and its derivative algorithms.
+    ### 3.1.3
     """)
     return
 
@@ -583,7 +625,131 @@ def _(mo):
 
 @app.cell
 def _():
-    """animation of algorithm"""
+    """animation of algorithm (manim)"""
+    return
+
+
+@app.cell
+def _(facility_drawer, mo):
+    import memo1a_algorithm
+
+    _abs_graph = facility_drawer.get_abstracted_graph()
+    _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+    _supplies = set(facility_drawer.supplies)
+    _storage = tuple([None] * 5)
+    _supply_map = {i: hash(i) for i in facility_drawer.supplies}
+
+    @mo.cache
+    def ember_rescue_cached():
+        return memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
+
+    _res = ember_rescue_cached()
+
+    _path = facility_drawer.get_path_from_super_path(_res[0])
+
+    path_len = mo.ui.slider(
+        value=0,
+        start=0,
+        stop=len(_path),
+        step=1,
+        label="Step (drag to walk through the trace) ",
+    )
+    return ember_rescue_cached, memo1a_algorithm, path_len
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.4.3 Algorithm Explorer
+    """)
+    return
+
+
+@app.cell
+def _(facility_drawer, memo1a_algorithm, mo):
+    _abs_graph = facility_drawer.get_abstracted_graph()
+    _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+    _supplies = set(facility_drawer.supplies)
+    _storage = tuple([None] * 5)
+    _supply_map = {i: hash(i) for i in facility_drawer.supplies}
+
+    _trials = 100
+
+    def _get_runtime(trials: int = 1) -> float:
+        if trials < 1:
+            return 0
+
+        """source: https://docs.python.org/3/library/profile.html"""
+
+        import cProfile, pstats, io
+        from pstats import SortKey
+        pr = cProfile.Profile()
+        pr.enable()
+        for i in range(trials):
+            memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
+        pr.disable()
+        ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
+        return ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3] / trials
+
+    def _get_mem() -> float:
+
+        """source: https://docs.python.org/3/library/tracemalloc.html"""
+
+        import tracemalloc
+
+        tracemalloc.start()
+
+        memo1a_algorithm.ember_rescue(
+            _abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set()
+        )
+
+        snapshot = tracemalloc.take_snapshot()
+        tracemalloc.stop()
+        top_stats = snapshot.statistics('filename')
+        return sum(stat.size for stat in top_stats if "memo1a_algorithm.py" in stat.traceback._frames[0][0])
+
+    _ave_mem = round(sum([_get_mem() for _ in range(_trials)]) / _trials)
+
+    mo.hstack([
+        mo.stat(label="Runtime (Python):",    value=f"{_get_runtime(_trials) * 1000:.2f}ms"),
+        mo.stat(label="Memory (Python):", value=f"{_ave_mem} B")
+    ], gap=1, wrap=True)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    These value **HIGHLY** depend on the marimo virtual machine, and can vary by up to 5 orders of magnitude. On my machine, I get Runtime: 12.2ms, Memory: 458 B
+    """)
+    return
+
+
+@app.cell
+def _(ember_rescue_cached, facility_drawer, mo, path_len):
+    _abs_graph = facility_drawer.get_abstracted_graph()
+    _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+    _supplies = set(facility_drawer.supplies)
+    _storage = tuple([None] * 5)
+    _supply_map = {i: hash(i) for i in facility_drawer.supplies}
+
+    _res = ember_rescue_cached()
+
+    _path = facility_drawer.get_path_from_super_path(_res[0])
+    _len_display = mo.md(f"{path_len.value}/{len(_path)}")
+    mo.hstack([path_len, _len_display], justify="start")
+    return
+
+
+@app.cell
+def algorithm_explorer(ember_rescue_cached, facility_drawer, mo, path_len):
+    @mo.cache
+    def _get_path():
+        _res = ember_rescue_cached()
+
+        return facility_drawer.get_path_from_super_path(_res[0])
+
+    facility_drawer.draw_multi_wing(highlight_path=_get_path()[:path_len.value])
     return
 
 
@@ -631,47 +797,6 @@ def _(mo):
     ## 5.3 Fit for Purpose
     - Talk about the making the algorithm without assuming the size of the facility is just what we have right now
     """)
-    return
-
-
-@app.cell
-def _(facility_drawer, mo):
-    import memo1a_algorithm
-    _abs_graph = facility_drawer.get_abstracted_graph()
-    _res = memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())
-
-    _path = facility_drawer.get_path_from_super_path(_res[0])
-
-    path_len = mo.ui.slider(
-        value=0,
-        start=0,
-        stop=len(_path),
-        step=1,
-        label="Path length",
-    )
-    return memo1a_algorithm, path_len
-
-
-@app.cell
-def _(facility_drawer, memo1a_algorithm, mo, path_len):
-    _abs_graph = facility_drawer.get_abstracted_graph()
-    _res = memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())
-
-    _path = facility_drawer.get_path_from_super_path(_res[0])
-    len_display = mo.md(f"{path_len.value}/{len(_path)}")
-    mo.hstack([path_len, len_display], justify="start")
-    return
-
-
-@app.cell(hide_code=True)
-def algorithm_explorer(facility_drawer, memo1a_algorithm, path_len):
-    _abs_graph = facility_drawer.get_abstracted_graph()
-
-    _res = memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())
-
-    _path = facility_drawer.get_path_from_super_path(_res[0])
-
-    facility_drawer.draw_multi_wing(highlight_path=_path[:path_len.value])
     return
 
 

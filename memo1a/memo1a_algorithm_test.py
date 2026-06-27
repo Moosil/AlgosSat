@@ -1,4 +1,3 @@
-import cProfile
 import math
 import random
 from itertools import chain
@@ -9,6 +8,7 @@ import matplotlib.patches as mpatches
 import copy
 
 from tqdm import tqdm
+from typing_extensions import runtime
 
 import memo1a_algorithm
 
@@ -18,7 +18,8 @@ class GraphDrawer:
 		self.WING_COLS, self.WING_ROWS = 10, 10
 
 		self.n_wings, self.wing_names, self.wings, self.entry, self.exit_a, self.exit_b, self.supplies, self.junctions = self._get_multi_wing_facility(
-			seed)
+			seed
+		)
 
 	@staticmethod
 	def _neighbours(cols, rows, c, r):
@@ -54,9 +55,12 @@ class GraphDrawer:
 			wing: nx.Graph = copy.deepcopy(self.wings[i])
 			for u, d in self.wings[i].degree:
 				w_u = tuple([i] + list(u))
-				if d == 2 and w_u not in self.supplies and w_u not in {self.exit_a, self.exit_b,
-																	   self.entry} and w_u not in set(
-						chain(*self.junctions)):
+				if d == 2 and w_u not in self.supplies and w_u not in {
+					self.exit_a, self.exit_b,
+					self.entry
+				} and w_u not in set(
+					chain(*self.junctions)
+				):
 					n0 = list(wing.neighbors(u))[0]
 					n1 = list(wing.neighbors(u))[1]
 					w = wing.get_edge_data(u, n0)["weight"] + wing.get_edge_data(u, n1)["weight"]
@@ -140,8 +144,10 @@ class GraphDrawer:
 
 		return n_wings, wing_names, wings, entry, exit_a, exit_b, supplies[:5], junctions
 
-	def draw_multi_wing(self, highlight_path=None, node_colors=None,
-						supply_collected=None, title="Multi-Wing Facility"):
+	def draw_multi_wing(
+		self, highlight_path=None, node_colors=None,
+		supply_collected=None, title="Multi-Wing Facility"
+		):
 		COL_BG = '#F5F7FA'
 		COL_GRID = '#C8D0DC'
 		COL_WALL = '#44546A'
@@ -172,48 +178,66 @@ class GraphDrawer:
 
 			# Grid lines
 			for c in range(self.WING_COLS + 1):
-				ax.plot([ox + c, ox + c], [0, self.WING_ROWS],
-						color=COL_GRID, lw=0.4, zorder=1)
+				ax.plot(
+					[ox + c, ox + c], [0, self.WING_ROWS],
+					color=COL_GRID, lw=0.4, zorder=1
+					)
 			for r in range(self.WING_ROWS + 1):
-				ax.plot([ox, ox + self.WING_COLS], [r, r],
-						color=COL_GRID, lw=0.4, zorder=1)
+				ax.plot(
+					[ox, ox + self.WING_COLS], [r, r],
+					color=COL_GRID, lw=0.4, zorder=1
+					)
 
 			# Wing border
-			ax.add_patch(plt.Rectangle(
-				(ox, 0), self.WING_COLS, self.WING_ROWS,
-				fill=False, edgecolor=COL_WALL, lw=2.2, zorder=3))
+			ax.add_patch(
+				plt.Rectangle(
+					(ox, 0), self.WING_COLS, self.WING_ROWS,
+					fill=False, edgecolor=COL_WALL, lw=2.2, zorder=3
+				)
+			)
 
 			# Wing label
-			ax.text(ox + self.WING_COLS / 2, self.WING_ROWS + 0.38,
-					f"Wing {self.wing_names[w]}",
-					ha='center', va='bottom', fontsize=9,
-					fontweight='bold', color='#0B1F3B', zorder=8)
+			ax.text(
+				ox + self.WING_COLS / 2, self.WING_ROWS + 0.38,
+				f"Wing {self.wing_names[w]}",
+				ha='center', va='bottom', fontsize=9,
+				fontweight='bold', color='#0B1F3B', zorder=8
+				)
 
 			# Internal walls (draw where no edge exists)
 			for c in range(self.WING_COLS):
 				for r in range(self.WING_ROWS):
 					if c + 1 < self.WING_COLS and not wing.has_edge((c, r), (c + 1, r)):
-						ax.plot([ox + c + 1, ox + c + 1], [r, r + 1],
-								color=COL_WALL, lw=1.4, zorder=3)
+						ax.plot(
+							[ox + c + 1, ox + c + 1], [r, r + 1],
+							color=COL_WALL, lw=1.4, zorder=3
+							)
 					if r + 1 < self.WING_ROWS and not wing.has_edge((c, r), (c, r + 1)):
-						ax.plot([ox + c, ox + c + 1], [r + 1, r + 1],
-								color=COL_WALL, lw=1.4, zorder=3)
+						ax.plot(
+							[ox + c, ox + c + 1], [r + 1, r + 1],
+							color=COL_WALL, lw=1.4, zorder=3
+							)
 
 			# Node highlights
 			if node_colors:
 				for (ww, c, r), color in node_colors.items():
 					if ww == w:
-						ax.add_patch(plt.Rectangle(
-							(ox + c, r), 1, 1,
-							color=color, alpha=0.5, zorder=2))
+						ax.add_patch(
+							plt.Rectangle(
+								(ox + c, r), 1, 1,
+								color=color, alpha=0.5, zorder=2
+							)
+						)
 
 		# Inter-wing corridors and junction nodes
 		for (w1, c1, r1), (w2, c2, r2) in self.junctions:
 			x1, y1 = xoff(w1) + c1 + 0.5, r1 + 0.5
 			x2, y2 = xoff(w2) + c2 + 0.5, r2 + 0.5
-			ax.plot([x1, x2], [y1, y2],
-					color=COL_JUNCTION, lw=1.8,
-					linestyle='--', alpha=0.7, zorder=4)
+			ax.plot(
+				[x1, x2], [y1, y2],
+				color=COL_JUNCTION, lw=1.8,
+				linestyle='--', alpha=0.7, zorder=4
+				)
 			ax.plot(x1, y1, 'o', ms=8, color=COL_JUNCTION, zorder=5)
 			ax.plot(x2, y2, 'o', ms=8, color=COL_JUNCTION, zorder=5)
 
@@ -223,32 +247,46 @@ class GraphDrawer:
 			already = supply_collected and (ws, cs, rs) in supply_collected
 			col = '#AAAAAA' if already else COL_SUPPLY
 			mkr = 'x' if already else '*'
-			ax.plot(ox + cs + 0.5, rs + 0.5,
-					marker=mkr, markersize=14, color=col,
-					markeredgecolor=COL_ENTRY if not already else '#999',
-					markeredgewidth=0.8, zorder=5)
-			ax.text(ox + cs + 0.62, rs + 0.58, f'S{i + 1}',
-					fontsize=6, color=COL_WALL, zorder=6)
+			ax.plot(
+				ox + cs + 0.5, rs + 0.5,
+				marker=mkr, markersize=14, color=col,
+				markeredgecolor=COL_ENTRY if not already else '#999',
+				markeredgewidth=0.8, zorder=5
+				)
+			ax.text(
+				ox + cs + 0.62, rs + 0.58, f'S{i + 1}',
+				fontsize=6, color=COL_WALL, zorder=6
+				)
 
 		# Entry marker
 		we, ce, re = self.entry
 		ox = xoff(we)
-		ax.add_patch(plt.Circle(
-			(ox + ce + 0.5, re + 0.5), 0.28,
-			color=COL_ENTRY, zorder=6))
-		ax.text(ox + ce + 0.5, re + 0.5, 'E',
-				ha='center', va='center',
-				fontsize=6, color='white', fontweight='bold', zorder=7)
+		ax.add_patch(
+			plt.Circle(
+				(ox + ce + 0.5, re + 0.5), 0.28,
+				color=COL_ENTRY, zorder=6
+			)
+		)
+		ax.text(
+			ox + ce + 0.5, re + 0.5, 'E',
+			ha='center', va='center',
+			fontsize=6, color='white', fontweight='bold', zorder=7
+			)
 
 		# Exit markers
 		for lbl, (wx, cx, rx) in [('A', self.exit_a), ('B', self.exit_b)]:
 			ox = xoff(wx)
-			ax.add_patch(plt.Circle(
-				(ox + cx + 0.5, rx + 0.5), 0.28,
-				color=COL_EXIT, zorder=6))
-			ax.text(ox + cx + 0.5, rx + 0.5, lbl,
-					ha='center', va='center',
-					fontsize=6, color='white', fontweight='bold', zorder=7)
+			ax.add_patch(
+				plt.Circle(
+					(ox + cx + 0.5, rx + 0.5), 0.28,
+					color=COL_EXIT, zorder=6
+				)
+			)
+			ax.text(
+				ox + cx + 0.5, rx + 0.5, lbl,
+				ha='center', va='center',
+				fontsize=6, color='white', fontweight='bold', zorder=7
+				)
 
 		# Highlight path
 		if highlight_path and len(highlight_path) > 1:
@@ -259,7 +297,8 @@ class GraphDrawer:
 					[xoff(w1) + c1 + 0.5, xoff(w2) + c2 + 0.5],
 					[r1 + 0.5, r2 + 0.5],
 					color=COL_PATH, lw=1.8, linestyle='--',
-					alpha=0.75, zorder=4)
+					alpha=0.75, zorder=4
+				)
 
 		# Legend
 		legend_items = [
@@ -274,33 +313,48 @@ class GraphDrawer:
 				mpatches.Patch(color=COL_FRONTIER, alpha=0.5, label='Frontier'),
 				mpatches.Patch(color=COL_CURRENT, alpha=0.7, label='Current'),
 			]
-		ax.legend(handles=legend_items, loc='upper left',
-				  fontsize=7, framealpha=0.9)
+		ax.legend(
+			handles=legend_items, loc='upper left',
+			fontsize=7, framealpha=0.9
+			)
 
 		ax.set_xlim(-0.5, total_w + 0.5)
 		ax.set_ylim(-0.9, self.WING_ROWS + 1.1)
 		ax.set_aspect('equal')
 		ax.axis('off')
-		ax.set_title(title, fontsize=11, fontweight='bold',
-					 color='#0B1F3B', pad=10)
+		ax.set_title(
+			title, fontsize=11, fontweight='bold',
+			color='#0B1F3B', pad=10
+			)
 		plt.tight_layout()
 		return fig
 
 
 if __name__ == "__main__":
-	if True:
+	if False:
+		from time import perf_counter_ns as timer
+
 		facility_drawer = GraphDrawer(0)
 		abs_graph = facility_drawer.get_abstracted_graph()
 
-		import time
+		exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+		supplies = set(facility_drawer.supplies)
+		storage = tuple([None] * 5)
+		supply_map = {i: hash(i) for i in facility_drawer.supplies}
 
-		start = time.time_ns()
-		res = memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry,
-											{facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies),
-											tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())
-		end = time.time_ns()
+		trials = 10
+		start = timer()
+		for i in range(max(1, trials)):
+			res = memo1a_algorithm.ember_rescue(
+				abs_graph, facility_drawer.entry,
+				exits, supplies,
+				storage, supply_map, set()
+				)
+		end = timer()
 
-		print(f"found walk in {end - start}ns = {math.floor((end - start) / 1000)}ms")
+		run_time = end - start
+		average_time = run_time / trials
+		print(f"found walk in {round(average_time)}ns = {round(average_time / 100_000) / 10}ms")
 
 		path = facility_drawer.get_path_from_super_path(res[0])
 
@@ -317,7 +371,38 @@ if __name__ == "__main__":
 		is_correct &= (path[-1] == facility_drawer.exit_a or path[-1] == facility_drawer.exit_b)
 		print(f"correctness: {is_correct}")
 	else:
+		import cProfile, pstats, io
+		from pstats import SortKey
+
 		facility_drawer = GraphDrawer(0)
 		abs_graph = facility_drawer.get_abstracted_graph()
 
-		cProfile.run(r'''for i in range(1000): memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())''')
+		exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+		supplies = set(facility_drawer.supplies)
+		storage = tuple([None] * 5)
+		supply_map = {i: hash(i) for i in facility_drawer.supplies}
+
+		pr = cProfile.Profile()
+		pr.enable()
+		res = memo1a_algorithm.ember_rescue(
+			abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set()
+			)
+		pr.disable()
+		sortby = SortKey.CUMULATIVE
+		ps = pstats.Stats(pr).sort_stats(sortby)
+		print(ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3])
+
+		import tracemalloc
+
+		tracemalloc.start()
+
+		res = memo1a_algorithm.ember_rescue(
+			abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set()
+		)
+
+		snapshot = tracemalloc.take_snapshot()
+		top_stats = snapshot.statistics('filename')
+		total_mem = sum(stat.size for stat in top_stats if "memo1a_algorithm.py" in stat.traceback._frames[0][0])
+		print(f"Total allocated size: {total_mem / 1024:.3f} KiB")
+
+		cProfile.run(r'''memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())''')

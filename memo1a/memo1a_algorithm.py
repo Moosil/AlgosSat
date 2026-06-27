@@ -224,6 +224,69 @@ def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[Verte
 def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
 	return [entry] + brute_force_recursive(entry, supplies, exits, pair_path_costs, max_supplies)[0]
 
+import numpy as np
+
+def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basic: np.ndarray, initial: np.ndarray, inv_a_basic: np.ndarray):
+	"""
+	Solves min cTx: Ax = b, x >= 0
+	"""
+	"""https://www.matem.unam.mx/~omar/math340/revised-simplex.html"""
+	"""https://people.math.carleton.ca/~kcheung/math/notes/MATH5801/05/5_1_simplex.html"""
+	"""https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html"""
+	non_basic = {i for i in range(c.size) if i not in basic}
+	c_basic_trans = c[basic].transpose()
+	a_non_basic = A[:, list(non_basic)]
+	select_k = c_basic_trans - c_basic_trans @ inv_a_basic @ a_non_basic
+	k: int = -1
+	max_found: int = 0
+	for i in range(select_k.size):
+		if select_k[0][i] > max_found:
+			k = i
+			max_found = select_k[0][i]
+
+	if k == -1:
+		"""optimal solutiuon found"""
+		return initial
+
+	k = list(non_basic)[k]
+
+	d = inv_a_basic @ A[:, k]
+
+	initial_basic = initial[basic]
+
+	t = max([initial_basic[i][0] / d[i] for i in range(len(initial_basic)) if d[i] > 0])
+
+	def get_next_x(i: int) -> int:
+		if i == k:
+			return t
+		if i in non_basic:
+			return 0
+		for j in range(len(basic)):
+			if basic[j] == i:
+				return initial_basic[j][0] - t * d[j]
+		raise IndexError("basic does not contain i somehow...")
+
+	next_x = np.array([get_next_x(i) for i in range(initial.shape[0])])
+
+	E = np.identity(inv_a_basic.shape[1])
+	i: int = -1
+	for j in range(d.shape[0]):
+		if initial_basic[j][0] - t * d[j] == 0:
+			i = j
+
+	if i == -1:
+		raise IndexError("shouldn't happen")
+
+	i = basic[i]
+	# Source - https://stackoverflow.com/a/28952975
+	# Posted by Alex Riley, modified by community. See post 'Timeline' for change history
+	# Retrieved 2026-06-27, License - CC BY-SA 3.0
+	next_inv_a_basic = np.linalg.inv(E) @ inv_a_basic
+
+	next_basic = np.array([i for i in range(len(next_x)) if next_x[i] != 0])
+
+	return simplex(A, b, c, next_basic, next_x, next_inv_a_basic)
+
 def ember_rescue(
 	G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
 	entry: VertexT,

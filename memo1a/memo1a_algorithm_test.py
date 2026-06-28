@@ -374,7 +374,7 @@ if __name__ == "__main__":
 		import cProfile, pstats, io
 		from pstats import SortKey
 
-		facility_drawer = GraphDrawer(0)
+		facility_drawer = GraphDrawer(28122007)
 		abs_graph = facility_drawer.get_abstracted_graph()
 
 		exits = {facility_drawer.exit_a, facility_drawer.exit_b}

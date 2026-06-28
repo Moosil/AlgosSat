@@ -201,23 +201,54 @@ def get_apsp_dist(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], pair_path_
 
 	return res
 
+def nearest_neighbour(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]]) -> list[VertexT]:
+	sinks = sinks.copy()
+	res: list[VertexT] = []
+	cost: int = 0
+	curr = source
+	while len(sinks) > 0:
+		min_found = list(sinks)[0]
+		min_cost = pair_path_costs[curr][min_found]
+		for sink in sinks:
+			curr_cost = pair_path_costs[curr][sink]
+			if curr_cost < min_cost:
+				min_found = sink
+				min_cost = curr_cost
+
+		sinks.remove(min_found)
+		res.append(min_found)
+		curr = min_found
+		cost += min_cost
+
+	min_found = list(exits)[0]
+	min_cost = pair_path_costs[curr][min_found]
+	for sink in exits:
+		curr_cost = pair_path_costs[curr][sink]
+		if curr_cost < min_cost:
+			min_found = sink
+			min_cost = curr_cost
+
+	res.append(min_found)
+	cost += min_cost
+	return res
+
 def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
 	min_cost = float('infinity')
 	min_cost_walk = None
 
 	if fuel == 0:
-		for exit in exits:
-			cost = pair_path_costs[source][exit]
+		for sink in exits:
+			cost = pair_path_costs[source][sink]
 			if cost < min_cost:
-				min_cost_walk = [exit]
+				min_cost_walk = [sink]
 				min_cost = cost
-
-	for sink in sinks:
-		min_walk_through, cost = brute_force_recursive(sink, sinks.difference({sink}), exits, pair_path_costs, fuel - 1)
-		cost += pair_path_costs[source][sink]
-		if cost < min_cost:
-			min_cost = cost
-			min_cost_walk = [sink] + min_walk_through
+	else:
+		for sink in sinks:
+			min_walk_through, cost = brute_force_recursive(sink, sinks.difference({sink}), exits, pair_path_costs, fuel - 1)
+			cost += pair_path_costs[source][sink]
+			if cost < min_cost:
+				min_cost = cost
+				min_cost_walk = [sink] + min_walk_through
 
 	return min_cost_walk, min_cost
 
@@ -226,21 +257,43 @@ def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], pai
 
 import numpy as np
 
-def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basic: np.ndarray, initial: np.ndarray, inv_a_basic: np.ndarray):
+# we don't actually need this cause we know a basic feasible solution via nearest neighbour in O(n) time
+# def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray | None:
+# 	"""
+# 	Turns min  cTx:
+# 		 s.t. Ax = b;
+# 			  x >= 0
+# 	Into min  eTz:
+# 		 s.t. Ax + Iz = b;
+# 			  x >= 0;
+# 			  z >= 0
+# 	"""
+# 	e = np.array([[0] for _ in range(c.shape[0])] + [[1] for _ in range(A.shape[0])])
+# 	dummy_A = np.block([[A, np.identity(A.shape[0])]])
+# 	dummy_B = np.array([i for i in range(A.shape[1], A.shape[1] + A.shape[0])])
+# 	dummy_initial = np.array([np.hstack(([0 for _ in range(A.shape[1])], b.transpose()[0]))]).transpose()
+# 	dummy = _simplex(dummy_A, b, e, dummy_B, dummy_initial, np.linalg.inv(np.array([dummy_A[:, i] for i in dummy_B])))
+#
+# 	non_artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] != 1]].ravel()
+# 	artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] == 1]].ravel()
+#
+# 	if np.where(artificial_vars > 0)[0].size == 0:
+# 		return _simplex(A, b, c, np.array([i for i in range(non_artificial_vars.shape[0]) if non_artificial_vars[i] != 0]))
+
+def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basic: np.ndarray, initial: np.ndarray, inv_a_basic: np.ndarray) -> np.ndarray | None:
 	"""
 	Solves min cTx: Ax = b, x >= 0
 	"""
 	"""https://www.matem.unam.mx/~omar/math340/revised-simplex.html"""
 	"""https://people.math.carleton.ca/~kcheung/math/notes/MATH5801/05/5_1_simplex.html"""
 	"""https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html"""
-	non_basic = {i for i in range(c.size) if i not in basic}
-	c_basic_trans = c[basic].transpose()
-	a_non_basic = A[:, list(non_basic)]
-	select_k = c_basic_trans - c_basic_trans @ inv_a_basic @ a_non_basic
+	non_basic = np.array([i for i in range(c.size) if i not in basic])
+	a_non_basic = A[:, non_basic]
+	select_k = c[non_basic].transpose() - c[basic].transpose() @ inv_a_basic @ a_non_basic
 	k: int = -1
 	max_found: int = 0
 	for i in range(select_k.size):
-		if select_k[0][i] > max_found:
+		if select_k[0][i] < max_found:
 			k = i
 			max_found = select_k[0][i]
 
@@ -248,13 +301,13 @@ def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basic: np.ndarray, init
 		"""optimal solutiuon found"""
 		return initial
 
-	k = list(non_basic)[k]
+	k = non_basic[k]
 
-	d = inv_a_basic @ A[:, k]
+	d = inv_a_basic @ -A[:, k]
 
 	initial_basic = initial[basic]
 
-	t = max([initial_basic[i][0] / d[i] for i in range(len(initial_basic)) if d[i] > 0])
+	t = max([initial_basic[i][0] / -d[i] for i in range(len(initial_basic)) if d[i] < 0])
 
 	def get_next_x(i: int) -> int:
 		if i == k:
@@ -263,29 +316,28 @@ def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basic: np.ndarray, init
 			return 0
 		for j in range(len(basic)):
 			if basic[j] == i:
-				return initial_basic[j][0] - t * d[j]
+				return initial_basic[j][0] + t * d[j]
 		raise IndexError("basic does not contain i somehow...")
 
-	next_x = np.array([get_next_x(i) for i in range(initial.shape[0])])
+	next_x = np.array([[get_next_x(i)] for i in range(initial.shape[0])])
 
 	E = np.identity(inv_a_basic.shape[1])
 	i: int = -1
 	for j in range(d.shape[0]):
-		if initial_basic[j][0] - t * d[j] == 0:
+		if initial_basic[j][0] + t * d[j] == 0:
 			i = j
+			break
 
 	if i == -1:
 		raise IndexError("shouldn't happen")
 
 	i = basic[i]
-	# Source - https://stackoverflow.com/a/28952975
-	# Posted by Alex Riley, modified by community. See post 'Timeline' for change history
-	# Retrieved 2026-06-27, License - CC BY-SA 3.0
+	E[:, i] = d
 	next_inv_a_basic = np.linalg.inv(E) @ inv_a_basic
 
-	next_basic = np.array([i for i in range(len(next_x)) if next_x[i] != 0])
+	next_basic = np.array([j for j in range(next_x.shape[0]) if (j in basic and j != i) or j == k])
 
-	return simplex(A, b, c, next_basic, next_x, next_inv_a_basic)
+	return _simplex(A, b, c, next_basic, next_x, next_inv_a_basic)
 
 def ember_rescue(
 	G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
@@ -312,6 +364,9 @@ def ember_rescue(
 	apsp_dist_map = get_apsp_dist(G, apsp_map, prevs)
 
 	"""get good first guess"""
+	super_path_greedy = nearest_neighbour(entry, supplies, exits, apsp_dist_map)
+
+	"""brute-force"""
 	super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
 
 	res = []

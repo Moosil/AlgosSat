@@ -372,10 +372,11 @@ def _(mo):
     To do this, we will express the problem as a integer linear program
 
     $$\begin{array}{lrrll}
-    \text{minimise} & \displaystyle\sum\limits_{u \in S \cup \{e\}} \displaystyle\sum\limits_{v \in S \cup X} c_{uv} x_{uv} & & & \\
-    \text{subject to } & \displaystyle\sum\limits_{u \in S \cup \{e\}} & x_{uv} & = 1 &\forall v \in S \cup X; \\
-    & \displaystyle\sum\limits_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
-    & \displaystyle\sum\limits_{u \in Q \cup \{e\}} \displaystyle\sum\limits_{v \in Q \cup X} & x_{uv} &\leq |S| + 1 & \forall Q \subseteq S; \\
+    \text{minimise} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
+    \text{subject to } & \displaystyle\sum_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
+    & \displaystyle\sum_{u \in S \cup \{e\}} & x_{uv} & = 1 & \forall v \in S; \\
+    & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in X} & x_{uv} & = 1 \\
+    & \displaystyle\sum_{u \in Q \cup \{e\}} \displaystyle\sum_{v \in Q \cup X} & x_{uv} &\leq |S| + 1 & \forall Q \subseteq S; \\
     & & x_{uv} &\in \{0, 1\} & &
     \end{array}$$
 
@@ -385,22 +386,21 @@ def _(mo):
     x   &  \text{otherwise}
     \end{cases}$
 
-    We can relax this problem to a linear program with
+    We can relax this problem to a linear program and remove the no subcycles elimination constraint with
 
     $$\begin{array}{lrrll}
-    \text{minimise} & \displaystyle\sum\limits_{u \in S \cup \{e\}} \displaystyle\sum\limits_{v \in S \cup X} c_{uv} x_{uv} & & & \\
-    \text{subject to} & \displaystyle\sum\limits_{u \in S \cup \{e\}} & x_{uv} & = 1 &\forall v \in S \cup X; \\
-    & \displaystyle\sum\limits_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
-    & \displaystyle\sum\limits_{u \in Q \cup \{e\}} \displaystyle\sum\limits_{v \in Q \cup X} & x_{uv} &\leq |S| + 1 & \forall Q \subseteq S; \\
+    \text{minimise} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
+    \text{subject to } & \displaystyle\sum_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
+    & \displaystyle\sum_{u \in S \cup \{e\}} & x_{uv} & = 1 & \forall v \in S; \\
+    & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in X} & x_{uv} & = 1 \\
     & 0 \leq & x_{uv} &\leq 1 & &
     \end{array}$$
 
-    We can also find the dual problem, with $y_v$ being the dual variable for $\displaystyle\sum\limits_{u \in S \cup \{e\}} x_{uv} = 1$, $z_u$ being the dual variable for $\displaystyle\sum\limits_{v \in S \cup X} x_{uv} = 1$ and $Y_Q \geq 0$ being the dual variable for $\displaystyle\sum\limits_{u \in Q \cup \{e\}} \displaystyle\sum\limits_{v \in Q \cup X} x_{uv}$:
+    We can also find the dual problem, with $y_v$ being the dual variable for $\displaystyle\sum_{u \in S \cup \{e\}} x_{uv} = 1$, $z_u$ being the dual variable for $\displaystyle\sum_{v \in S \cup X} x_{uv} = 1$ and $w_u$ being the dual variable for $\displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in X} x_{uv} = 1$:
 
     $$\begin{array}{lrrll}
-    & \text{maximise} & \displaystyle\sum\limits_{v \in S \cup x} y_v + \displaystyle\sum\limits_{u \in S \cup \{e\}} z_u + \displaystyle\sum\limits_{Q \subseteq S} (|Q| + 1) Y_Q & & & \\
-    & \text{subject to} & y_u + z_v + \displaystyle\sum\limits_{Q: \{u, v\} \in Q} Y_Q &\leq c_{ij} &\forall u \in S \cup \{e\}, v \in S \cup X \\
-    & & Y_Q & \geq 0 & \forall Q \subseteq S \\
+    & \text{maximise} & \displaystyle\sum_{v \in S \cup x} y_v + \displaystyle\sum_{u \in S \cup \{e\}} z_u & & & \\
+    & \text{subject to} & y_u + z_v + w_u &\leq c_{uv} &\forall u \in S \cup \{e\}, v \in S \cup X \\
     & & y_u, z_v &\in \mathbb{R} & &
     \end{array}$$
     """)
@@ -750,6 +750,12 @@ def algorithm_explorer(ember_rescue_cached, facility_drawer, mo, path_len):
         return facility_drawer.get_path_from_super_path(_res[0])
 
     facility_drawer.draw_multi_wing(highlight_path=_get_path()[:path_len.value])
+    return
+
+
+@app.cell
+def _(facility_drawer):
+    facility_drawer.draw_multi_wing()
     return
 
 

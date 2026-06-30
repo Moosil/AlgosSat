@@ -68,7 +68,7 @@ def get_pair_shortest_path(source: VertexT, sink: VertexT, prev: dict[VertexT, V
 		return left_path[:right_index] + list(reversed(right_path))
 	if left in right_path:
 		left_index = right_path.index(left)
-		return left_path + right_path[:left_index]
+		return left_path + list(reversed(right_path[:left_index]))
 	raise ValueError(f"prev does not contain the vertices: {source} and {sink}")
 
 
@@ -201,9 +201,10 @@ def get_apsp_dist(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], pair_path_
 
 	return res
 
+# upper bound
 def nearest_neighbour(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]]) -> list[VertexT]:
 	sinks = sinks.copy()
-	res: list[VertexT] = []
+	res: list[VertexT] = [source]
 	cost: int = 0
 	curr = source
 	while len(sinks) > 0:
@@ -280,20 +281,21 @@ import numpy as np
 # 	if np.where(artificial_vars > 0)[0].size == 0:
 # 		return _simplex(A, b, c, np.array([i for i in range(non_artificial_vars.shape[0]) if non_artificial_vars[i] != 0]))
 
-def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basic: np.ndarray, initial: np.ndarray, inv_a_basic: np.ndarray) -> np.ndarray | None:
+def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basis: np.ndarray, initial: np.ndarray, inv_a_basic: np.ndarray, min: bool) -> np.ndarray | None:
 	"""
 	Solves min cTx: Ax = b, x >= 0
 	"""
 	"""https://www.matem.unam.mx/~omar/math340/revised-simplex.html"""
 	"""https://people.math.carleton.ca/~kcheung/math/notes/MATH5801/05/5_1_simplex.html"""
 	"""https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html"""
-	non_basic = np.array([i for i in range(c.size) if i not in basic])
+	min_mult: int = -1 if min else 1
+	non_basic = np.array([i for i in range(c.size) if i not in basis])
 	a_non_basic = A[:, non_basic]
-	select_k = c[non_basic].transpose() - c[basic].transpose() @ inv_a_basic @ a_non_basic
+	select_k = c[non_basic].transpose() - c[basis].transpose() @ inv_a_basic @ a_non_basic
 	k: int = -1
 	max_found: int = 0
 	for i in range(select_k.size):
-		if select_k[0][i] < max_found:
+		if select_k[0][i] > min_mult * max_found:
 			k = i
 			max_found = select_k[0][i]
 
@@ -303,41 +305,92 @@ def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basic: np.ndarray, ini
 
 	k = non_basic[k]
 
-	d = inv_a_basic @ -A[:, k]
+	d = inv_a_basic @ min_mult * A[:, k]
 
-	initial_basic = initial[basic]
+	initial_basic = initial[basis]
 
-	t = max([initial_basic[i][0] / -d[i] for i in range(len(initial_basic)) if d[i] < 0])
+	t = max([initial_basic[i][0] / min_mult * d[i] for i in range(len(initial_basic)) if min_mult * d[i] > 0])
 
 	def get_next_x(i: int) -> int:
 		if i == k:
 			return t
 		if i in non_basic:
 			return 0
-		for j in range(len(basic)):
-			if basic[j] == i:
-				return initial_basic[j][0] + t * d[j]
-		raise IndexError("basic does not contain i somehow...")
+		for l in range(len(basis)):
+			if basis[l] == i:
+				return initial_basic[l][0] - min_mult * t * d[l]
+		raise IndexError("basis does not contain i somehow...")
 
 	next_x = np.array([[get_next_x(i)] for i in range(initial.shape[0])])
 
 	E = np.identity(inv_a_basic.shape[1])
 	i: int = -1
 	for j in range(d.shape[0]):
-		if initial_basic[j][0] + t * d[j] == 0:
+		if initial_basic[j][0] - min_mult * t * d[j] == 0:
 			i = j
 			break
 
 	if i == -1:
 		raise IndexError("shouldn't happen")
 
-	i = basic[i]
+	i = basis[i]
 	E[:, i] = d
 	next_inv_a_basic = np.linalg.inv(E) @ inv_a_basic
 
-	next_basic = np.array([j for j in range(next_x.shape[0]) if (j in basic and j != i) or j == k])
+	next_basic = np.array([j for j in range(next_x.shape[0]) if (j in basis and j != i) or j == k])
 
-	return _simplex(A, b, c, next_basic, next_x, next_inv_a_basic)
+	return _simplex(A, b, c, next_basic, next_x, next_inv_a_basic, min)
+
+# lower bound by solving dual
+def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], upper_bound_path: list[VertexT]) -> int:
+	# Dual problem started:
+	# A = np.array([[1 if i == u or i == v else 0 for i in [entry] + list(supplies) + [exits] + list(supplies)] for u in supplies.union([entry]) for v in supplies.union(exits)])
+	# b = np.array([[pair_path_costs[u][v]] for u in supplies.union([entry]) for v in supplies.union(exits)])
+	# c = np.ones((1 + len(exits) + 2 * len(supplies), 1))
+	#
+	# initial = [i for u in supplies.union([entry]) for v in supplies.union(exits)])
+
+	A = np.array(
+		[[1 if i == u     else 0 for i in [entry] + list(supplies) for _ in list(supplies) + list(exits)] for u in [entry] + list(supplies)] + \
+		[[1 if i == v     else 0 for _ in [entry] + list(supplies) for i in list(supplies) + list(exits)] for v in list(supplies)] + \
+		[[1 if v in exits else 0 for _ in [entry] + list(supplies) for v in list(supplies) + list(exits)]]
+		)
+	b = np.ones((1 + len(exits) + 2 * len(supplies), 1))
+	c = np.array([[pair_path_costs[u][v]] for u in supplies.union([entry]) for v in supplies.union(exits)])
+
+	initial = np.array([[1 if u in upper_bound_path and upper_bound_path[upper_bound_path.index(u) + 1] == v else 0] for u in supplies.union([entry]) for v in supplies.union(exits)])
+
+	basis = np.array([i for i in range(initial.shape[0]) if initial[i] == [1]])
+	i: int = 0
+	while len(basis) < A.shape[0]:
+		if list(A[:, i]) not in list(list(arr) for arr in A[:, basis].transpose()):
+			basis = np.append(basis, [i])
+		i += 1
+	basis.sort()
+
+	A_basis = np.array([A[:, i] for i in basis])
+	print(np.linalg.matrix_rank(A))
+
+	answer = simplex(A, b, c, basis, initial, np.linalg.inv(A_basis), True)
+
+	res: int = 0
+	mapping = [(u, v) for u in supplies.union([entry]) for v in supplies.union(exits)]
+	for i, a in enumerate(answer):
+		if a > 0:
+			edge = mapping[i]
+			res += pair_path_costs[edge[0]][edge[1]] * a
+
+
+def get_path_from_super_path(super_path: list[VertexT], apsp_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> list[VertexT]:
+	res = []
+	for i in range(len(super_path) - 1):
+		pair_path = apsp_map[super_path[i]][super_path[i + 1]]
+		res += pair_path
+		if i != len(super_path) - 2:
+			res.pop()
+
+	return res
+
 
 def ember_rescue(
 	G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
@@ -365,16 +418,13 @@ def ember_rescue(
 
 	"""get good first guess"""
 	super_path_greedy = nearest_neighbour(entry, supplies, exits, apsp_dist_map)
+	lower_bound = solve_relaxed_lp(entry, exits, supplies, apsp_dist_map, super_path_greedy)
+	print(lower_bound)
 
 	"""brute-force"""
 	super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
 
-	res = []
-	for i in range(len(super_path) - 1):
-		pair_path = apsp_map[super_path[i]][super_path[i + 1]]
-		res += pair_path
-		if i != len(super_path) - 2:
-			res.pop()
+	res = get_path_from_super_path(super_path, apsp_map)
 
 	j: int = 0
 	collected_supplies = [v for v in res if v in supplies]
@@ -388,4 +438,4 @@ def ember_rescue(
 
 	supply_storage = tuple(supply_storage)
 
-	return res, supply_storage
+	return res, supply_storage, get_path_from_super_path(super_path_greedy, apsp_map)

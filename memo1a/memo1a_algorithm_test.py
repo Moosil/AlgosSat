@@ -332,49 +332,52 @@ class GraphDrawer:
 
 if __name__ == "__main__":
 	if False:
-		from time import perf_counter_ns as timer
+		not_correct_count: int = 0
+		not_greedy_count: int = 0
 
-		facility_drawer = GraphDrawer(0)
-		abs_graph = facility_drawer.get_abstracted_graph()
+		pbar = tqdm(range(100000))
+		for i in pbar:
+			facility_drawer = GraphDrawer(0)
+			abs_graph = facility_drawer.get_abstracted_graph()
 
-		exits = {facility_drawer.exit_a, facility_drawer.exit_b}
-		supplies = set(facility_drawer.supplies)
-		storage = tuple([None] * 5)
-		supply_map = {i: hash(i) for i in facility_drawer.supplies}
+			exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+			supplies = set(facility_drawer.supplies)
+			storage = tuple([None] * 5)
+			supply_map = {i: hash(i) for i in facility_drawer.supplies}
 
-		trials = 10
-		start = timer()
-		for i in range(max(1, trials)):
 			res = memo1a_algorithm.ember_rescue(
 				abs_graph, facility_drawer.entry,
 				exits, supplies,
 				storage, supply_map, set()
 				)
-		end = timer()
 
-		run_time = end - start
-		average_time = run_time / trials
-		print(f"found walk in {round(average_time)}ns = {round(average_time / 100_000) / 10}ms")
+			path = facility_drawer.get_path_from_super_path(res[0])
+			greedy_path = facility_drawer.get_path_from_super_path(res[2])
+			#
+			# print(f"super path: {res}")
+			# print(f"len of super path: {len(res[0])}")
+			# print(f"path: {path}")
+			# print(f"len of path: {len(path)}")
+			#
+			# print(f"entry: {facility_drawer.entry}")
+			# print(f"exit_a: {facility_drawer.exit_a}")
+			# print(f"exit_b: {facility_drawer.exit_b}")
 
-		path = facility_drawer.get_path_from_super_path(res[0])
+			is_correct = path[0] == facility_drawer.entry
+			is_correct &= (path[-1] == facility_drawer.exit_a or path[-1] == facility_drawer.exit_b)
+			if not is_correct:
+				not_correct_count += 1
 
-		print(f"super path: {res}")
-		print(f"len of super path: {len(res[0])}")
-		print(f"path: {path}")
-		print(f"len of path: {len(path)}")
 
-		print(f"entry: {facility_drawer.entry}")
-		print(f"exit_a: {facility_drawer.exit_a}")
-		print(f"exit_b: {facility_drawer.exit_b}")
-
-		is_correct = path[0] == facility_drawer.entry
-		is_correct &= (path[-1] == facility_drawer.exit_a or path[-1] == facility_drawer.exit_b)
-		print(f"correctness: {is_correct}")
+			is_greedy_optimal = len(greedy_path) == len(path) and len([i for i in range(len(greedy_path)) if greedy_path[i] != path[i]]) == 0
+			if not is_greedy_optimal:
+				not_greedy_count += 1
+			pbar.set_description(f"[Total Correct: {i - not_correct_count + 1}/{i + 1}] [Total Greedy: {i - not_greedy_count + 1}/{i + 1}")
 	else:
 		import cProfile, pstats, io
 		from pstats import SortKey
 
-		facility_drawer = GraphDrawer(28122007)
+		facility_drawer = GraphDrawer(28122008)
 		abs_graph = facility_drawer.get_abstracted_graph()
 
 		exits = {facility_drawer.exit_a, facility_drawer.exit_b}

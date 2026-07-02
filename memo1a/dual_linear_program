@@ -1,0 +1,7 @@
+We can also find the dual problem, with $y_v$ being the dual variable for $\displaystyle\sum_{u \in S \cup \{e\}} x_{uv} = 1$, $z_u$ being the dual variable for $\displaystyle\sum_{v \in S \cup X} x_{uv} = 1$ and $W_Q$ being the dual variable for $\displaystyle\sum_{u \in Q \cup \{e\}} \displaystyle\sum_{v \in Q \cup X} x_{uv} \leq |S| + 1$:
+
+$$\begin{array}{lrrll}
+& \text{maximise} & \displaystyle\sum_{v \in S \cup x} y_v + \displaystyle\sum_{u \in S \cup \{e\}} z_u & & & \\
+& \text{subject to} & y_u + z_v + W_Q &\leq c_{uv} &\forall u \in S \cup \{e\}, v \in S \cup X \\
+& & y_u, z_v &\in \mathbb{R} & &
+\end{array}$$

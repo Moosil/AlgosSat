@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.11"
+__generated_with = "0.23.13"
 app = marimo.App(width="medium", app_title="Memo1", css_file="../custom.css")
 
 
@@ -350,7 +350,15 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 1.2 Amendment Revisions
-    - Changed struture of how the abstraction is communicated to be more verbose and briefly talk about key properties of the graph
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 1.2.1 Algorithm & Abstraction Changes
+    The previous algorithm assumed the facility was just one wing, and could be represented as a tree. While it could work on this graph with a flat graph abstraction, I chose to instead revise the algorithm for the new problem.
     """)
     return
 
@@ -368,41 +376,6 @@ def _(mo):
     We will have $A$ be an array of size 5 representing CRUDY-1's supply unit storage, which contains `SupplyID`s or the null ID: 0, function $M: S \to \text{SupplyID}$ mapping each supply vertex to its `SupplyID`, and set $F$ be the set of found `SupplyID`s. When a supply is collected, it will be added to $A$, and $A_\text{new}$ will be returned.
 
     We will be designing an algorithm to traverse meta-graph $G$, from $s$ to an $x$, returning an ordered sequence of vertices in list $W$, and CRUDY-1's updated supply unit storage.
-
-    To do this, we will express the problem as a integer linear program
-
-    $$\begin{array}{lrrll}
-    \text{minimise} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
-    \text{subject to } & \displaystyle\sum_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
-    & \displaystyle\sum_{u \in S \cup \{e\}} & x_{uv} & = 1 & \forall v \in S; \\
-    & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in X} & x_{uv} & = 1 \\
-    & \displaystyle\sum_{u \in Q \cup \{e\}} \displaystyle\sum_{v \in Q \cup X} & x_{uv} &\leq |S| + 1 & \forall Q \subseteq S; \\
-    & & x_{uv} &\in \{0, 1\} & &
-    \end{array}$$
-
-    where
-    $x_{uv} = \begin{cases}
-    1 &  \text{path goes from u to v} \\
-    x   &  \text{otherwise}
-    \end{cases}$
-
-    We can relax this problem to a linear program and remove the no subcycles elimination constraint with
-
-    $$\begin{array}{lrrll}
-    \text{minimise} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
-    \text{subject to } & \displaystyle\sum_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
-    & \displaystyle\sum_{u \in S \cup \{e\}} & x_{uv} & = 1 & \forall v \in S; \\
-    & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in X} & x_{uv} & = 1 \\
-    & 0 \leq & x_{uv} &\leq 1 & &
-    \end{array}$$
-
-    We can also find the dual problem, with $y_v$ being the dual variable for $\displaystyle\sum_{u \in S \cup \{e\}} x_{uv} = 1$, $z_u$ being the dual variable for $\displaystyle\sum_{v \in S \cup X} x_{uv} = 1$ and $w_u$ being the dual variable for $\displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in X} x_{uv} = 1$:
-
-    $$\begin{array}{lrrll}
-    & \text{maximise} & \displaystyle\sum_{v \in S \cup x} y_v + \displaystyle\sum_{u \in S \cup \{e\}} z_u & & & \\
-    & \text{subject to} & y_u + z_v + w_u &\leq c_{uv} &\forall u \in S \cup \{e\}, v \in S \cup X \\
-    & & y_u, z_v &\in \mathbb{R} & &
-    \end{array}$$
     """)
     return
 
@@ -445,7 +418,7 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 2.2 Output Constraints
-    The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many prize vertices as possible.
+    The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many supply vertices as possible.
 
     $\forall i \leq \text{length}(A), A_\text{new}[i] \neq A[i] \implies A[i] = \varnothing$ and $A[i] \neq \varnothing \iff A_\text{new} = A[i]$
     """)
@@ -539,19 +512,117 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 3.1 Algorithmic Design approaches
-    ### 3.1.1 Greedy
-    Greedy patterns are often efficient, but will be unlikely to find an optimal solution, unless the problem has the greedy property. Since the facility is still small, we can aim for an exact solution, so our main algorithm will not be a greedy one
-    ### 3.1.2 Backtracking
-    Backtracking algorithms are often efficient for exact solutions to combinatorial problems. Since the problem can be formulated as an **Interger Linear Program** (ILP), we can use backtracking techniques like branch and bound, and its derivative algorithms.
-    ### 3.1.3
+    ## 3.1 Algorithmic Approaches
+    We will first consider multiple algorithmic approaches to this problem, before choosing a subset of them to be used in the final algorithm. This will include both design patterns and methods of formulating the problem.
+
+    ### 3.1.1 All Pairs Shortest Paths
+
+    The first stage of the algorithm will be to find the shortest paths between each supply, entrance and exit vertex in $G$.
+
+    Since we are using a hierachical abstraction of the facility, there are two shortest path cases: intra-wing and inter-wing.
+
+    For shortest paths that are inter-wing, due to the tree structure of each wing, there is only 1 path between each vertex, and thus it will be the shortest path. We can use BFS or DFS to find this shortest path in linear time.
+
+    For shortest paths that are intra-wing, we will use dijkstra's on a graph of supplies, entrances, exits and junctions. This is possible because intra-wing paths _must_ pass through at least one junction. This inner abstraction reduces the size of $n$, as we cannot use DFS or BFS here.
+
+    If the shortest path is between two vertices in the same wing, we have a lower-bound from the previous case and can early-return if we are not finding a shorter path, which improves efficiency.
+
+    This sub-problem is best solved by Dijkstra's algorithm. Due to small $n$, more efficient alternatives like Duan et al. 2025 and Thorup 1999, which solve the problem in sub quasi-linear time and linear time respectively, will not be considered due to high constant costs and difficulty of implementation.
+
+    ### 3.1.2 Supply Order Selection
+
+    The second stage of the algorithm is to find the ordering of supplies that produces the shortest walk on $G$ from the entrance vertex, through each supply and ending at an exit vertex. The first stage allows a smaller $n$ for algorithms used here, as it allows $n$ to be $|S|$ instead of $|V|$.
+
+    Since this problem is similar to the Travelling Salesman Problem (TSP), we will primarily consider design approaches that are used to solve this problem.
+
+    #### 3.1.3 Greedy & Heuristic
+
+    Greedy patterns are often efficient, but will be unlikely to find an optimal solution, unless the problem has the greedy property. Due to small $n$, and the facility not having the greedy property, we will avoid Greedy algorithms in finding an exact solution. Greedy algorithms will be used in the algorithm to provide a fast upper-bound on path length which is useful for other approaches.
+
+    Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. 2-opt and 3-opt are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than nearest neighbour. Lin-kernighan, which adapts the k-opt, runs in $O(n^2.2)$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm tabu-search to prohibit found local minima and hopefully find a global minima.
+
+    ### 3.1.4 Backtracking & Linear Programming
+
+    The problem can be expressed as a integer linear program (ILP) that if solved, will give the optimal solution to any problem instance as shown below. $\begin{array}{lrrll}
+    \text{min} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
+    \text{s.t.} & \displaystyle\sum_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
+    & \displaystyle\sum_{u \in S \cup \{e\}} & x_{uv} & = 1 & \forall v \in S; \\
+    & \displaystyle\sum_{u \in Q \cup \{e\}} \displaystyle\sum_{v \in Q \cup X} & x_{uv} &\leq |S| + 1 & \forall Q \subseteq S; \\
+    & & x_{uv} &\in \{0, 1\} & &
+    \end{array}$
+
+    where$x_{uv} = \begin{cases}
+    1 &  \text{path goes from u to v} \\
+    x   &  \text{otherwise}
+    \end{cases}$
+
+    However, solving this problem nievely will be slower than brute force, as the final constrain is actually $|S|!$ constraints, leading to worse than factorial time. We instead relax this problem to a linear program and remove the subcycle elimination constraint with
+
+    $\begin{array}{lrrll}
+    \text{min} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
+    \text{s.t.} & \displaystyle\sum_{v \in S \cup X} & x_{uv} & = 1 & \forall u \in S \cup \{e\}; \\
+    & \displaystyle\sum_{u \in S \cup \{e\}} & x_{uv} & = 1 & \forall v \in S; \\
+    & 0 \leq & x_{uv} &\leq 1 & &
+    \end{array}$
+
+    We can then use branch and cut, a backtracking algorithm, to add only subcycle elimination constraints that are broken, allowing for "only" quadratic-in-$n$ constaints. Branch and cut is a variant of branch and bound, and we will calculate the lower bound of a branch by solving a linear relaxation of the problem by removing $x \in \{0, 1\}$ from the restrictions, but leaving other cuts. If this lower bound is higher than the lower bound we have found, we backtrack early.
+
+    Then we check if the solution breaks any of the subcycle elimination constraints, adding them and repeating until we have a solution that doesn't break any of these constraints. If $\forall u, v, x_{uv} \in \{0, 1\}$, we have a new lower bound and we backtrack as this is the lower bound of this branch, otherwise we branch from this node to two nodes, one where a non-integer $x_{uv} = 0$, and one where that $x_{uv} = 1$.
+
+    We can also check if this solution is optimal by inputting it into the dual problem, where if it is optimal, it should be a valid solution.
+
+    The dual problem, with $y_v$ being the dual variable for $\displaystyle\sum_{u \in S \cup \{e\}} x_{uv} = 1$, $z_u$ being the dual variable for $\displaystyle\sum_{v \in S \cup X} x_{uv} = 1$ and $W_Q$ being the dual variable for $\displaystyle\sum_{u \in Q \cup \{e\}} \displaystyle\sum_{v \in Q \cup X} x_{uv} \leq |S| + 1$ can be found by setting $A \leftarrow A^T$, swapping $b$ and $c$, and setting the inequality of the constraints to $\leq$ (for minimisation) of the linear program expressed in canonical form:
+
+    $$\begin{array}{lrrll}
+    & \text{maximise} & \displaystyle\sum_{v \in S \cup x} y_v + \displaystyle\sum_{u \in S \cup \{e\}} z_u & & & \\
+    & \text{subject to} & y_u + z_v + \displaystyle\sum_{\{u, v\} \in \delta(Q)} W_Q &\leq c_{uv} &\forall u \in S \cup \{e\}, v \in S \cup X \\
+    & & y_u, z_v &\in \mathbb{R} & &
+    \end{array}$$
+
+    The problem with all this is the $n$ is so small that constant and lower order costs of solving linear programming problems many times is greater than other more nieve algorithms.
+
+    ### 3.1.5 Backtracking & Greedy / Heuristic
+
+    Instead of linear programming overhead, we will instead create a tree whose root node is the entry, and leaf nodes are the exits. The branch nodes will be supplies, and the tree will contain each possible ordering of supplies. Searching this tree exhaustively is too time consuming, but we will instead compute a lower bound for each branch and prune those that have a lower bound greater than an upper bound we find. We will prefer depth first search on this tree to hopefully reduce our upper bound.
+
+    ### 3.1.6 Brute-force
+
+    Unfortunately, this problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make nieve brute force more efficient. So this stage of the algorithm will be done exactly the same as in Memo 1, recursive brute-force.
     """)
     return
 
 
 @app.cell
-def _():
-    """Animations of different aproaches"""
+def _(plt):
+    _data_brute_force = [1.18e-05,2.8210000000000003e-05,0.00012271,0.00051306,0.0030861300000000003,0.02252925,0.17409321000000003,1.52341771,15.541011460000002,175.50310000000002]
+    _data_brute_ub = [0.00010933000000000001,0.00017774000000000002,0.00114015,0.00153654,0.00870607,0.03159907,0.5392019400000001,1.31453828,2.3579510800000003,173.57334360000002]
+    _data_nearest_neighbour = [1.168e-05,1.0520000000000001e-05,1.363e-05,1.5680000000000002e-05,2.564e-05,2.2400000000000002e-05,2.499e-05,2.831e-05,3.019e-05,3.4320000000000003e-05,3.787e-05,4.2340000000000005e-05,4.5810000000000004e-05,4.936000000000001e-05,5.5020000000000005e-05,6.0020000000000005e-05,6.304e-05,6.733000000000001e-05,9.59e-05,9.95e-05,0.0001009,0.0001459,0.00011870000000000001,0.0001117,0.0001242,0.00012340000000000002,0.00014460000000000002,0.000146,0.0001599,0.00015810000000000002,0.00032050000000000004,0.000182,0.00017570000000000002,0.00019170000000000002,0.00015480000000000002,0.0002046,0.00021960000000000003,0.0002224,0.00022470000000000001,0.0002561,0.00026210000000000003,0.0002705,0.0002834,0.0002897,0.0002908,0.00030740000000000005,0.0003198,0.0003212,0.00034510000000000004,0.0003508,0.000364,0.0003701,0.000384,0.00039620000000000004,0.0004063,0.0005433,0.00041850000000000004,0.000444,0.0004512,0.00046810000000000005,0.0004798,0.0005398,0.0005178,0.0005296000000000001,0.0005510000000000001,0.0005631000000000001,0.0005769,0.0005929,0.0008052000000000001,0.0006173,0.0006270000000000001,0.0006545,0.0006779,0.0006768000000000001,0.0007136,0.0007216000000000001,0.0007345,0.0007425,0.0007700000000000001,0.0007755,0.0007642,0.0008002,0.0008703000000000001,0.0008966000000000001,0.0007513,0.000921,0.0009087,0.0009211000000000001,0.0009527,0.0009310000000000001,0.0009586000000000001,0.00099,0.0010153,0.0010209000000000001,0.0010634000000000002,0.0010701,0.0010766,0.0010788]
+
+
+    _fig, _ax = plt.subplots()
+    _ax.set_yscale('log', base=10)
+    _ax.scatter([i+2 for i in range(len(_data_brute_force))], _data_brute_force, c='b', label="Brute force")
+    _ax.scatter([i+2 for i in range(len(_data_brute_ub))], _data_brute_ub, c='r', label="Branch and bound")
+    _ax.scatter([i+2 for i in range(len(_data_nearest_neighbour))], _data_nearest_neighbour, c='g', label="Nearest neighbour")
+    _ax.set_title("Different approaches' runtime")
+    _ax.legend(loc="upper right")
+    _ax.set_xlabel("Supply Unit (# of)")
+    _ax.set_ylabel("Runtime (s)")
+    _ax
+    return
+
+
+@app.cell
+def _(plt):
+    _data_nearest_neighbour_gap = [0.9972078783359697,0.9948534589402943,0.9928661879042687,0.9850570970695146,0.985045290782876,0.9919820074620215]
+    _fig, _ax = plt.subplots()
+    _ax.set_yscale('log', base=10)
+    _ax.scatter([i+2 for i in range(len(_data_nearest_neighbour_gap))], _data_nearest_neighbour_gap, c='g', label="Nearest neighbour")
+    _ax.set_title("Heuristic Approaches Optimal solution gap")
+    _ax.legend(loc="upper right")
+    _ax.set_xlabel("Supply Unit (# of)")
+    _ax.set_ylabel("Runtime (s)")
+    _ax
     return
 
 
@@ -681,7 +752,7 @@ def _(facility_drawer, memo1a_algorithm, mo):
 
         """source: https://docs.python.org/3/library/profile.html"""
 
-        import cProfile, pstats, io
+        import cProfile, pstats
         from pstats import SortKey
         pr = cProfile.Profile()
         pr.enable()

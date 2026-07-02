@@ -3,6 +3,7 @@ from itertools import chain
 from typing import Generator, Iterable
 
 import networkx as nx
+import numpy as np
 
 
 class VertexT: pass
@@ -201,8 +202,7 @@ def get_apsp_dist(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], pair_path_
 
 	return res
 
-# upper bound
-def nearest_neighbour(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]]) -> list[VertexT]:
+def nearest_neighbour(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
 	sinks = sinks.copy()
 	res: list[VertexT] = [source]
 	cost: int = 0
@@ -231,7 +231,159 @@ def nearest_neighbour(source: VertexT, sinks: set[VertexT], exits: set[VertexT],
 
 	res.append(min_found)
 	cost += min_cost
-	return res
+	return res, cost
+
+def lin_kernighan(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], matrix: dict[VertexT, dict[VertexT, int]], ub: list[VertexT]):
+	BACKTRACK_DEPTH = 5
+	INFEASIBLE_DEPTH = 2
+
+	def reconstruct_walk_set(best_walk: set[tuple[VertexT, VertexT]]) -> list[VertexT]:
+		res: list[VertexT] = []
+		curr_edge = next(filter(lambda x: x[0] == entry, best_walk))
+
+		while len(best_walk) > 0:
+			best_walk.remove(curr_edge)
+			res.append(curr_edge[0])
+			curr_edge = next(filter(lambda x: x[0] == curr_edge[1], best_walk))
+
+		return res
+
+
+	def get_alternating(edges0: set[tuple[VertexT, VertexT]], edges1: set[tuple[VertexT, VertexT]]) -> set[tuple[VertexT, VertexT]] | None:
+		edges = edges0.union(edges1).difference(edges1)
+
+		try:
+			not_visited: set[VertexT] = {entry}.union(exits).union(supplies)
+			curr_edge = next(filter(lambda x: x[0] == entry, best_walk))
+			while len(edges) > 0:
+				if curr_edge[0] not in not_visited:
+					return None
+				not_visited.remove(curr_edge[0])
+				edges.remove(curr_edge)
+				curr_edge = next(filter(lambda x: x[0] == curr_edge[1], best_walk))
+			if curr_edge[1] not in not_visited or curr_edge[1] not in exits:
+				return None
+			not_visited.remove(curr_edge[1])
+			if len(not_visited) > 0:
+				return None
+
+			return edges0.union(edges1).difference(edges1)
+		except:
+			return None
+
+
+	stack: list[tuple[VertexT, int, int]] = [(u, 0, 0) for u in matrix]
+
+	best_walk = {(ub[i], ub[i + 1]) for i in range(len(ub) - 1)}
+	best_swaps: set = set()
+	best_gain: int = 0
+
+	while best_gain == 0:
+		curr: list[VertexT] = []
+		while len(stack) > 0:
+			u, i, g = stack.pop()
+			curr[i] = u
+			curr_swaps = {(curr[i], curr[i + 1]) for i in range(len(curr) - 1)}
+			if i % 2 == 0:
+				early_ret: int = 2
+				for v in matrix[u]:
+					if (u, v) in set(best_walk).difference(curr_swaps):
+						if i <= INFEASIBLE_DEPTH or (u in exits and get_alternating(best_walk, curr_swaps) is not None):
+							stack.append((v, i + 1, g + matrix[u][v]))
+							early_ret -= 1
+							if early_ret == 0:
+								break
+			else:
+				if g > 0 and g > best_gain and get_alternating(best_walk, curr_swaps) is not None:
+					best_swaps = curr_swaps
+					best_gain = g
+
+			u, j, g = stack[-1]
+			if i <= j:
+				if best_gain > 0:
+					best_walk = best_walk.union(best_swaps).difference(best_swaps)
+				elif i > BACKTRACK_DEPTH:
+					while j > BACKTRACK_DEPTH:
+						_, j, _ = stack.pop()
+
+	return reconstruct_walk_set(best_walk)
+
+"""https://www.geeksforgeeks.org/dsa/introduction-to-disjoint-set-data-structure-or-union-find-algorithm/"""
+class UnionFind:
+	def __init__(self, entries):
+		# Initialize the parent array with each
+		# element as its own representative
+		self.parent = {e: e for e in entries}
+
+	def find(self, i):
+		# If i itself is root or representative
+		if self.parent[i] == i:
+			return i
+
+		# Else recursively find the representative
+		# of the parent
+		return self.find(self.parent[i])
+
+	def unite(self, i, j):
+		# Representative of set containing i
+		irep = self.find(i)
+
+		# Representative of set containing j
+		jrep = self.find(j)
+
+		# Make the representative of i's set
+		# be the representative of j's set
+		self.parent[irep] = jrep
+
+def kruskals(partial_sol: list[VertexT], sol_length: int, matrix: dict[VertexT, dict[VertexT, int]]):
+	edges = [(matrix[u][v], u, v) for u in matrix for v in matrix[u]]
+	verts = [u for u in matrix] + [v for v in matrix[list(matrix.keys())[0]] if v not in matrix]
+	cc: UnionFind = UnionFind(verts)
+	for i in range(len(partial_sol) - 1):
+		cc.unite(partial_sol[i], partial_sol[i + 1])
+	edges.sort()
+	for w, u, v in edges:
+		if cc.find(u) != cc.find(v):
+			sol_length += w
+			cc.unite(u, v)
+
+	return sol_length
+
+def brute_force_ub(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
+	def get_lower_bound(partial_sol: list[VertexT], sol_length: int) -> int:
+		return kruskals(partial_sol, sol_length, pair_path_costs)
+
+	def get_upper_bound(partial_sol: list[VertexT], sol_length: int) -> int:
+		return sol_length + nearest_neighbour(partial_sol[-1], sinks.difference(curr), exits, pair_path_costs, fuel - len(curr))[1]
+
+	tree = [(0, [source])]
+	best_found, ub = nearest_neighbour(source, sinks, exits, pair_path_costs, fuel)
+
+	while len(tree) > 0:
+		length, curr = tree.pop()
+
+		if len(curr) == fuel + 1:
+			min_cost, min_exit = min([(pair_path_costs[curr[-1]][exit_v], exit_v) for exit_v in exits])
+			length += min_cost
+			if length < ub:
+				best_found = curr + [min_exit]
+				ub = length
+
+			continue
+
+
+		curr_lb = get_lower_bound(curr, length)
+		curr_ub = get_upper_bound(curr, length)
+		if curr_lb > ub:
+			continue
+
+		if curr_ub < ub:
+			ub = curr_ub
+
+		for sink in sinks.difference(curr):
+			tree.append((length + pair_path_costs[curr[-1]][sink], curr + [sink]))
+
+	return best_found
 
 def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
 	min_cost = float('infinity')
@@ -256,93 +408,109 @@ def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[Verte
 def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
 	return [entry] + brute_force_recursive(entry, supplies, exits, pair_path_costs, max_supplies)[0]
 
-import numpy as np
+def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray | None:
+	"""
+	Turns min  cTx:
+		 s.t. Ax = b;
+			  x >= 0
+	Into min  eTz:
+		 s.t. Ax + Iz = b;
+			  x >= 0;
+			  z >= 0
+	"""
+	e = np.array([[0]] * c.shape[0] + [[1]] * A.shape[0])
+	dummy_A = np.block([[A, np.identity(A.shape[0])]])
+	artificial_indices = [i for i in range(A.shape[1], A.shape[1] + A.shape[0])]
+	dummy_basis = np.array(artificial_indices)
+	dummy_initial = np.array([np.hstack(([0] * A.shape[1], b.transpose()[0]))]).transpose()
 
-# we don't actually need this cause we know a basic feasible solution via nearest neighbour in O(n) time
-# def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray | None:
-# 	"""
-# 	Turns min  cTx:
-# 		 s.t. Ax = b;
-# 			  x >= 0
-# 	Into min  eTz:
-# 		 s.t. Ax + Iz = b;
-# 			  x >= 0;
-# 			  z >= 0
-# 	"""
-# 	e = np.array([[0] for _ in range(c.shape[0])] + [[1] for _ in range(A.shape[0])])
-# 	dummy_A = np.block([[A, np.identity(A.shape[0])]])
-# 	dummy_B = np.array([i for i in range(A.shape[1], A.shape[1] + A.shape[0])])
-# 	dummy_initial = np.array([np.hstack(([0 for _ in range(A.shape[1])], b.transpose()[0]))]).transpose()
-# 	dummy = _simplex(dummy_A, b, e, dummy_B, dummy_initial, np.linalg.inv(np.array([dummy_A[:, i] for i in dummy_B])))
-#
-# 	non_artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] != 1]].ravel()
-# 	artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] == 1]].ravel()
-#
-# 	if np.where(artificial_vars > 0)[0].size == 0:
-# 		return _simplex(A, b, c, np.array([i for i in range(non_artificial_vars.shape[0]) if non_artificial_vars[i] != 0]))
+	dummy, basis = _simplex(dummy_A, b, e, dummy_basis, dummy_initial, np.linalg.inv(dummy_A[:, dummy_basis]), artificial_indices)
 
-def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basis: np.ndarray, initial: np.ndarray, inv_a_basic: np.ndarray, min: bool) -> np.ndarray | None:
+	non_artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] != 1]]
+
+	# we know the problem is solvable, so we're ignoring a case
+	# artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] == 1]].ravel()
+
+	if basis.max() >= A.shape[1]:
+		"""bad case"""
+		"""hope and pray no cycling <3"""
+		for pivrow in range(basis.size):
+			if basis[pivrow] > A.shape[1]:
+				non_zero_row = [col for col in range(A.shape[1]) if abs(A[pivrow, col]) > 0 and col not in basis]
+				if len(non_zero_row) > 0:
+					pivcol = non_zero_row[0]
+					basis[pivrow] = pivcol
+					pivval = A[pivrow, pivcol]
+					A[pivrow] = A[pivrow] / pivval
+					for irow in range(A.shape[0]):
+						if irow != pivrow:
+							A[irow] = A[irow] - A[pivrow] * A[irow, pivcol]
+
+		return _simplex(A, b, c, basis, dummy, np.linalg.inv(A[:, basis]))[0]
+	else:
+		"""good case"""
+		return _simplex(A, b, c, basis, non_artificial_vars, np.linalg.inv(A[:, basis]))[0]
+
+def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basis: np.ndarray, initial: np.ndarray, inv_a_basis: np.ndarray, artificial_rows=None) -> tuple[np.ndarray | None, np.ndarray | None]:
 	"""
 	Solves min cTx: Ax = b, x >= 0
 	"""
 	"""https://www.matem.unam.mx/~omar/math340/revised-simplex.html"""
 	"""https://people.math.carleton.ca/~kcheung/math/notes/MATH5801/05/5_1_simplex.html"""
 	"""https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html"""
-	min_mult: int = -1 if min else 1
-	non_basic = np.array([i for i in range(c.size) if i not in basis])
-	a_non_basic = A[:, non_basic]
-	select_k = c[non_basic].transpose() - c[basis].transpose() @ inv_a_basic @ a_non_basic
+	non_basis = np.array([i for i in range(c.size) if i not in basis])
+	a_non_basis = A[:, non_basis]
+	select_k = c[non_basis].transpose() - c[basis].transpose() @ inv_a_basis @ a_non_basis
 	k: int = -1
 	max_found: int = 0
 	for i in range(select_k.size):
-		if select_k[0][i] > min_mult * max_found:
+		if select_k[0][i] < max_found:
 			k = i
 			max_found = select_k[0][i]
 
 	if k == -1:
-		"""optimal solutiuon found"""
-		return initial
+		"""optimal solution found"""
+		return initial, basis
+	else:
+		k = non_basis[k]
 
-	k = non_basic[k]
+	d = inv_a_basis @ A[:, k]
 
-	d = inv_a_basic @ min_mult * A[:, k]
+	initial_basis = initial[basis]
 
-	initial_basic = initial[basis]
+	min_idx = -1
+	min_found = float('infinity')
+	for i in range(len(initial_basis)):
+		if d[i] > 0:
+			if initial_basis[i][0] / d[i] < min_found:
+				min_found = initial_basis[i][0] / d[i]
+				min_idx = i
 
-	t = max([initial_basic[i][0] / min_mult * d[i] for i in range(len(initial_basic)) if min_mult * d[i] > 0])
+	if min_idx == -1:
+		raise IndexError("not possible")
 
-	def get_next_x(i: int) -> int:
-		if i == k:
-			return t
-		if i in non_basic:
-			return 0
-		for l in range(len(basis)):
-			if basis[l] == i:
-				return initial_basic[l][0] - min_mult * t * d[l]
-		raise IndexError("basis does not contain i somehow...")
+	t = initial_basis[min_idx][0] / d[min_idx]
 
-	next_x = np.array([[get_next_x(i)] for i in range(initial.shape[0])])
+	next_x = initial.copy()
+	next_x[k] = t
 
-	E = np.identity(inv_a_basic.shape[1])
-	i: int = -1
-	for j in range(d.shape[0]):
-		if initial_basic[j][0] - min_mult * t * d[j] == 0:
-			i = j
-			break
+	for i in range(len(basis)):
+		next_x[int(basis[i])][0] -= t * d[i]
 
-	if i == -1:
-		raise IndexError("shouldn't happen")
+	inv_E = np.identity(inv_a_basis.shape[1])
+	pivot = d[min_idx]
 
-	i = basis[i]
-	E[:, i] = d
-	next_inv_a_basic = np.linalg.inv(E) @ inv_a_basic
+	inv_E[:, min_idx] = -d / pivot
+	inv_E[min_idx, min_idx] = 1. / pivot
+	next_inv_a_basis = inv_E @ inv_a_basis
 
-	next_basic = np.array([j for j in range(next_x.shape[0]) if (j in basis and j != i) or j == k])
+	next_basis = basis.copy()
+	next_basis[min_idx] = k
 
-	return _simplex(A, b, c, next_basic, next_x, next_inv_a_basic, min)
+	return _simplex(A, b, c, next_basis, next_x, next_inv_a_basis, artificial_rows)
 
 # lower bound by solving dual
-def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], upper_bound_path: list[VertexT]) -> int:
+def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]]) -> int:
 	# Dual problem started:
 	# A = np.array([[1 if i == u or i == v else 0 for i in [entry] + list(supplies) + [exits] + list(supplies)] for u in supplies.union([entry]) for v in supplies.union(exits)])
 	# b = np.array([[pair_path_costs[u][v]] for u in supplies.union([entry]) for v in supplies.union(exits)])
@@ -351,34 +519,26 @@ def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT]
 	# initial = [i for u in supplies.union([entry]) for v in supplies.union(exits)])
 
 	A = np.array(
-		[[1 if i == u     else 0 for i in [entry] + list(supplies) for _ in list(supplies) + list(exits)] for u in [entry] + list(supplies)] + \
-		[[1 if i == v     else 0 for _ in [entry] + list(supplies) for i in list(supplies) + list(exits)] for v in list(supplies)] + \
-		[[1 if v in exits else 0 for _ in [entry] + list(supplies) for v in list(supplies) + list(exits)]]
+		[[1 if i == u     else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v] for i in [entry] + list(supplies)] + \
+		[[1 if i == v     else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v] for i in list(supplies)]
 		)
-	b = np.ones((1 + len(exits) + 2 * len(supplies), 1))
-	c = np.array([[pair_path_costs[u][v]] for u in supplies.union([entry]) for v in supplies.union(exits)])
 
-	initial = np.array([[1 if u in upper_bound_path and upper_bound_path[upper_bound_path.index(u) + 1] == v else 0] for u in supplies.union([entry]) for v in supplies.union(exits)])
+	# I think exit constraint is linearly dependent (n-dash) it is redundant:
+	# [[1 if v in exits else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v]]
 
-	basis = np.array([i for i in range(initial.shape[0]) if initial[i] == [1]])
-	i: int = 0
-	while len(basis) < A.shape[0]:
-		if list(A[:, i]) not in list(list(arr) for arr in A[:, basis].transpose()):
-			basis = np.append(basis, [i])
-		i += 1
-	basis.sort()
+	b = np.ones((2 * len(supplies) + 1, 1))
+	c = np.array([[pair_path_costs[u][v]] for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v])
 
-	A_basis = np.array([A[:, i] for i in basis])
-	print(np.linalg.matrix_rank(A))
-
-	answer = simplex(A, b, c, basis, initial, np.linalg.inv(A_basis), True)
+	answer = simplex(A, b, c)
 
 	res: int = 0
-	mapping = [(u, v) for u in supplies.union([entry]) for v in supplies.union(exits)]
+	mapping = [(u, v) for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v]
 	for i, a in enumerate(answer):
-		if a > 0:
+		if a[0] > 0:
 			edge = mapping[i]
-			res += pair_path_costs[edge[0]][edge[1]] * a
+			res += pair_path_costs[edge[0]][edge[1]] * a[0]
+
+	return res
 
 
 def get_path_from_super_path(super_path: list[VertexT], apsp_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> list[VertexT]:
@@ -391,18 +551,7 @@ def get_path_from_super_path(super_path: list[VertexT], apsp_map: dict[VertexT, 
 
 	return res
 
-
-def ember_rescue(
-	G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
-	entry: VertexT,
-	exits: set[VertexT],
-	supplies: set[VertexT],
-	supply_storage: SupplyStorage,
-	vertex_to_supply_id: dict[VertexT, SupplyID],
-	found_supply_ids: set[SupplyID]
-) -> tuple[list[VertexT], SupplyStorage]:
-	res: list[VertexT]
-
+def stage_1(G, entry, exits, supplies, supply_storage, vertex_to_supply_id, found_supply_ids):
 	"""Get supplies that could be collected in the graph"""
 	supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
 
@@ -415,15 +564,9 @@ def ember_rescue(
 	"""supplies apsp"""
 	apsp_map = get_apsp(G, entry, exits, supplies, prevs)
 	apsp_dist_map = get_apsp_dist(G, apsp_map, prevs)
+	return apsp_map, apsp_dist_map, number_of_supplies_to_collect
 
-	"""get good first guess"""
-	super_path_greedy = nearest_neighbour(entry, supplies, exits, apsp_dist_map)
-	lower_bound = solve_relaxed_lp(entry, exits, supplies, apsp_dist_map, super_path_greedy)
-	print(lower_bound)
-
-	"""brute-force"""
-	super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
-
+def reconstruct_super_path(super_path, apsp_map, supplies, supply_storage, number_of_supplies_to_collect, vertex_to_supply_id):
 	res = get_path_from_super_path(super_path, apsp_map)
 
 	j: int = 0
@@ -438,4 +581,22 @@ def ember_rescue(
 
 	supply_storage = tuple(supply_storage)
 
-	return res, supply_storage, get_path_from_super_path(super_path_greedy, apsp_map)
+	return res, supply_storage
+
+def ember_rescue(
+	G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
+	entry: VertexT,
+	exits: set[VertexT],
+	supplies: set[VertexT],
+	supply_storage: SupplyStorage,
+	vertex_to_supply_id: dict[VertexT, SupplyID],
+	found_supply_ids: set[SupplyID]
+) -> tuple[list[VertexT], SupplyStorage]:
+	res: list[VertexT]
+
+	apsp_map, apsp_dist_map, number_of_supplies_to_collect = stage_1(G, entry, exits, supplies, supply_storage, vertex_to_supply_id, found_supply_ids)
+
+	"""stage 2"""
+	super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
+
+	return reconstruct_super_path(super_path, apsp_map, supplies, supply_storage, number_of_supplies_to_collect, vertex_to_supply_id)

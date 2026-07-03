@@ -202,16 +202,16 @@ def get_apsp_dist(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], pair_path_
 
 	return res
 
-def nearest_neighbour(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
-	sinks = sinks.copy()
+def nearest_neighbour(source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
+	sinks = supplies.copy()
 	res: list[VertexT] = [source]
 	cost: int = 0
 	curr = source
-	while len(sinks) > 0:
+	while fuel >= 1:
 		min_found = list(sinks)[0]
-		min_cost = pair_path_costs[curr][min_found]
+		min_cost = dist_matrix[curr][min_found]
 		for sink in sinks:
-			curr_cost = pair_path_costs[curr][sink]
+			curr_cost = dist_matrix[curr][sink]
 			if curr_cost < min_cost:
 				min_found = sink
 				min_cost = curr_cost
@@ -220,11 +220,12 @@ def nearest_neighbour(source: VertexT, sinks: set[VertexT], exits: set[VertexT],
 		res.append(min_found)
 		curr = min_found
 		cost += min_cost
+		fuel -= 1
 
 	min_found = list(exits)[0]
-	min_cost = pair_path_costs[curr][min_found]
+	min_cost = dist_matrix[curr][min_found]
 	for sink in exits:
-		curr_cost = pair_path_costs[curr][sink]
+		curr_cost = dist_matrix[curr][sink]
 		if curr_cost < min_cost:
 			min_found = sink
 			min_cost = curr_cost
@@ -233,80 +234,145 @@ def nearest_neighbour(source: VertexT, sinks: set[VertexT], exits: set[VertexT],
 	cost += min_cost
 	return res, cost
 
-def lin_kernighan(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], matrix: dict[VertexT, dict[VertexT, int]], ub: list[VertexT]):
+def lin_kernighan(source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
+	ub, ub_cost = nearest_neighbour(source, supplies, exits, dist_matrix, fuel)
+	supplies = {s for s in supplies if s in ub}
+	exits = {x for x in exits if x in ub}
+	dist_matrix = {k0: {k1: v1 for k1, v1 in v0.items() if k1 in ub} for k0, v0 in dist_matrix.items() if k0 in ub}
+	return _lin_kernighan(source, supplies, exits, dist_matrix, (ub, ub_cost))[0]
+
+def _lin_kernighan(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], ub: tuple[list[VertexT], int]) -> tuple[list[VertexT], int]:
 	BACKTRACK_DEPTH = 5
 	INFEASIBLE_DEPTH = 2
 
-	def reconstruct_walk_set(best_walk: set[tuple[VertexT, VertexT]]) -> list[VertexT]:
-		res: list[VertexT] = []
-		curr_edge = next(filter(lambda x: x[0] == entry, best_walk))
+	def reconstruct_walk_set(edges: set[tuple[VertexT, VertexT]]) -> list[VertexT]:
+		edges = edges.copy()
+		curr_edge = next(filter(lambda x: x[0] == entry, edges))
+		res: list[VertexT] = [entry]
 
-		while len(best_walk) > 0:
-			best_walk.remove(curr_edge)
-			res.append(curr_edge[0])
-			curr_edge = next(filter(lambda x: x[0] == curr_edge[1], best_walk))
+		while len(edges) > 1:
+			prev = next(filter(lambda x: x != res[-1], curr_edge))
+			res.append(prev)
+			edges.remove(curr_edge)
+			curr_edge = next(filter(lambda x: x[0] == prev or x[1] == prev, edges))
+		res.append(next(filter(lambda x: x != prev, curr_edge)))
 
 		return res
 
+	def symmetric_difference(set0: set, set1: set) -> set:
+		return set0.union(set1).difference(set0.intersection(set1))
 
-	def get_alternating(edges0: set[tuple[VertexT, VertexT]], edges1: set[tuple[VertexT, VertexT]]) -> set[tuple[VertexT, VertexT]] | None:
-		edges = edges0.union(edges1).difference(edges1)
-
+	def has_alternating(edges0: set[tuple[VertexT, VertexT]], edges1: set[tuple[VertexT, VertexT]]) -> bool:
+		edges = symmetric_difference(edges0, edges1)
 		try:
-			not_visited: set[VertexT] = {entry}.union(exits).union(supplies)
-			curr_edge = next(filter(lambda x: x[0] == entry, best_walk))
-			while len(edges) > 0:
-				if curr_edge[0] not in not_visited:
-					return None
-				not_visited.remove(curr_edge[0])
+			counter = defaultdict(float)
+			for u, v in edges:
+				counter[u] += 1
+				counter[v] += 1
+
+			for v in supplies:
+				if counter[v] != 2:
+					return False
+
+			if sum(counter[v] for v in exits) != 1:
+				return False
+
+			if counter[entry] != 1:
+				return False
+
+			curr_edge = next(filter(lambda x: x[0] == entry, edges))
+			res: list[VertexT] = [entry]
+
+			while len(edges) > 1:
+				prev = next(filter(lambda x: x != res[-1], curr_edge))
+				res.append(prev)
 				edges.remove(curr_edge)
-				curr_edge = next(filter(lambda x: x[0] == curr_edge[1], best_walk))
-			if curr_edge[1] not in not_visited or curr_edge[1] not in exits:
-				return None
-			not_visited.remove(curr_edge[1])
-			if len(not_visited) > 0:
-				return None
+				curr_edge = next(filter(lambda x: x[0] == prev or x[1] == prev, edges))
 
-			return edges0.union(edges1).difference(edges1)
+			if next(filter(lambda x: x != prev, list(edges)[0])) not in exits:
+				return False
+
+			return True
 		except:
-			return None
+			return False
 
+	def get_swap(v0, v1):
+		if v1 == entry:
+			return v1, v0
+		if v0 in exits:
+			return v1, v0
+		return v0, v1
 
-	stack: list[tuple[VertexT, int, int]] = [(u, 0, 0) for u in matrix]
+	for u in supplies:
+		dist_matrix[u].pop(u)
 
-	best_walk = {(ub[i], ub[i + 1]) for i in range(len(ub) - 1)}
+	stack: list[tuple[VertexT, int, int]] = [(u, 0, 0) for u in dist_matrix]
+
+	best_walk = {(ub[0][i], ub[0][i + 1]) for i in range(len(ub[0]) - 1)}
 	best_swaps: set = set()
-	best_gain: int = 0
+	best_gain: int = 1
+	savings: int = -best_gain
 
-	while best_gain == 0:
-		curr: list[VertexT] = []
+	while best_gain != 0:
+		savings += best_gain
+		best_gain = 0
+		curr: list[VertexT | None] = [None] * 2 * (len(supplies) + 1 + len(exits))
 		while len(stack) > 0:
 			u, i, g = stack.pop()
 			curr[i] = u
-			curr_swaps = {(curr[i], curr[i + 1]) for i in range(len(curr) - 1)}
+			curr_swaps = {get_swap(curr[j], curr[j + 1]) for j in range(i)}
 			if i % 2 == 0:
-				early_ret: int = 2
-				for v in matrix[u]:
-					if (u, v) in set(best_walk).difference(curr_swaps):
-						if i <= INFEASIBLE_DEPTH or (u in exits and get_alternating(best_walk, curr_swaps) is not None):
-							stack.append((v, i + 1, g + matrix[u][v]))
-							early_ret -= 1
-							if early_ret == 0:
-								break
-			else:
-				if g > 0 and g > best_gain and get_alternating(best_walk, curr_swaps) is not None:
+				if g > 0 and g > best_gain and has_alternating(best_walk, curr_swaps):
 					best_swaps = curr_swaps
 					best_gain = g
+				early_ret: int = 2
+				if u in exits:
+					for v in dist_matrix[entry]:
+						if v not in exits:
+							if (v, u) in set(best_walk).difference(curr_swaps):
+								if i <= INFEASIBLE_DEPTH or ((v, u) not in best_walk.union(curr_swaps) and has_alternating(best_walk, curr_swaps)):
+									stack.append((v, i + 1, g + dist_matrix[v][u]))
+									early_ret -= 1
+									if early_ret == 0:
+										break
+				else:
+					for v in dist_matrix[u]:
+						if (u, v) in set(best_walk).difference(curr_swaps):
+							if i <= INFEASIBLE_DEPTH or ((u, v) not in best_walk.union(curr_swaps) and has_alternating(best_walk, curr_swaps)):
+								stack.append((v, i + 1, g + dist_matrix[u][v]))
+								early_ret -= 1
+								if early_ret == 0:
+									break
 
-			u, j, g = stack[-1]
-			if i <= j:
-				if best_gain > 0:
-					best_walk = best_walk.union(best_swaps).difference(best_swaps)
-				elif i > BACKTRACK_DEPTH:
-					while j > BACKTRACK_DEPTH:
-						_, j, _ = stack.pop()
+					if u != entry:
+						if (entry, u) in set(best_walk).difference(curr_swaps):
+							if i <= INFEASIBLE_DEPTH or ((entry, u) not in best_walk.union(curr_swaps) and has_alternating(best_walk, curr_swaps)):
+								stack.append((entry, i + 1, g + dist_matrix[entry][u]))
+			else:
+				if u in exits:
+					for v in dist_matrix[entry]:
+						if v not in exits:
+							if g > dist_matrix[v][u] and (v, u) not in best_walk.union(curr_swaps):
+								stack.append((v, i + 1, g - dist_matrix[v][u]))
+				else:
+					for v in dist_matrix[u]:
+						if g > dist_matrix[u][v] and (u, v) not in best_walk.union(curr_swaps):
+							stack.append((v, i + 1, g - dist_matrix[u][v]))
 
-	return reconstruct_walk_set(best_walk)
+					if u != entry:
+						if g > dist_matrix[entry][u] and (entry, u) not in best_walk.union(curr_swaps):
+							stack.append((entry, i + 1, g - dist_matrix[entry][u]))
+
+			if len(stack) > 0:
+				u, j, g = stack[-1]
+				if i <= j:
+					if best_gain > 0:
+						best_walk = symmetric_difference(best_walk, best_swaps)
+					elif i > BACKTRACK_DEPTH:
+						while j > BACKTRACK_DEPTH:
+							_, j, _ = stack.pop()
+
+	return reconstruct_walk_set(best_walk), ub[1] - savings
 
 """https://www.geeksforgeeks.org/dsa/introduction-to-disjoint-set-data-structure-or-union-find-algorithm/"""
 class UnionFind:
@@ -335,40 +401,70 @@ class UnionFind:
 		# be the representative of j's set
 		self.parent[irep] = jrep
 
-def kruskals(partial_sol: list[VertexT], sol_length: int, matrix: dict[VertexT, dict[VertexT, int]]):
-	edges = [(matrix[u][v], u, v) for u in matrix for v in matrix[u]]
-	verts = [u for u in matrix] + [v for v in matrix[list(matrix.keys())[0]] if v not in matrix]
-	cc: UnionFind = UnionFind(verts)
-	for i in range(len(partial_sol) - 1):
-		cc.unite(partial_sol[i], partial_sol[i + 1])
-	edges.sort()
-	for w, u, v in edges:
-		if cc.find(u) != cc.find(v):
-			sol_length += w
-			cc.unite(u, v)
-
-	return sol_length
-
-def brute_force_ub(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
+def brute_force_ub(source: VertexT, sinks: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
 	def get_lower_bound(partial_sol: list[VertexT], sol_length: int) -> int:
-		return kruskals(partial_sol, sol_length, pair_path_costs)
+		min_sol_length = float('infinity')
+
+		if len(exits.intersection(partial_sol)) > 0:
+			ex = list(exits.intersection(partial_sol))[0]
+
+			curr_sol_length = 0
+			edges = [(dist_matrix[u][v], u, v) for u in dist_matrix for v in dist_matrix[u] if
+					 dist_matrix[u][v] != 0 and (v not in exits or v == ex)]
+			verts = [u for u in dist_matrix] + [v for v in dist_matrix[list(dist_matrix.keys())[0]] if
+												v not in dist_matrix and (v not in exits or v == ex)]
+			cc: UnionFind = UnionFind(verts)
+			for i in range(len(partial_sol) - 1):
+				cc.unite(partial_sol[i], partial_sol[i + 1])
+			edges.sort()
+			for w, u, v in edges:
+				if cc.find(u) != cc.find(v):
+					curr_sol_length += w
+					cc.unite(u, v)
+
+			min_sol_length = min(curr_sol_length, min_sol_length)
+		else:
+			for ex in exits:
+				curr_sol_length = 0
+				edges = [(dist_matrix[u][v], u, v) for u in dist_matrix for v in dist_matrix[u] if
+						 dist_matrix[u][v] != 0 and (v not in exits or v == ex)]
+				verts = [u for u in dist_matrix] + [v for v in dist_matrix[list(dist_matrix.keys())[0]] if
+													v not in dist_matrix and (v not in exits or v == ex)]
+				cc: UnionFind = UnionFind(verts)
+				for i in range(len(partial_sol) - 1):
+					cc.unite(partial_sol[i], partial_sol[i + 1])
+				edges.sort()
+				for w, u, v in edges:
+					if cc.find(u) != cc.find(v):
+						curr_sol_length += w
+						cc.unite(u, v)
+
+				min_sol_length = min(curr_sol_length, min_sol_length)
+		return sol_length + min_sol_length
 
 	def get_upper_bound(partial_sol: list[VertexT], sol_length: int) -> int:
-		return sol_length + nearest_neighbour(partial_sol[-1], sinks.difference(curr), exits, pair_path_costs, fuel - len(curr))[1]
+		_entry = partial_sol[-1]
+		_supplies = sinks.difference(curr)
+		_ub, _ub_cost = nearest_neighbour(_entry, _supplies, exits, dist_matrix, fuel - len(partial_sol) + 1)
+		_supplies = {s for s in _supplies if s in _ub}
+		_exits = {x for x in exits if x in _ub}
+		_dist_matrix = {k0: {k1: v1 for k1, v1 in v0.items() if k1 in _ub} for k0, v0 in dist_matrix.items() if
+					   k0 in _ub}
+		_, _ub_cost = _lin_kernighan(_entry, _supplies, _exits, _dist_matrix, (_ub, _ub_cost))
+		return sol_length + _ub_cost
 
 	tree = [(0, [source])]
-	best_found, ub = nearest_neighbour(source, sinks, exits, pair_path_costs, fuel)
+	best_found, ub = nearest_neighbour(source, sinks, exits, dist_matrix, fuel)
 
 	while len(tree) > 0:
 		length, curr = tree.pop()
 
 		if len(curr) == fuel + 1:
-			min_cost, min_exit = min([(pair_path_costs[curr[-1]][exit_v], exit_v) for exit_v in exits])
+			min_cost, min_exit = min([(dist_matrix[curr[-1]][exit_v], exit_v) for exit_v in exits])
 			length += min_cost
-			if length < ub:
+			if length <= ub:
 				best_found = curr + [min_exit]
 				ub = length
-
 			continue
 
 
@@ -381,32 +477,32 @@ def brute_force_ub(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pa
 			ub = curr_ub
 
 		for sink in sinks.difference(curr):
-			tree.append((length + pair_path_costs[curr[-1]][sink], curr + [sink]))
+			tree.append((length + dist_matrix[curr[-1]][sink], curr + [sink]))
 
 	return best_found
 
-def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
+def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
 	min_cost = float('infinity')
 	min_cost_walk = None
 
 	if fuel == 0:
 		for sink in exits:
-			cost = pair_path_costs[source][sink]
+			cost = dist_matrix[source][sink]
 			if cost < min_cost:
 				min_cost_walk = [sink]
 				min_cost = cost
 	else:
 		for sink in sinks:
-			min_walk_through, cost = brute_force_recursive(sink, sinks.difference({sink}), exits, pair_path_costs, fuel - 1)
-			cost += pair_path_costs[source][sink]
+			min_walk_through, cost = brute_force_recursive(sink, sinks.difference({sink}), exits, dist_matrix, fuel - 1)
+			cost += dist_matrix[source][sink]
 			if cost < min_cost:
 				min_cost = cost
 				min_cost_walk = [sink] + min_walk_through
 
 	return min_cost_walk, min_cost
 
-def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
-	return [entry] + brute_force_recursive(entry, supplies, exits, pair_path_costs, max_supplies)[0]
+def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
+	return [entry] + brute_force_recursive(entry, supplies, exits, dist_matrix, max_supplies)[0]
 
 def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray | None:
 	"""
@@ -510,7 +606,7 @@ def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basis: np.ndarray, ini
 	return _simplex(A, b, c, next_basis, next_x, next_inv_a_basis, artificial_rows)
 
 # lower bound by solving dual
-def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT], pair_path_costs: dict[VertexT, dict[VertexT, int]]) -> int:
+def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]]) -> int:
 	# Dual problem started:
 	# A = np.array([[1 if i == u or i == v else 0 for i in [entry] + list(supplies) + [exits] + list(supplies)] for u in supplies.union([entry]) for v in supplies.union(exits)])
 	# b = np.array([[pair_path_costs[u][v]] for u in supplies.union([entry]) for v in supplies.union(exits)])
@@ -527,7 +623,7 @@ def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT]
 	# [[1 if v in exits else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v]]
 
 	b = np.ones((2 * len(supplies) + 1, 1))
-	c = np.array([[pair_path_costs[u][v]] for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v])
+	c = np.array([[dist_matrix[u][v]] for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v])
 
 	answer = simplex(A, b, c)
 
@@ -536,7 +632,7 @@ def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT]
 	for i, a in enumerate(answer):
 		if a[0] > 0:
 			edge = mapping[i]
-			res += pair_path_costs[edge[0]][edge[1]] * a[0]
+			res += dist_matrix[edge[0]][edge[1]] * a[0]
 
 	return res
 

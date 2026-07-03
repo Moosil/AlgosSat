@@ -330,7 +330,7 @@ class GraphDrawer:
 
 def _get_runtime(technique, pregen, trials: int = 1) -> tuple[float, float]:
     if trials < 1:
-        return 0
+        return 0, 0
 
     facility_drawer, entry, supplies, exits, stage_1_res = pregen
     """source: https://docs.python.org/3/library/profile.html"""
@@ -459,20 +459,29 @@ def main2():
         return facility_drawer, [f.entry for f in facility_drawer], supplies, exits, stage_1_res
 
     TRIALS = 10
-    pregens = [None] * 2 + [pregen(n, 10000) for n in trange(2, 8, desc="pregenerating")]# + [pregen(n, TRIALS) for n in trange(8, 20, desc="pregenerating more")] + [pregen(n, 1) for n in trange(20, 100, desc="pregenerating more more")]
+    pregens = [None] * 2 + [pregen(n, TRIALS) for n in trange(2, 8, desc="pregenerating")] + [pregen(n, TRIALS) for n in trange(8, 20, desc="pregenerating more")] + [pregen(n, 1) for n in trange(20, 100, desc="pregenerating more more")]
 
-    # brute_force_res = get_runtime_with_n(pregens, TRIALS, memo1a_algorithm.brute_force, 2, 11) + get_runtime_with_n(pregens, 1, memo1a_algorithm.brute_force, 11, 12)
-    # brute_force_res_ub = get_runtime_with_n(pregens, TRIALS, memo1a_algorithm.brute_force_ub, 2, 11) + get_runtime_with_n(pregens, 1, memo1a_algorithm.brute_force_ub, 11, 12)
-    nearest_neighbour_res = get_runtime_with_n(pregens, 10000, lambda x,y,z,w,q: memo1a_algorithm.nearest_neighbour(x,y,z,w,q)[0], 2, 8)
-                            # get_runtime_with_n(pregens, TRIALS, lambda x,y,z,w,q: memo1a_algorithm.nearest_neighbour(x,y,z,w,q)[0], 8, 20) + \
-                            # get_runtime_with_n(pregens, 1, lambda x,y,z,w,q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0], 20, 100)
-    brute_force_res_ub_lotsa_trials = get_runtime_with_n(pregens, 10000, memo1a_algorithm.brute_force_ub, 2, 8)
-    nearest_neighbour_gap = [nearest_neighbour_res[i][1] / brute_force_res_ub_lotsa_trials[i][1] for i in range(min(len(nearest_neighbour_res), len(brute_force_res_ub_lotsa_trials)))]
-    # print(f"Brute force time: {','.join(str(i[0]) for i in brute_force_res)}")
-    # print(f"Brute force UB time: {','.join(str(i[0]) for i in brute_force_res_ub)}")
-    # print(f"Nearest Neighbour time: {','.join(str(i[0]) for i in nearest_neighbour_res)}")
-    print(nearest_neighbour_res[0][1], brute_force_res_ub_lotsa_trials[0][1])
-    print(f"Nearest Neighbour gap: {','.join(str(i) for i in nearest_neighbour_gap)}")
+    brute_force_res = get_runtime_with_n(pregens, TRIALS, memo1a_algorithm.brute_force, 2, 11) + get_runtime_with_n(pregens, 1, memo1a_algorithm.brute_force, 11, 12)
+    brute_force_res_ub = get_runtime_with_n(pregens, TRIALS, memo1a_algorithm.brute_force_ub, 2, 11) + get_runtime_with_n(pregens, 1, memo1a_algorithm.brute_force_ub, 11, 12)
+    nearest_neighbour_res = get_runtime_with_n(pregens, TRIALS, lambda x,y,z,w,q: memo1a_algorithm.nearest_neighbour(x,y,z,w,q)[0], 2, 8) + \
+                            get_runtime_with_n(pregens, TRIALS, lambda x,y,z,w,q: memo1a_algorithm.nearest_neighbour(x,y,z,w,q)[0], 8, 20) + \
+                            get_runtime_with_n(pregens, 1, lambda x,y,z,w,q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0], 20, 100)
+    lin_kernighan_res = get_runtime_with_n(pregens, TRIALS, memo1a_algorithm.lin_kernighan, 2, 8) + \
+                            get_runtime_with_n(pregens, TRIALS, memo1a_algorithm.lin_kernighan, 8, 20) + \
+                            get_runtime_with_n(pregens, 1, memo1a_algorithm.lin_kernighan, 20, 100)
+    # brute_force_res_ub_lotsa_trials = get_runtime_with_n(pregens, TRIALS, memo1a_algorithm.brute_force_ub, 2, 8)
+    # nearest_neighbour_gap = [nearest_neighbour_res[i][1] / brute_force_res_ub_lotsa_trials[i][1] for i in range(min(len(nearest_neighbour_res), len(brute_force_res_ub_lotsa_trials)))]
+    # lin_kernighan_gap = [lin_kernighan_res[i][1] / brute_force_res_ub_lotsa_trials[i][1] for i in range(min(len(lin_kernighan_res), len(brute_force_res_ub_lotsa_trials)))]
+    print(f"Brute force time: {','.join(str(i[0]) for i in brute_force_res)}")
+    print(f"Brute force UB time: {','.join(str(i[0]) for i in brute_force_res_ub)}")
+    print(f"Nearest Neighbour time: {','.join(str(i[0]) for i in nearest_neighbour_res)}")
+    print(f"Lin-Kernighan time: {','.join(str(i[0]) for i in lin_kernighan_res)}")
+    print(f"Brute force length: {','.join(str(i[1]) for i in brute_force_res)}")
+    print(f"Brute force UB length: {','.join(str(i[1]) for i in brute_force_res_ub)}")
+    print(f"Nearest Neighbour length: {','.join(str(i[1]) for i in nearest_neighbour_res)}")
+    print(f"Lin-Kernighan length: {','.join(str(i[1]) for i in lin_kernighan_res)}")
+    # print(f"Nearest Neighbour gap: {','.join(str(i) for i in nearest_neighbour_gap)}")
+    # print(f"Lin-Kernighan gap: {','.join(str(i) for i in lin_kernighan_gap)}")
 
 if __name__ == "__main__":
     main2()

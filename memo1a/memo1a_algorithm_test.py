@@ -357,7 +357,7 @@ def get_runtime_with_n(pregens, trials, technique = memo1a_algorithm.brute_force
         res.append(_get_runtime(technique, pregens[i], trials))
     return res
 
-def main():
+def main1():
     if False:
         not_correct_count: int = 0
 
@@ -394,7 +394,7 @@ def main():
 
             pbar.set_description(f"[Total Correct: {i - not_correct_count + 1}/{i + 1}]")
     else:
-        import cProfile, pstats, io
+        import cProfile, pstats
         from pstats import SortKey
 
         facility_drawer = GraphDrawer(28122007)
@@ -428,7 +428,7 @@ def main():
         total_mem = sum(stat.size for stat in top_stats if "memo1a_algorithm.py" in stat.traceback._frames[0][0])
         print(f"Total allocated size: {total_mem / 1024:.3f} KiB")
 
-        cProfile.run(r'''memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, set(facility_drawer.supplies), tuple([None] * 5), {i: hash(i) for i in facility_drawer.supplies}, set())''')
+        cProfile.runctx(r'''for _ in range(100): memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set())''', globals(), locals())
 
         path = facility_drawer.get_path_from_super_path(res[0])
 
@@ -483,5 +483,62 @@ def main2():
     # print(f"Nearest Neighbour gap: {','.join(str(i) for i in nearest_neighbour_gap)}")
     # print(f"Lin-Kernighan gap: {','.join(str(i) for i in lin_kernighan_gap)}")
 
+def main3():
+    import cProfile, pstats
+    from pstats import SortKey
+    import memo1.memo1_algorithm as memo1_algorithm
+
+    facility_drawer = GraphDrawer(28122007)
+    abs_graph = facility_drawer.get_abstracted_graph()
+    flat_graph: nx.Graph = nx.compose_all(abs_graph[0])
+    for u, v in abs_graph[1]:
+        flat_graph.add_edge(u, v, weight=1)
+
+    exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+    supplies = set(facility_drawer.supplies)
+    storage = tuple([None] * 5)
+    supply_map = {i: hash(i) for i in facility_drawer.supplies}
+
+    pr = cProfile.Profile()
+    pr.enable()
+    res = memo1_algorithm.ember_rescue(
+        flat_graph, facility_drawer.entry, exits, supplies, supply_map, storage, set()
+    )
+    pr.disable()
+    sortby = SortKey.CUMULATIVE
+    ps = pstats.Stats(pr).sort_stats(sortby)
+    print(ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3])
+
+    import tracemalloc
+
+    tracemalloc.start()
+
+    res = memo1_algorithm.ember_rescue(
+        flat_graph, facility_drawer.entry, exits, supplies, supply_map, storage, set()
+    )
+
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('filename')
+    total_mem = sum(stat.size for stat in top_stats if "memo1a_algorithm.py" in stat.traceback._frames[0][0])
+    print(f"Total allocated size: {total_mem / 1024:.3f} KiB")
+
+    cProfile.runctx(r'''for _ in range(100): memo1_algorithm.ember_rescue(flat_graph, facility_drawer.entry, exits, supplies, supply_map, storage, set())''', globals(), locals())
+
+    path = facility_drawer.get_path_from_super_path(res)
+
+    print(f"super path: {res}")
+    print(f"len of super path: {len(res)}")
+    print(f"path: {path}")
+    print(f"len of path: {len(path)}")
+
+    print(f"entry: {facility_drawer.entry}")
+    print(f"exit_a: {facility_drawer.exit_a}")
+    print(f"exit_b: {facility_drawer.exit_b}")
+
+    is_correct = path[0] == facility_drawer.entry
+    is_correct &= (path[-1] == facility_drawer.exit_a or path[-1] == facility_drawer.exit_b)
+    print(f"is correct: {"yes" if is_correct else "no"}")
+
 if __name__ == "__main__":
-    main2()
+    main1()
+    main3()

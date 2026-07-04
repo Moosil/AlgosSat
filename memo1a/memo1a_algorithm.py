@@ -22,23 +22,21 @@ from collections import defaultdict
 nested_dict = lambda: defaultdict(nested_dict)
 
 
-def dijkstra(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
+def bfs(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
 	dist = {s: float('infinity') for s in g}
 
 	dist[source] = 0
 
-	# visited set replaced update(PQ, v)
 	visited = set()
 
 	prev: dict[VertexT, VertexT | None] = dict({source: None})
-	pq = [(0., source)]
-	heapq.heapify(pq)
-	while len(pq) > 0:
-		_, u = heapq.heappop(pq)
+	stack: list[VertexT] = [source]
+	while len(stack) > 0:
+		u = stack.pop()
 
-		# required for the python heapq that doesn't allow changing priority
 		if u in visited:
 			continue
+
 		visited.add(u)
 
 		for v in g.neighbors(u):
@@ -46,7 +44,7 @@ def dijkstra(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
 			if dist[u] + w < dist[v]:
 				prev[v] = u
 				dist[v] = dist[u] + w
-				heapq.heappush(pq, (dist[v], v))
+				stack.append(v)
 
 	return prev
 
@@ -56,7 +54,7 @@ def get_pair_shortest_path(source: VertexT, sink: VertexT, prev: dict[VertexT, V
 	right_path = [sink]
 	left = source
 	right = sink
-	while left not in right_path and right not in left_path:
+	while True:
 		if prev[left] is not None:
 			left = prev[left]
 			left_path.append(left)
@@ -64,13 +62,13 @@ def get_pair_shortest_path(source: VertexT, sink: VertexT, prev: dict[VertexT, V
 			right = prev[right]
 			right_path.append(right)
 
-	if right in left_path:
-		right_index = left_path.index(right)
-		return left_path[:right_index] + list(reversed(right_path))
-	if left in right_path:
-		left_index = right_path.index(left)
-		return left_path + list(reversed(right_path[:left_index]))
-	raise ValueError(f"prev does not contain the vertices: {source} and {sink}")
+		if right in left_path:
+			right_index = left_path.index(right)
+			return left_path[:right_index] + list(reversed(right_path))
+
+		if left in right_path:
+			left_index = right_path.index(left)
+			return left_path + list(reversed(right_path[:left_index]))
 
 
 def get_supplies_to_collect(
@@ -100,31 +98,20 @@ def get_junction_other(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], junct
 	else:
 		return edge[0]
 
-def reconstruct_path(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], came_from: dict[VertexT, VertexT | None], e: VertexT, prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> list:
-	meta_path = []
+def reconstruct_path(came_from: dict[VertexT, VertexT | None], e: VertexT) -> list:
+	res = []
 	curr = e
 	while curr in came_from:
-		meta_path.append(curr)
+		res.append(curr)
 		curr = came_from[curr]
-
-	res = []
-	for i in range(len(meta_path) - 1, 0, -1):
-		u = meta_path[i - 1]
-		v = meta_path[i]
-		u_wing = get_which_wing(G, u)
-		v_wing = get_which_wing(G, v)
-		if u_wing == v_wing:
-			res += get_pair_shortest_path(v, u, prevs[u_wing])[:-1]
-		else:
-			res.append(v)
-
-	res.append(meta_path[0])
-
+	res.reverse()
 	return res
 
-def dijkstra_meta(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], source: VertexT, sinks: set[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> dict[VertexT, list[VertexT]]:
+def dijkstra(g: nx.Graph, source: VertexT, sinks: set[VertexT]) -> dict[VertexT, list[VertexT]]:
 	res = {}
-	dist = {source: 0}
+	dist = {s: float('infinity') for s in g}
+
+	dist[source] = 0
 
 	# visited set replaced update(PQ, v)
 	visited = set()
@@ -141,64 +128,37 @@ def dijkstra_meta(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], source: Ve
 		visited.add(u)
 
 		if u in sinks:
-			res[u] = reconstruct_path(G, prev, u, prevs)
+			res[u] = reconstruct_path(prev, u)
 			if len(res) == len(sinks):
 				return res
 
-		u_wing = get_which_wing(G, u)
-
-		for v in get_junctions_in_wing(G, u_wing):
-			w = get_path_length(G, [u, v], prevs)
-			if v not in dist or dist[u] + w < dist[v]:
-				prev[v] = u
-				dist[v] = dist[u] + w
-				heapq.heappush(pq, (dist[v], v))
-
-			other_v = get_junction_other(G, v)
-			if other_v not in dist or dist[v] + 1 < dist[other_v]:
-				prev[other_v] = v
-				dist[other_v] = dist[v] + 1
-				heapq.heappush(pq, (dist[other_v], other_v))
-		for v in get_vertices_in_wing(u_wing, sinks):
-			w = get_path_length(G, [u, v], prevs)
-			if v not in dist or dist[u] + w < dist[v]:
+		for v in g.neighbors(u):
+			w = g.get_edge_data(u, v)["weight"]
+			if dist[u] + w < dist[v]:
 				prev[v] = u
 				dist[v] = dist[u] + w
 				heapq.heappush(pq, (dist[v], v))
 
 	return res
 
-def get_apsp(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: VertexT, exits: set[VertexT], supplies: set[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> dict[VertexT, dict[VertexT, list[VertexT]]]:
+def get_apsp(g: nx.Graph, entry: VertexT, exits: set[VertexT], supplies: set[VertexT]) -> dict[VertexT, dict[VertexT, list[VertexT]]]:
 	res: dict[VertexT, dict[VertexT, list[VertexT]]] = defaultdict(dict)
 	for source in supplies.union((entry,)):
-		dijkstra_res = dijkstra_meta(G, source, supplies.union(exits), prevs)
+		dijkstra_res = dijkstra(g, source, supplies.union(exits))
 		for sink in dijkstra_res:
 			res[source][sink] = dijkstra_res[sink]
 
 	return res
 
-def get_path_length(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], path: list[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> int:
-	res = 0
-	for i in range(len(path) - 1):
-		u = path[i]
-		v = path[i + 1]
-		u_wing = get_which_wing(G, u)
-		v_wing = get_which_wing(G, v)
-		if u_wing == v_wing:
-			sub_path = get_pair_shortest_path(u, v, prevs[u_wing])
-			for j in range(len(sub_path) - 1):
-				res += u_wing.get_edge_data(sub_path[j], sub_path[j + 1])['weight']
-		else:
-			res += 1
-
-	return res
+def get_path_length(g: nx.Graph, path: list[VertexT]) -> int:
+	return sum(g.get_edge_data(path[i], path[i + 1])["weight"] for i in range(len(path) - 1))
 
 
-def get_apsp_dist(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> dict[VertexT, dict[VertexT, int]]:
+def get_apsp_dist(g: nx.Graph, pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> dict[VertexT, dict[VertexT, int]]:
 	res: dict[VertexT, dict[VertexT, int]] = defaultdict(dict)
 	for source, sink_dict in pair_path_map.items():
 		for sink, path in sink_dict.items():
-			res[source][sink] = get_path_length(G, path, prevs)
+			res[source][sink] = get_path_length(g, path)
 
 	return res
 
@@ -655,11 +615,31 @@ def stage_1(G, entry, exits, supplies, supply_storage, vertex_to_supply_id, foun
 	number_of_supplies_to_collect = max(len(supplies), len([i for i in supply_storage if i is not None]))
 
 	"""Get entry/junction -> exit/junction pair paths"""
-	prevs: dict[WingT, dict[VertexT, VertexT | None]] = {wing: dijkstra(wing, list(wing.nodes)[0]) for wing in G[0]}
+	prevs: dict[WingT, dict[VertexT, VertexT | None]] = {wing: bfs(wing, list(wing.nodes)[0]) for wing in G[0]}
+
+	salient_graph = nx.Graph()
+	salient_graph.add_node(entry)
+
+	salient_graph.add_nodes_from(supplies)
+
+	salient_graph.add_nodes_from(exits)
+
+	for u, v in G[1]:
+		salient_graph.add_node(u)
+		salient_graph.add_node(v)
+		salient_graph.add_edge(u, v, weight=1)
+
+	for wing in G[0]:
+		salient_in_wing = list(get_vertices_in_wing(wing, (entry,))) + list(get_vertices_in_wing(wing, exits)) + list(get_vertices_in_wing(wing, supplies)) + list(get_vertices_in_wing(wing, [u for u, _ in G[1]] + [v for _, v in G[1]]))
+		for i in range(len(salient_in_wing)):
+			for j in range(i + 1, len(salient_in_wing)):
+				u, v = salient_in_wing[i], salient_in_wing[j]
+				path = get_pair_shortest_path(u, v, prevs[wing])
+				salient_graph.add_edge(u, v, weight=get_path_length(wing, path))
 
 	"""supplies apsp"""
-	apsp_map = get_apsp(G, entry, exits, supplies, prevs)
-	apsp_dist_map = get_apsp_dist(G, apsp_map, prevs)
+	apsp_map = get_apsp(salient_graph, entry, exits, supplies)
+	apsp_dist_map = get_apsp_dist(salient_graph, apsp_map)
 	return apsp_map, apsp_dist_map, number_of_supplies_to_collect
 
 def reconstruct_super_path(super_path, apsp_map, supplies, supply_storage, number_of_supplies_to_collect, vertex_to_supply_id):

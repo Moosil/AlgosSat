@@ -464,7 +464,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 2.4 Hierarchical vs Flat graph
+    ## 2.5 Hierarchical vs Flat graph
     When adapting from a single-wing facility to a multi-wing one, there are two obvious ways to represent the multiple wings.
 
     Recall in Memo 1, the facility's singular wing was represented as a graph, with each vertex representing a salient sector and each edge a connecting walk between thoses salient sectors.
@@ -491,7 +491,16 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.5 Justification of Each ADT
+    ## 2.6 New ADTs
+    Since
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 2.6 Justification of Each ADT
     Above, I justified the use of the meta-graph in the hierarchical representation.
 
     By using a graph, we can encapsulate only the salient features of a wubg, where other structures would introduce non-salient features.
@@ -517,7 +526,7 @@ def _(mo):
 
     ### 3.1.1 All Pairs Shortest Paths
 
-    The first stage of the algorithm will be to find the shortest paths between each supply, entrance and exit vertex in $G$.
+    The first stage of the algorithm will be to find the shortest paths between each supply, entrance and exit vertex in $G$. We then turn this into super graph $G_S$
 
     Since we are using a hierachical abstraction of the facility, there are two shortest path cases: intra-wing and inter-wing.
 
@@ -535,13 +544,13 @@ def _(mo):
 
     Since this problem is similar to the Travelling Salesman Problem (TSP), we will primarily consider design approaches that are used to solve this problem.
 
-    #### 3.1.3 Greedy & Heuristic
+    #### 3.1.2.1 Greedy & Heuristic
 
     Greedy patterns are often efficient, but will be unlikely to find an optimal solution, unless the problem has the greedy property. Due to small $n$, and the facility not having the greedy property, we will avoid Greedy algorithms in finding an exact solution. Greedy algorithms will be used in the algorithm to provide a fast upper-bound on path length which is useful for other approaches.
 
     Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. 2-opt and 3-opt are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than nearest neighbour. Lin-kernighan, which adapts the k-opt, runs in $O(n^2.2)$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm tabu-search to prohibit found local minima and hopefully find a global minima.
 
-    ### 3.1.4 Backtracking & Linear Programming
+    #### 3.1.2.2 Backtracking & Linear Programming
 
     The problem can be expressed as a integer linear program (ILP) that if solved, will give the optimal solution to any problem instance as shown below. $\begin{array}{lrrll}
     \text{min} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
@@ -581,13 +590,17 @@ def _(mo):
 
     The problem with all this is the $n$ is so small that constant and lower order costs of solving linear programming problems many times is greater than other more nieve algorithms.
 
-    ### 3.1.5 Backtracking & Greedy / Heuristic
+    #### 3.1.2.3 Backtracking & Greedy / Heuristic
 
     Instead of linear programming overhead, we will instead create a tree whose root node is the entry, and leaf nodes are the exits. The branch nodes will be supplies, and the tree will contain each possible ordering of supplies. Searching this tree exhaustively is too time consuming, but we will instead compute a lower bound for each branch and prune those that have a lower bound greater than an upper bound we find. We will prefer depth first search on this tree to hopefully reduce our upper bound.
 
-    ### 3.1.6 Brute-force
+    To calculate the lower bounds, we first define $T_x = (V_S', E_S', w_S)$ to be a minimum spanning tree of a subset of $G_S = (V_S, E_S, w_S)$, where $V_S' = V_S \ \{x\}$. Then our lower bound will be $\displaystyle\min_{x \in X} \displaystyle\sum_{\{u, v\} \in E_S'} w_S(u, v.
 
-    Unfortunately, this problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make nieve brute force more efficient. So this stage of the algorithm will be done exactly the same as in Memo 1, recursive brute-force.
+    To calculate the upper bound, we can find one greedily using a greedy algorithm considered above. We will use a modification of the Lin-Kernighan Heuristic for this purpose. As shown below, we can expect ~12% solution gap for 5 supplies.
+
+    #### 3.1.2.4 Brute-force
+
+    Unfortunately, this problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make nieve brute force more efficient than Branch and bound and Lin-Kernighan, beaten only by Nearest neighbour, which is not exact. Since the runtime of Brute-force in this problem is low, we will use the same algorithm as in Memo 1 for stage 2, recursive brute-force.
     """)
     return
 
@@ -599,17 +612,46 @@ def _(plt):
     _data_nearest_neighbour = [6.270000000000001e-06,7.43e-06,1.4460000000000002e-05,1.163e-05,1.2760000000000001e-05,1.4540000000000001e-05,1.665e-05,1.8670000000000003e-05,2.1810000000000003e-05,2.472e-05,2.5810000000000005e-05,2.8840000000000002e-05,3.086e-05,4.2730000000000006e-05,3.951e-05,4.131e-05,4.388000000000001e-05,4.731e-05,8.1e-05,6.82e-05,6.96e-05,7.350000000000001e-05,7.900000000000001e-05,8.39e-05,8.67e-05,9.27e-05,0.0002538,0.0001431,9.94e-05,0.0001071,0.000115,0.0001194,0.0001269,0.0001297,0.0001303,0.0001473,0.00015030000000000002,0.0001595,0.00015780000000000001,0.0001789,0.00019610000000000002,0.0001974,0.000209,0.00021600000000000002,0.0002134,0.0002254,0.0002809,0.0002482,0.00024200000000000003,0.00024890000000000003,0.0002633,0.0002677,0.0002809,0.00028900000000000003,0.00030930000000000004,0.0003064,0.0003192,0.00032480000000000003,0.0003323,0.0003411,0.0003637,0.00036710000000000003,0.0003796,0.0005753,0.00039890000000000005,0.0004018,0.0004059,0.0004263,0.00044520000000000003,0.00045220000000000004,0.00046520000000000003,0.00047870000000000003,0.0004922,0.0005083,0.0005289,0.0005367,0.0005452,0.0005465,0.0015204,0.0005571,0.0005767000000000001,0.0006050000000000001,0.0006875000000000001,0.0006577,0.0006948000000000001,0.0006991,0.000711,0.0007118000000000001,0.0007492,0.0007545000000000001,0.0007618000000000001,0.0007786000000000001,0.0007801,0.0008219000000000001,0.0008190000000000001,0.0008486,0.0008751000000000001,0.0008993]
     _data_lin_kernighan = [0.0001017,0.00013758000000000002,0.00026988,0.00036490000000000003,0.0005146300000000001,0.0007108,0.0009627800000000001,0.00131383,0.0014377600000000002,0.0018070800000000002,0.0025650200000000003,0.0031454200000000003,0.0033789900000000006,0.0049346,0.0055303900000000005,0.007394490000000001,0.00829403,0.00941312,0.0039345000000000005,0.0041478,0.004743300000000001,0.0045415,0.0048947,0.0054383,0.0065658,0.0067648000000000005,0.006992300000000001,0.008744700000000001,0.007468700000000001,0.0090393,0.0112969,0.010661700000000001,0.015110900000000002,0.0130235,0.0140444,0.0169301,0.021728300000000002,0.029162,0.0338094,0.0345527,0.038339500000000006,0.0460657,0.0611041,0.0587053,0.0722793,0.0773292,0.0841214,0.09166010000000001,0.10660370000000001,0.11081780000000001,0.1218183,0.14642090000000002,0.1482165,0.18951980000000002,0.2029814,0.23812850000000002,0.24091410000000002,0.28944420000000004,0.3016151,0.3269696,0.35769650000000003,0.3435302,0.45921120000000004,0.5068758,0.20932910000000002,0.5504193000000001,0.5856132000000001,0.6330972,0.6425996,0.6871557,0.7721858,0.7866022,0.8199189,0.8599855000000001,0.9603877000000001,0.0089177,1.0469717,0.9971110000000001,1.2440345000000002,1.0307895,1.0849713,1.1504269,1.2012740000000002,1.2386941,0.36228160000000004,1.4069538000000001,1.3261769,1.4711739000000001,1.5595736,1.5790983,1.6374989000000002,1.1390892000000001,1.7154255,1.77176,1.8395085000000002,1.9003779,0.4290295,2.0640527]
 
-    _fig, _ax = plt.subplots()
-    _ax.set_yscale('log', base=10)
-    _ax.scatter([i+2 for i in range(len(_data_brute_force))], _data_brute_force, c='b', label="Brute force")
-    _ax.scatter([i+2 for i in range(len(_data_branch_and_bound))], _data_branch_and_bound, c='r', label="Branch and bound")
-    _ax.scatter([i+2 for i in range(len(_data_nearest_neighbour))], _data_nearest_neighbour, c='g', label="Nearest neighbour")
-    _ax.scatter([i+2 for i in range(len(_data_lin_kernighan))], _data_lin_kernighan, c='orange', label="Lin-Kernighan")
-    _ax.set_title("Different approaches' runtime")
-    _ax.legend(loc="upper right")
-    _ax.set_xlabel("Supply Unit (# of)")
-    _ax.set_ylabel("Runtime (s)")
-    _ax
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6), sharey=True)
+    _ax1.scatter([i+2 for i in range(len(_data_brute_force))], _data_brute_force, c='b', label="Brute force", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_data_branch_and_bound))], _data_branch_and_bound, c='r', label="Branch and bound", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_data_nearest_neighbour))], _data_nearest_neighbour, c='g', label="Nearest neighbour", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_data_lin_kernighan))], _data_lin_kernighan, c='orange', label="Lin-Kernighan", marker='.')
+    _ax1.legend(loc="upper right")
+    _ax1.set_yscale("log", base=10)
+
+    _local_range = range(2, 7)
+    _range_len = _local_range.stop-_local_range.start
+
+    _ax2.scatter([i for i in _local_range], _data_brute_force[:_range_len], c='b', label="Brute force", marker='o')
+    _ax2.scatter([i for i in _local_range], _data_branch_and_bound[:_range_len], c='r', label="Branch and bound", marker='o')
+    _ax2.scatter([i for i in _local_range], _data_nearest_neighbour[:_range_len], c='g', label="Nearest neighbour", marker='o')
+    _ax2.scatter([i for i in _local_range], _data_lin_kernighan[:_range_len], c='orange', label="Lin-Kernighan", marker='o')
+    _ax2.legend(loc="upper right")
+    _ax2.set_yscale("log", base=10)
+    _ax2.set_xticks(_local_range)
+
+    _fig.suptitle("Different approaches' runtime")
+    _fig.supxlabel("Supply Unit (# of)")
+    _fig.supylabel("Runtime (s)")
+    _fig.tight_layout()
+
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.1.3 Evaluation of Runtimes
+    As expected, Brute force has the worst run-time, followed closely by Branch-and-bound. The heuristic algorithms then follow, with Lin-Kernighan running Nearest neighbour to get its first guess (which it finds a local solution of), it takes longer than Nearest neighbour does.
+    <br><span style='color: silver;'>(as seen in left figure)</span>
+
+    At $n = 5 = |S|$, which is what $|S|$ is in the problem, we can notice that Brute force runs faster than Branch and bound, and isn't much slower than Nearest neighbour. This is the reason why it will be used over those other more efficient approaches.
+    <br><span style='color: silver;'>(as seen in right figure)</span>
+
+    If $n$ was to increase, it will become impossible to consider Brute-force, and Branch-and-bound will only be usable with significant optimisations (discussed later). This can be seen in the left figure, with both these algorithms not being graphed after $n = 12$
+    """)
     return
 
 
@@ -620,31 +662,40 @@ def _(plt):
     _data_nearest_neighbour_length = [87.3,162.8,182.2,245.8,259.2,337.7,353.8,421.2,439.4,495.5,520.9,585.7,601.4,690.8,711.5,793.6,813.8,898.2,724.0,803.0,805.0,890.0,906.0,953.0,957.0,983.0,1002.0,1076.0,1102.0,1143.0,1165.0,1257.0,1265.0,1352.0,1378.0,1514.0,1554.0,1601.0,1659.0,1692.0,1730.0,1853.0,1879.0,1982.0,2024.0,2101.0,2097.0,2171.0,2319.0,2345.0,2361.0,2464.0,2466.0,2644.0,2652.0,2731.0,2733.0,2863.0,2873.0,3040.0,3056.0,3141.0,3163.0,3333.0,3335.0,3417.0,3421.0,3496.0,3554.0,3595.0,3723.0,3803.0,3831.0,3984.0,3990.0,4067.0,4139.0,4199.0,4261.0,4370.0,4386.0,4427.0,4489.0,4573.0,4583.0,4707.0,4719.0,4761.0,4863.0,4934.0,4968.0,5104.0,5110.0,5232.0,5234.0,5253.0,5255.0,5436.0]
     _data_lin_kernighan_length = [87.3,160.8,181.2,239.2,259.0,327.1,345.4,416.4,436.4,470.5,510.3,573.9,568.0,688.8,682.9,766.8,801.4,893.6,724.0,803.0,805.0,890.0,906.0,953.0,957.0,983.0,1002.0,1076.0,1102.0,1141.0,1143.0,1257.0,1265.0,1302.0,1378.0,1424.0,1554.0,1511.0,1569.0,1692.0,1700.0,1777.0,1817.0,1920.0,1962.0,2077.0,2097.0,2137.0,2247.0,2345.0,2283.0,2372.0,2466.0,2644.0,2652.0,2599.0,2601.0,2833.0,2843.0,2952.0,3056.0,3141.0,3163.0,3153.0,3327.0,3337.0,3249.0,3496.0,3516.0,3595.0,3681.0,3717.0,3831.0,3868.0,3990.0,3979.0,4139.0,4165.0,4137.0,4252.0,4386.0,4321.0,4383.0,4515.0,4477.0,4707.0,4715.0,4761.0,4863.0,4856.0,4968.0,5050.0,5058.0,5140.0,5234.0,5209.0,5255.0,5436.0]
 
-    _fig, _ax = plt.subplots()
-    _ax.scatter([i+2 for i in range(len(_data_brute_force_length))], _data_brute_force_length, c='b', label="Brute force")
-    _ax.scatter([i+2 for i in range(len(_data_branch_and_bound_length))], _data_branch_and_bound_length, c='r', label="Branch and bound")
-    _ax.scatter([i+2 for i in range(len(_data_nearest_neighbour_length))], _data_nearest_neighbour_length, c='g', label="Nearest neighbour")
-    _ax.scatter([i+2 for i in range(len(_data_lin_kernighan_length))], _data_lin_kernighan_length, c='orange', label="Lin-Kernighan")
-    _ax.set_title("Different approaches' solution length")
-    _ax.legend(loc="upper right")
-    _ax.set_xlabel("Supply Unit (# of)")
-    _ax.set_ylabel("Average Solution Length (units)")
-    _ax
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
+    _ax1.scatter([i+2 for i in range(len(_data_brute_force_length))], _data_brute_force_length, c='b', label="Brute force", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_data_branch_and_bound_length))], _data_branch_and_bound_length, c='r', label="Branch and bound", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_data_nearest_neighbour_length))], _data_nearest_neighbour_length, c='g', label="Nearest neighbour", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_data_lin_kernighan_length))], _data_lin_kernighan_length, c='orange', label="Lin-Kernighan", marker='.')
+    _ax1.set_title("Different approaches' solution length")
+    _ax1.legend(loc="upper right")
+    _ax1.set_ylabel("Average Solution Length (units)")
+
+    def _solution_gap(data) -> list[float]:
+        return [100 * (data[i] - _data_branch_and_bound_length[i]) / _data_branch_and_bound_length[i] for i in range(min(len(_data_branch_and_bound_length), len(data)))]
+
+    _ax2.scatter([i+2 for i in range(len(_data_brute_force_length))], _solution_gap(_data_brute_force_length), c='b', label="Brute force", marker='o')
+    _ax2.scatter([i+2 for i in range(len(_data_branch_and_bound_length))], _solution_gap(_data_branch_and_bound_length), c='r', label="Branch and bound", marker='.')
+    _ax2.scatter([i+2 for i in range(len(_data_branch_and_bound_length))], _solution_gap(_data_nearest_neighbour_length), c='g', label="Nearest neighbour", marker='o')
+    _ax2.scatter([i+2 for i in range(len(_data_branch_and_bound_length))], _solution_gap(_data_nearest_neighbour_length), c='orange', label="Lin-Kernighan", marker='.')
+    _ax2.set_title("Different approaches' optimality gap")
+    _ax2.legend(loc="upper right")
+    _ax2.set_ylabel("Average Solution Gap (%)")
+    _ax2.set_xticks(range(len(_data_branch_and_bound_length) + 2))
+
+    _fig.supxlabel("Supply Unit (# of)")
+    _fig.tight_layout()
+
+    _fig
     return
 
 
-@app.cell
-def _(plt):
-    _data_nearest_neighbour_gap = [1.0057603686635945,1.0456005138086064,1.102238354506957,1.1259734310581768,1.1201382886776143,1.1459110960298609]
-    _data_lin_kernighan_gap = [1.0057603686635945,1.0327552986512525,1.0961887477313974,1.0957398076042142,1.1192739844425237,1.1282660332541568]
-    _fig, _ax = plt.subplots()
-    _ax.scatter([i+2 for i in range(len(_data_nearest_neighbour_gap))], _data_nearest_neighbour_gap, c='g', label="Nearest neighbour")
-    _ax.scatter([i+2 for i in range(len(_data_lin_kernighan_gap))], _data_lin_kernighan_gap, c='orange', label="Lin-Kernighan")
-    _ax.set_title("Heuristic Approaches Optimal solution gap")
-    _ax.legend(loc="upper right")
-    _ax.set_xlabel("Supply Unit (# of)")
-    _ax.set_ylabel("Runtime (s)")
-    _ax
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.1.4 Optimality & Solution Gap
+    Each algorithm poses a different gap from the optimal solution. An algorithm for a problem is optimal iff it has 0 solution gap on *all* problem instances. We calculate solution gap with $\displaystyle\frac{\text{Heuristic - Optimal}}{\text{Optimal}}$, and while Lin-Kernighan has a slighly better solution for large $n$ <span style='color: silver;'>(as seen in left figure)</span>, for small $n$, which what this problem is, the solution provided by Nearest neighbour is a local optimal, and thus Lin-Kernighan cannot further optimise it <span style='color: silver;'>(as seen in right figure)</span>.
+    """)
     return
 
 

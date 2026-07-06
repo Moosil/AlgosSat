@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.13"
-app = marimo.App(width="medium", app_title="Memo1", css_file="../custom.css")
+app = marimo.App(width="medium", app_title="Memo1A1", css_file="../custom.css")
 
 
 @app.cell
@@ -162,8 +162,8 @@ def _(chain, copy, mpatches, nx, plt, random, seed_input):
 
             total_w = self.n_wings * self.WING_COLS + (self.n_wings - 1) * _GAP
 
-            fig_w = max(10., total_w * 0.58)
-            fig_h = max(5., self.WING_ROWS * 0.58 + 1.2)
+            fig_w = max(10., total_w * 0.35)
+            fig_h = max(5., self.WING_ROWS * 0.35 + 1.2)
             fig, ax = plt.subplots(figsize=(fig_w, fig_h))
             ax.set_facecolor(COL_BG)
             fig.patch.set_facecolor(COL_BG)
@@ -342,6 +342,7 @@ def _(mo):
     mo.md(r"""
     ## 1.1 Limitations of Previous Model
     - The previous model assumed the facility was just the one wing
+    - The previous model wasn't taking advantage of properties of this problem
     """)
     return
 
@@ -492,7 +493,67 @@ def _():
 def _(mo):
     mo.md(r"""
     ## 2.6 New ADTs
-    Since
+    Since we are using a hierarchical graph representation, we will need to represent this as an ADT. To do this, we will require one new ADT, the tuple. The Hyper
+
+    We do _not_ need each vertex to store its wing, because we can check that by checking if that vertex is each wing's vertex set.
+
+    `foo.bar(a, b)` syntax will be used in pseudocode, rather than `bar(foo, a, b)`, and mathematical operators will be preferred for size of ADTs and set operations. Indices of ordered data structures and keys of maps will be accessed with `foo[index]` syntax. Lists will be created with `[a, b, ...]` syntax, tuples will be created with `(a, b, ...)` syntax, and sets will be created with `{a, b, ...}` syntax, with empty set being denoted by $\varnothing$
+
+    A recap of each ADT and its signature specifications are below:
+
+    ### 2.6.1 Graph
+
+    Edges are a tuple of two vertices
+
+    - $\text{get\_vertices}: \text{Graph} \to \text{Set}[\text{Vertex}]$
+    - $\text{get\_edges}: \text{Graph} \to \text{Set}[\text{Edge}]$
+    - $\text{add\_vertex}: \text{Graph} \times \text{Vertex} \to \text{Graph}$
+    - $\text{add\_edge}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \times \mathbb{R}^+ \cup \{0\} \to \text{Graph}$
+    - $\text{remove\_vertex}: \text{Graph} \times \text{Vertex} \to \text{Graph}$
+    - $\text{remove\_edge}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \to \text{Graph}$
+    - $\text{get\_neighbours}: \text{Graph} \times \text{Vertex} \to \text{Set}[\text{Vertex}]$
+    - $\text{has\_edge}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \to \text{Boolean}$
+    - $\text{get\_vertices}: \text{Graph} \to \text{Set}[\text{Vertex}]$
+    - $\text{set\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \times \mathbb{R}^+ \cup \{0\} \to \text{Graph}$
+    - $\text{get\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex}) \to \mathbb{R}^+ \cup \{0\}$
+
+    ### 2.6.2 Set
+
+    For Set operations, the mathematical symbol will be preferred ($\cup$, $\cap$, $\backslash$, $\Delta$, $\vert \dots \vert$, $\in$, $\subset$, $\subseteq$ and $=$ respectively)
+
+    - $\text{union}: \text{Set} \times \text{Set} \to \text{Set}$
+    - $\text{intersection}: \text{Set} \times \text{Set} \to \text{Set}$
+    - $\text{difference}: \text{Set} \times \text{Set} \to \text{Set}$
+    - $\text{symmetric\_difference}: \text{Set} \times \text{Set} \to \text{Set}$
+    - $\text{size}: \text{Set} \to \mathbb{R}^+ \cup \{0\}$
+    - $\text{element\_of}: \text{Set} \times \text{Item} \to \text{boolean}$
+    - $\text{strict\_subset\_of}: \text{Set} \times \text{Set} \to \text{boolean}$
+    - $\text{subset\_of}: \text{Set} \times \text{Set} \to \text{boolean}$
+    - $\text{are\_equal}: \text{Set} \times \text{Set} \to \text{boolean}$
+
+    ### 2.6.3 Map
+    - $\text{size}: \text{Map} \to \mathbb{R}^+ \cup \{0\}$
+    - $\text{has}: \text{Map} \times \text{Key} \to \text{boolean}$
+    - $\text{at}: \text{Map} \times \text{Key} \to \text{Value}$
+    - $\text{remove}: \text{Map} \times \text{Key} \to \text{Map}$
+    - $\text{set}: \text{Map} \times \text{Key} \times \text{Value} \to \text{Map}$
+    - $\text{Keys}: \text{Map} \to \text{Set}[\text{Key}]$
+
+    ### 2.6.3 List
+    - $\text{push}: \text{List} \times \text{Item} \to \text{List}$
+    - $\text{pop}: \text{List} \to \text{List}$
+    - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
+    - $\text{is\_empty}: \text{List} \to \text{Boolean}$
+    - $\text{length}:\text{List} \to \mathbb{Z}^+$
+
+    ### 2.6.4 Array
+    - $\text{set}: \text{Array} \times \mathbb{Z}^+ \times \text{Item} \to \text{List}$
+    - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
+    - $\text{length}:\text{List} \to \mathbb{Z}^+$
+
+    ### 2.6.5 Tuple
+    - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
+    - $\text{length}:\text{List} \to \mathbb{Z}^+$
     """)
     return
 
@@ -501,7 +562,7 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 2.6 Justification of Each ADT
-    Above, I justified the use of the meta-graph in the hierarchical representation.
+    Above, I justified the use of the graph in the hierarchical representation.
 
     By using a graph, we can encapsulate only the salient features of a wubg, where other structures would introduce non-salient features.
 
@@ -656,7 +717,7 @@ def _(mo):
 
 
 @app.cell
-def _(plt):
+def _(mo, plt):
     _data_brute_force_length = [86.8,153.9,164.9,217.7,230.8,291.7,307.6,364.0,378.3,401.0]
     _data_branch_and_bound_length = [86.8,153.9,164.9,217.7,230.8,291.7,307.6,364.0,378.3,401.0]
     _data_nearest_neighbour_length = [87.3,162.8,182.2,245.8,259.2,337.7,353.8,421.2,439.4,495.5,520.9,585.7,601.4,690.8,711.5,793.6,813.8,898.2,724.0,803.0,805.0,890.0,906.0,953.0,957.0,983.0,1002.0,1076.0,1102.0,1143.0,1165.0,1257.0,1265.0,1352.0,1378.0,1514.0,1554.0,1601.0,1659.0,1692.0,1730.0,1853.0,1879.0,1982.0,2024.0,2101.0,2097.0,2171.0,2319.0,2345.0,2361.0,2464.0,2466.0,2644.0,2652.0,2731.0,2733.0,2863.0,2873.0,3040.0,3056.0,3141.0,3163.0,3333.0,3335.0,3417.0,3421.0,3496.0,3554.0,3595.0,3723.0,3803.0,3831.0,3984.0,3990.0,4067.0,4139.0,4199.0,4261.0,4370.0,4386.0,4427.0,4489.0,4573.0,4583.0,4707.0,4719.0,4761.0,4863.0,4934.0,4968.0,5104.0,5110.0,5232.0,5234.0,5253.0,5255.0,5436.0]
@@ -686,7 +747,7 @@ def _(plt):
     _fig.supxlabel("Supply Unit (# of)")
     _fig.tight_layout()
 
-    _fig
+    mo.mpl.interactive(_fig)
     return
 
 
@@ -717,29 +778,10 @@ def _():
 def _(mo):
     mo.md(r"""
     ## 3.3 Wing traversal strategy
+    The algorithm will traverse between wings based on the best walk, not necessarily collecting each supply in a wing before moving to the next wing and often coming back to a wing previously traversed through. This was done to use a common path optimisation where directly travelling between two junctions in a wing, $j_1$ and $j_2$, may be slower than a path through $j_1$, $j_1'$, $j_2'$ and $j_2$, where $j_n'$ is the vertex a junction connects to via an interwing coridoor.
+
+    Since we are still aiming for an exact algorithm that always outputs the optimal solution, we must allow for revisiting wings and partial collection of supplies.
     """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 3.3.1 Sub-problems
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 3.3.2 Two strategies
-    """)
-    return
-
-
-@app.cell
-def _():
-    """graph of time of each"""
     return
 
 
@@ -755,6 +797,15 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ### 3.4.1 Explanation
+    We split the algorithm into two stages, with the first stage creating a flat graph, $F$, where each vertex is a supply, junction, entry or exit, and edges between vertices exist if they are in the same wing, after which we will find the shortest path on $F$ between each entry and supply, and each exit and supply, creating a complete graph $H$ using these minimum cost paths as edge weights.
+
+    In the second stage, the algorithm will find the shortest hamiltonian path on this second graph which starts at the entry and ends at an exit.
+
+    For the first stage, we will run a depth first search on each wing to get a path between each vertex and a arbitrarily chosen source vertex. Since each wing is a tree, these paths must be shortest paths and we can find the shortest path between each vertex in the wing by tracing back the path from each vertex to the chosen vertex and removing any cycle in that path. A graph $F$ will be created using these shortest path distances, storing those shortest paths so we can convert between the $G$ and $F$ later. $F$ will contain every wing's vertices.
+
+    After that, Dijkstra's algorithm will be run on $F$ to find the shortest paths between each entry and supply, and each exit and supply. The creation of $F$ efficiently reduces the size of $n$ for the input to Dijkstra's algorithm. These shortest paths will form a complete graph $H$ where each vertex is an entry, supply or exit and each edge's weight is the total cost of the shortest path between two vertices in $H$. We will likewise store these shortest paths for the path reconstruction.
+
+    In the second stage, a brute force algorithm will find the shortest hamiltonian walk on $H$. After which we use all the stored paths to reconstruct the final returned walk by converting from a walk on $H$, to one on $F$, finally to one on $G$.
     """)
     return
 
@@ -765,40 +816,6 @@ def _(mo):
     ### 3.4.2 Justification
     """)
     return
-
-
-@app.cell
-def _():
-    """animation of algorithm (manim)"""
-    return
-
-
-@app.cell
-def _(facility_drawer, mo):
-    import memo1a_algorithm
-
-    _abs_graph = facility_drawer.get_abstracted_graph()
-    _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
-    _supplies = set(facility_drawer.supplies)
-    _storage = tuple([None] * 5)
-    _supply_map = {i: hash(i) for i in facility_drawer.supplies}
-
-    @mo.cache
-    def ember_rescue_cached():
-        return memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
-
-    _res = ember_rescue_cached()
-
-    _path = facility_drawer.get_path_from_super_path(_res[0])
-
-    path_len = mo.ui.slider(
-        value=0,
-        start=0,
-        stop=len(_path),
-        step=1,
-        label="Step (drag to walk through the trace) ",
-    )
-    return ember_rescue_cached, memo1a_algorithm, path_len
 
 
 @app.cell(hide_code=True)
@@ -864,9 +881,39 @@ def _(facility_drawer, memo1a_algorithm, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    These value **HIGHLY** depend on the marimo virtual machine, and can vary by up to 5 orders of magnitude. On my machine, I get Runtime: 12.2ms, Memory: 458 B
+    These value **HIGHLY** depend on the marimo virtual machine, and can vary by up to 5 orders of magnitude. On my machine, I get Runtime: 2.72ms, Memory: 336 B
     """)
     return
+
+
+@app.cell
+def _(facility_drawer, mo):
+    import memo1a_algorithm
+
+    _abs_graph = facility_drawer.get_abstracted_graph()
+    _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+    _supplies = set(facility_drawer.supplies)
+    _storage = tuple([None] * 5)
+    _supply_map = {i: hash(i) for i in facility_drawer.supplies}
+
+    @mo.cache
+    def ember_rescue_cached():
+        return memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
+
+    _res = ember_rescue_cached()
+
+    _path = facility_drawer.get_path_from_super_path(_res[0])
+
+    path_len = mo.ui.slider(
+        value=0,
+        start=0,
+        stop=len(_path) - 1,
+        step=1,
+        label="Step (drag to walk through the trace) ",
+        full_width=True,
+        include_input=True
+    )
+    return ember_rescue_cached, memo1a_algorithm, path_len
 
 
 @app.cell
@@ -879,9 +926,28 @@ def _(ember_rescue_cached, facility_drawer, mo, path_len):
 
     _res = ember_rescue_cached()
 
+    def _has_edge(u, v) -> bool:
+        if u[0] == v[0]:
+            u = u[1:]
+            v = v[1:]
+            return any(wing.has_edge(u, v) for wing in facility_drawer.wings)
+        else:
+            return (u, v) in facility_drawer.junctions or (v, u) in facility_drawer.junctions
+
     _path = facility_drawer.get_path_from_super_path(_res[0])
-    _len_display = mo.md(f"{path_len.value}/{len(_path)}")
-    mo.hstack([path_len, _len_display], justify="start")
+    mo.vstack([
+        mo.hstack([
+                mo.stat(label="Complete Path length",
+                        value=f"{len(_path) - 1} steps"),
+                mo.stat(label="Supplies collected",
+                        value=f"{len([None for u in _path[:path_len.value] if u in _supplies])}/{len(_supplies)}"),
+                mo.stat(label="Ends at exit",
+                        value="✅ Yes" if _path[-1] in _exits else "❌ No"),
+                mo.stat(label="All moves valid",
+                        value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value)) else "❌ No")
+            ], gap=1, wrap=True),
+        path_len
+    ])
     return
 
 
@@ -893,13 +959,7 @@ def algorithm_explorer(ember_rescue_cached, facility_drawer, mo, path_len):
 
         return facility_drawer.get_path_from_super_path(_res[0])
 
-    facility_drawer.draw_multi_wing(highlight_path=_get_path()[:path_len.value])
-    return
-
-
-@app.cell
-def _(facility_drawer):
-    facility_drawer.draw_multi_wing()
+    facility_drawer.draw_multi_wing(highlight_path=_get_path()[:path_len.value + 1])
     return
 
 
@@ -911,9 +971,21 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
-    mo.ui.code_editor(r"'''This time I'm going to do each function separately and explain what it does'''", disabled=True)
+    mo.md(r"""
+    Notes for Pseudocode:
+    - RAISE is used when a function _may_ not return something, but that would occur only for an invalid input
+    - syntax highlighting is weird but not much I can do about that...
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    <div style="font-family: monospace; font-size: 14px; white-space: pre-wrap;"><br>FUNCTION bfs(g: Graph, source: Vertex) -> Map[Vertex, Vertex]<br>&#9;dist <- map with ∞ FOR EACH vertex IN g.get_vertices(); dist[source] <- 0<br>&#9;visited <- ∅<br>&#9;prev <- empty map<br>&#9;stack <- [source]<br>&#9;<br>&#9;WHILE stack.size() > 0 DO<br>&#9;&#9;u <- stack.pop()<br>&#9;&#9;<br>&#9;&#9;IF u ∉ visited THEN<br>&#9;&#9;&#9;visited <- visited ∪ {u}<br>&#9;&#9;&#9;<br>&#9;&#9;&#9;FOR EACH v IN g.neighbours(u) DO<br>&#9;&#9;&#9;&#9;w <- g.get_edge_weight(u, v)<br>&#9;&#9;&#9;&#9;IF dist[u] + w < dist[v] THEN<br>&#9;&#9;&#9;&#9;&#9;prev[v] <- u<br>&#9;&#9;&#9;&#9;&#9;dist[v] <- dist[u] + w<br>&#9;&#9;&#9;&#9;&#9;stack.push(v)<br>&#9;&#9;&#9;&#9;END IF<br>&#9;&#9;&#9;END FOR<br>&#9;&#9;END IF<br>&#9;END WHILE<br>&#9;RETURN prev<br>END FUNCTION<br><br>FUNCTION get_path_from_bfs(source: Vertex, sink: Vertex, prev: Map[Vertex, Vertex]) -> List[Vertex]<br>&#9;left_path <- [source]<br>&#9;right_path <- [sink]<br>&#9;left <- source<br>&#9;right <- sink<br>&#9;<br>&#9;WHILE prev.has(left) OR prev.has(right) DO<br>&#9;&#9;IF prev.has(left) THEN<br>&#9;&#9;&#9;left <- prev[left]<br>&#9;&#9;&#9;left_path.push(left)<br>&#9;&#9;END IF<br>&#9;&#9;<br>&#9;&#9;IF prev.has(right) THEN<br>&#9;&#9;&#9;right <- prev[right]<br>&#9;&#9;&#9;right_path.push(right)<br>&#9;&#9;END IF<br>&#9;&#9;<br>&#9;&#9;FOR i <- 1 TO |left_path| DO<br>&#9;&#9;&#9;IF right = left_path[i] THEN<br>&#9;&#9;&#9;&#9;res <- []<br>&#9;&#9;&#9;&#9;FOR j <- 1 TO i DO<br>&#9;&#9;&#9;&#9;&#9;res.push(left_path[j])<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;&#9;<br>&#9;&#9;&#9;&#9;FOR j <- 1 TO |right_path| DO<br>&#9;&#9;&#9;&#9;&#9;res.push(right_path[1 + |right_path| - j])<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;&#9;RETURN res<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;&#9;<br>&#9;&#9;FOR i <- 1 TO |right_path| DO<br>&#9;&#9;&#9;IF left = right_path[i] THEN<br>&#9;&#9;&#9;&#9;res <- []<br>&#9;&#9;&#9;&#9;FOR j <- 1 TO |left_path| DO<br>&#9;&#9;&#9;&#9;&#9;res.push(left_path[j])<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;&#9;<br>&#9;&#9;&#9;&#9;FOR j <- 1 TO i DO<br>&#9;&#9;&#9;&#9;&#9;res.push(right_path[1 + i - j])<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;&#9;RETURN res<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;END WHILE<br>&#9;RAISE InputError<br>END FUNCTION<br><br>FUNCTION get_supplies_to_collect(supplies: Set[Vertex], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: Set[SupplyID], supply_storage: Array[SupplyID, 5]) -> Set[Supply]<br>&#9;dont_collect_supply_ids <- found_supply_ids<br>&#9;FOR EACH supply IN supply_storage DO<br>&#9;&#9;dont_collect_supply_ids <- dont_collect_supply_ids ∪ {supply}<br>&#9;END FOR<br><br>&#9;res <- ∅<br>&#9;FOR EACH supply IN supplies DO<br>&#9;&#9;IF vertex_to_supply_id[supply] ∉ dont_collect_supply_ids THEN<br>&#9;&#9;&#9;res <- res ∪ {supply}<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;RETURN res<br>END FUNCTION<br><br>FUNCTION max(a: Integer, b: Integer) -> Integer<br>&#9;IF a > b THEN<br>&#9;&#9;RETURN a<br>&#9;END IF<br>&#9;RETURN b<br>END FUNCTION<br><br>FUNCTION get_path_length(g: Graph, path: List[Vertex]) -> Integer<br>&#9;res <- 0<br>&#9;FOR i <- 1 TO |path| - 1 DO<br>&#9;&#9;res <- res + g.get_edge_weight(path[i], path[i + 1])<br>&#9;END FOR<br>&#9;RETURN res<br>END FUNCTION<br><br>FUNCTION reverse(list: List) -> List<br>&#9;res <- []<br>&#9;FOR i <- 1 TO |list| DO<br>&#9;&#9;res.push(list[1 + |list| - i])<br>&#9;END FOR<br>&#9;RETURN res<br>END FUNCTION<br><br>FUNCTION reconstruct_path(prev: Map[Vertex, Vertex], sink: Vertex) -> List[Vertex]<br>&#9;res <- [sink]<br>&#9;WHILE prev.has(curr) DO<br>&#9;&#9;curr <- prev[curr]<br>&#9;&#9;res.push(curr)<br>&#9;END WHILE<br>&#9;RETURN reverse(res)<br>END FUNCTION<br><br>FUNCTION dijkstra(g: Graph, source: Vertex, sinks: Set[Vertex]) -> Map[Vertex, list[Vertex]]<br>&#9;res <- empty Map<br>&#9;dist <- map with ∞ FOR EACH vertex IN g.get_vertices(); dist[source] <- 0<br>&#9;prev <- empty map<br>&#9;<br>&#9;pq <- Priority Queue<br>&#9;FOR EACH vertex IN g.get_vertices() DO<br>&#9;&#9;pq.enqueue(vertex, dist[vertex])<br>&#9;END FOR<br>&#9;WHILE |pq| > 0 DO<br>&#9;&#9;u <- pq.extract_min()<br>&#9;&#9;<br>&#9;&#9;IF u ∈ sinks THEN<br>&#9;&#9;&#9;res[u] <- reconstruct_path(prev, u)<br>&#9;&#9;&#9;IF |res| = |sinks| THEN<br>&#9;&#9;&#9;&#9;RETURN res<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END IF<br>&#9;&#9;<br>&#9;&#9;FOR EACH v IN g.neighbours(u) DO<br>&#9;&#9;&#9;w <- g.get_edge_weight(u, v)<br>&#9;&#9;&#9;IF dist[u] + w < dist[v] THEN<br>&#9;&#9;&#9;&#9;prev[v] <- u<br>&#9;&#9;&#9;&#9;dist[v] <- dist[u] + w<br>&#9;&#9;&#9;&#9;pq.update_priority(v, dist[v])<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;END WHILE<br>&#9;RAISE InputError<br>END FUNCTION<br><br>FUNCTION get_path_matrix(g: Graph, entry: Vertex, exits: set[Vertex], supplies: set[Vertex]) -> Map[Vertex, Map[Vertex, List[Vertex]]]<br>&#9;res <- empty Map<br>&#9;FOR EACH source IN supplies ∪ {entry} DO<br>&#9;&#9;res[source] <- dijkstra(g, source, supplies ∪ exits)<br>&#9;END FOR<br>&#9;RETURN res<br>END FUNCTION<br><br>FUNCTION get_path_cost_matrix(g: Graph, path_matrix: Map[Vertex, Map[Vertex, List[Vertex]]]) -> Map[Vertex, Map[Vertex, Integer]]<br>&#9;res <- empty Map<br>&#9;FOR EACH source IN path_matrix.keys() DO<br>&#9;&#9;res[source] <- empty Map<br>&#9;&#9;sink_paths <- path_matrix[source]<br>&#9;&#9;FOR EACH sink IN sink_paths.keys() DO<br>&#9;&#9;&#9;res[source][sink] <- get_path_length(g, path)<br>&#9;&#9;END FOR<br>&#9;END FOR<br>&#9;RETURN res<br>END FUNCTION<br><br>FUNCTION brute_force_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Integer]], fuel: Integer) -> Tuple[List[Vertex], Integer]<br>&#9;min_cost <- ∞<br>&#9;min_cost_path <- []<br>&#9;<br>&#9;IF fuel = 0 THEN<br>&#9;&#9;FOR EACH exit IN exits DO<br>&#9;&#9;&#9;cost <- path_cost_matrix[source][exit]<br>&#9;&#9;&#9;IF cost < min_cost THEN<br>&#9;&#9;&#9;&#9;min_cost <- cost<br>&#9;&#9;&#9;&#9;min_cost_path <- [sink]<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;END IF<br>&#9;IF fuel != 0 THEN<br>&#9;&#9;FOR EACH sink IN sinks DO<br>&#9;&#9;&#9;recursive_res <- brute_force_recursive(sink, sinks \ {sink}, exits, path_cost_matrix, fuel - 1)<br>&#9;&#9;&#9;min_path_through <- recursive_res[0]<br>&#9;&#9;&#9;cost <- recursive_res[1]<br>&#9;&#9;&#9;cost <- cost + path_cost_matrix[source][sink]<br>&#9;&#9;&#9;IF cost < min_cost THEN <br>&#9;&#9;&#9;&#9;min_cost <- cost<br>&#9;&#9;&#9;&#9;min_cost_path <- [sink]<br>&#9;&#9;&#9;&#9;FOR vertex IN min_path_through DO<br>&#9;&#9;&#9;&#9;&#9;min_cost_path.push(vertex)<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;END IF<br>&#9;RETURN (min_cost_walk, min_cost)<br>END FUNCTION<br><br>FUNCTION brute_force(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Integer]], fuel: Integer) -> List[Vertex]<br>&#9;path <- brute_force_recursive(entry, supplies, exits, path_cost_matrix, fuel)[0]<br><br>&#9;res <- [entry]<br>&#9;FOR EACH vertex IN path DO<br>&#9;&#9;res.push(path)<br>&#9;END FOR<br>&#9;RETURN res<br>END FUNCTION<br><br>FUNCTION get_F_path_from_H_path(H_path: List[Vertex], path_matrix: Map[Vertex, Map[Vertex, List[Vertex]]]) -> List[Vertex]<br>&#9;res <- []<br>&#9;FOR i <- 1 TO |H_path| - 1 DO<br>&#9;&#9;path <- path_matrix[H_path[i]][H_path[i + 1]]<br>&#9;&#9;FOR j <- 1 TO |path| - 1 DO<br>&#9;&#9;&#9;res.push(path[j])<br>&#9;&#9;END FOR<br>&#9;END FOR<br>&#9;res.push(H_path[|H_path|])<br>&#9;RETURN res<br>END FUNCTION<br><br>FUNCTION get_which_wing(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], vertex: Vertex) -> Graph<br>&#9;FOR EACH wing IN G[0] DO<br>&#9;&#9;IF vertex IN g.get_vertices() THEN<br>&#9;&#9;&#9;RETURN g<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;RAISE InputError<br>END FUNCTION<br><br>FUNCTION get_G_path_from_F_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], F_path: List[Vertex], prevs: Map[Graph, Map[VertexT, VertexT]]) -> List[Vertex]<br>&#9;res <- []<br>&#9;FOR i <- 1 TO |F_path| - 1 DO<br>&#9;&#9;u <- F_path[i]<br>&#9;&#9;v <- F_path[i + 1]<br>&#9;&#9;u_wing <- get_which_wing(G, u)<br>&#9;&#9;v_wing <- get_which_wing(G, v)<br>&#9;&#9;IF u_wing = v_wing THEN<br>&#9;&#9;&#9;path <- get_path_from_bfs(u, v, prevs[u_wing])<br>&#9;&#9;&#9;FOR j <- 1 TO |path| - 1 DO<br>&#9;&#9;&#9;&#9;res.push(path[j])<br>&#9;&#9;&#9;END FOR<br>&#9;&#9;END IF<br>&#9;&#9;IF u_wing != v_wing THEN<br>&#9;&#9;&#9;res.push(u)<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;res.push(F_path[|F_path|])<br>&#9;RETURN res<br>END FUNCTION<br><br>FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, exits: Set[Vertex], supplies: Set[Vertex], supply_storage: Array[SupplyID, 5], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: Set[SupplyID]) -> Tuple[List[Vertex], Array[Supply, 5]]<br>&#9;uncollected_supplies <- get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)<br>&#9;<br>&#9;num_of_supplies_to_collect <- 0<br>&#9;FOR EACH id IN supply_storage DO<br>&#9;&#9;IF id isn't the null id THEN<br>&#9;&#9;&#9;num_of_supplies_to_collect <- num_of_supplies_to_collect + 1<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;num_of_supplies_to_collect <- max(num_of_supplies_to_collect, |supplies|)<br>&#9;<br>&#9;prevs <- empty map<br>&#9;FOR EACH wing IN G[0] DO<br>&#9;&#9;IF |wing.get_vertices()| > 0 THEN<br>&#9;&#9;&#9;prevs[wing] <- bfs(wing, a vertex in wing)<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;<br>&#9;F <- empty Graph<br>&#9;FOR EACH v IN {entry} ∪ supplies ∪ exits DO<br>&#9;&#9;F.add_vertex(v)<br>&#9;END FOR<br>&#9;<br>&#9;junction_vertices <- ∅<br>&#9;FOR EACH e IN G[1] DO<br>&#9;&#9;F.add_vertex(e[0])<br>&#9;&#9;F.add_vertex(e[1])<br>&#9;&#9;F.add_edge(e[0], e[1], 1)<br>&#9;&#9;<br>&#9;&#9;junction_vertices <- junction_vertices ∪ {e[0]}<br>&#9;&#9;junction_vertices <- junction_vertices ∪ {e[1]}<br>&#9;END FOR<br>&#9;<br>&#9;FOR EACH wing IN G[0] DO<br>&#9;&#9;salient_vertices <- []<br>&#9;&#9;FOR EACH v IN ({entry} ∩ wing.get_vertices()) ∪ (supplies ∩ wing.get_vertices()) ∪ (exits ∩ wing.get_vertices()) ∪ (junction_vertices ∩ wing.get_vertices()) DO<br>&#9;&#9;&#9;salient_vertices.push(v)<br>&#9;&#9;END FOR<br>&#9;&#9;<br>&#9;&#9;FOR i <- 1 TO |salient_vertices| DO<br>&#9;&#9;&#9;FOR j <- i + 1 TO |salient_vertices| DO<br>&#9;&#9;&#9;&#9;u <- salient_vertices[i]<br>&#9;&#9;&#9;&#9;v <- salient_vertices[i + 1]<br>&#9;&#9;&#9;&#9;<br>&#9;&#9;&#9;&#9;path <- get_path_from_bfs(u, v, prevs[wing])<br>&#9;&#9;&#9;&#9;weight <- get_path_length(wing, path)<br>&#9;&#9;&#9;&#9;<br>&#9;&#9;&#9;&#9;F.add_edge(u, v, weight)<br>&#9;&#9;&#9;END FOR<br>&#9;&#9;END FOR<br>&#9;END FOR<br>&#9;<br>&#9;path_matrix <- get_path_matrix(F, entry, exits, uncollected_supplies)<br>&#9;<br>&#9;path_cost_matrix <- get_path_cost_matrix(F, path_matrix)<br>&#9;<br>&#9;H_path <- brute_force(entry, supplies, exits, path_cost_matrix, num_of_supplies_to_collect)<br>&#9;<br>&#9;F_path <- get_F_path_from_H_path(H_path, path_matrix)<br>&#9;<br>&#9;G_path <- get_G_path_from_F_path(G, F_path, prevs)<br>&#9;<br>&#9;collected_supplies <- []<br>&#9;FOR EACH v IN H_path DO<br>&#9;&#9;IF v ∈ uncollected_supplies THEN<br>&#9;&#9;&#9;collected_supplies.push(v)<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;<br>&#9;supply_idx <- 1<br>&#9;supply_storage_idx <- 1<br>&#9;WHILE supply_storage_idx <= |supply_storage| AND supply_idx <= num_of_supplies_to_collect DO<br>&#9;&#9;IF supply_storage[supply_storage_idx] = NULL THEN<br>&#9;&#9;&#9;supply_storage[supply_storage_idx] <- vertex_to_supply_id[collected_supplies[supply_idx]]<br>&#9;&#9;&#9;supply_idx <- supply_idx + 1<br>&#9;&#9;END IF<br>&#9;END WHILE<br>&#9;RETURN G_path, supply_storage<br>END FUNCTION<br>&#9;</div>
+    """)
     return
 
 

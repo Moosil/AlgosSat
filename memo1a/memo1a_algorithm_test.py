@@ -11,12 +11,14 @@ from pstats import SortKey
 import networkx as nx
 from tqdm import trange
 
-import memo1.memo1_algorithm as memo1_algorithm
+import sys
+sys.path.append('../AlgosSat')
+from memo1 import memo1_algorithm
 import memo1a_algorithm
 
 
 class GraphDrawer:
-    def __init__(self, seed, supply_count: int = 5) -> None:
+    def __init__(self, seed, supply_count: int | None = None) -> None:
         self.WING_COLS, self.WING_ROWS = 10, 10
 
         self.n_wings, self.wings, self.entry, self.exit_a, self.exit_b, self.supplies, self.junctions = self._get_multi_wing_facility(
@@ -87,9 +89,13 @@ class GraphDrawer:
         res.append(path[-1])
         return res
 
-    def _get_multi_wing_facility(self, seed, supply_count):
+    def _get_multi_wing_facility(self, seed, supply_count=None):
         int_seed = int(seed)
-        n_wings = math.ceil(supply_count / 2)  # 2, 3, or 4 wings from seed
+        if supply_count is None:
+            n_wings = 2 + (int_seed % 3)  # 2, 3, or 4 wings from seed
+            supply_count = 5
+        else:
+            n_wings = math.ceil(supply_count / 2)
 
         # Build each wing from a deterministic derived seed
         wings = []
@@ -212,60 +218,57 @@ def test_stage_2():
         stage_1_res = [memo1a_algorithm.stage_1(abs_graph[i], facility_drawer[i].entry, exits[i], supplies[i], storage, supply_map[i], set()) for i in range(trials)]
         return facility_drawer, [f.entry for f in facility_drawer], supplies, exits, stage_1_res
 
-    def get_runtime_trials_with_n(pregens_data, trials, technique=memo1a_algorithm.brute_force, min_n=2, max_n=20) -> list[tuple[float, float]]:
-        def get_runtime_trials(p_technique, pregen_data, p_trials: int = 1) -> tuple[float, float]:
-            if p_trials < 1:
-                return 0, 0
+    def get_runtime_trials_with_n(p_data, trials, technique) -> tuple[float, float]:
+        if trials < 1:
+            return 0, 0
 
-            facility_drawer, abs_graph, entry, supplies, exits, stage_1_res = pregen_data
-            """source: https://docs.python.org/3/library/profile.html"""
+        facility_drawer, entry, supplies, exits, stage_1_res = p_data
+        """source: https://docs.python.org/3/library/profile.html"""
 
-            pathlen = []
+        pathlen = []
 
-            import cProfile, pstats
-            from pstats import SortKey
-            pr = cProfile.Profile()
-            pr.enable()
-            for j in range(p_trials):
-                pathlen.append(p_technique(entry[j], supplies[j], exits[j], stage_1_res[j][1], stage_1_res[j][2]))
-            pr.disable()
-            ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
+        import cProfile, pstats
+        from pstats import SortKey
+        pr = cProfile.Profile()
+        pr.enable()
+        for j in range(trials):
+            pathlen.append(technique(entry[j], supplies[j], exits[j], stage_1_res[j][1], stage_1_res[j][3]))
+        pr.disable()
+        ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
 
-            pathlen = [len(facility_drawer[j].get_path_from_super_path(memo1a_algorithm.get_path_from_super_path(pathlen[j], stage_1_res[j][0]))) for j in range(p_trials)]
-            pathlen = sum(pathlen) / len(pathlen)
+        pathlen = [len(facility_drawer[j].get_path_from_super_path(memo1a_algorithm.get_path_from_super_path(pathlen[j], stage_1_res[j][0]))) for j in range(trials)]
+        pathlen = sum(pathlen) / len(pathlen)
 
-            return [v for k, v in ps.stats.items() if p_technique.__name__ in k[2]][0][3] / p_trials, pathlen
+        return [v for k, v in ps.stats.items() if technique.__name__ in k[2]][0][3] / trials * 1000, pathlen
 
-        res: list[tuple[float, float]] = []
-        for i in trange(min_n, max_n, desc=f"running {technique.__name__}"):
-            res.append(get_runtime_trials(technique, pregens_data[i], trials))
-        return res
 
-    TRIALS = 10
-    pregens = [None] * 2 + [pregen(n, TRIALS) for n in trange(2, 8, desc="pregenerating")] + \
-              [pregen(n, TRIALS) for n in trange(8, 20, desc="pregenerating more")] + [pregen(n, 1) for n in trange(20, 100, desc="pregenerating more more")]
+    res: list[dict] = []
 
-    brute_force_res = get_runtime_trials_with_n(pregens, TRIALS, memo1a_algorithm.brute_force, 2, 11) + \
-                      get_runtime_trials_with_n(pregens, 1, memo1a_algorithm.brute_force, 11, 12)
-    brute_force_res_ub = get_runtime_trials_with_n(pregens, TRIALS, memo1a_algorithm.brute_force_ub, 2, 11) + \
-                         get_runtime_trials_with_n(pregens, 1, memo1a_algorithm.brute_force_ub, 11, 12)
-    nearest_neighbour_res = get_runtime_trials_with_n(pregens, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0], 2, 8) + \
-                            get_runtime_trials_with_n(pregens, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0], 8, 20) + \
-                            get_runtime_trials_with_n(pregens, 1, lambda x, y, z, w, q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0], 20, 100)
-    lin_kernighan_res = get_runtime_trials_with_n(pregens, TRIALS, memo1a_algorithm.lin_kernighan, 2, 8) + \
-                        get_runtime_trials_with_n(pregens, TRIALS, memo1a_algorithm.lin_kernighan, 8, 20) + \
-                        get_runtime_trials_with_n(pregens, 1, memo1a_algorithm.lin_kernighan, 20, 100)
-    # brute_force_res_ub_lotsa_trials = get_runtime_trials_with_n(pregens, TRIALS, memo1a_algorithm.brute_force_ub, 2, 8)
-    # nearest_neighbour_gap = [nearest_neighbour_res[i][1] / brute_force_res_ub_lotsa_trials[i][1] for i in range(min(len(nearest_neighbour_res), len(brute_force_res_ub_lotsa_trials)))]
-    # lin_kernighan_gap = [lin_kernighan_res[i][1] / brute_force_res_ub_lotsa_trials[i][1] for i in range(min(len(lin_kernighan_res), len(brute_force_res_ub_lotsa_trials)))]
-    print(f"Brute force time: {','.join(str(i[0]) for i in brute_force_res)}")
-    print(f"Brute force UB time: {','.join(str(i[0]) for i in brute_force_res_ub)}")
-    print(f"Nearest Neighbour time: {','.join(str(i[0]) for i in nearest_neighbour_res)}")
-    print(f"Lin-Kernighan time: {','.join(str(i[0]) for i in lin_kernighan_res)}")
-    print(f"Brute force length: {','.join(str(i[1]) for i in brute_force_res)}")
-    print(f"Brute force UB length: {','.join(str(i[1]) for i in brute_force_res_ub)}")
-    print(f"Nearest Neighbour length: {','.join(str(i[1]) for i in nearest_neighbour_res)}")
-    print(f"Lin-Kernighan length: {','.join(str(i[1]) for i in lin_kernighan_res)}")  # print(f"Nearest Neighbour gap: {','.join(str(i) for i in nearest_neighbour_gap)}")  # print(f"Lin-Kernighan gap: {','.join(str(i) for i in lin_kernighan_gap)}")
+    TRIALS = 5
+    for n in trange(2, 120, desc="Heuristic Algorithms"):
+        data = pregen(n, TRIALS)
+        nn_time, nn_len = get_runtime_trials_with_n(data, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0])
+        lk_time, lk_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.lin_kernighan)
+        res.append({"nearest neighbour time": nn_time,
+                   "nearest neighbour length": nn_len,
+                   "lin-kernighan time": lk_time,
+                   "lin-kernighan length": lk_len})
+
+    TRIALS = 1
+    for n in trange(2, 13, desc="Exact Algorithms"):
+        data = pregen(n, TRIALS)
+        bf_time, bf_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.brute_force)
+        bb_time, bb_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.branch_and_bound)
+        res[n - 2]["brute force time"] = bf_time
+        res[n - 2]["brute force length"] = bf_len
+        res[n - 2]["branch & bound time"] = bb_time
+        res[n - 2]["branch & bound length"] = bb_len
+
+    if len(res) > 0:
+        with open("data_stage_2.csv", "w", encoding="utf-8", newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(res[0].keys())
+            writer.writerows([d.values() for d in res])
 
 
 def test_memo1a():
@@ -301,9 +304,9 @@ def test_memo1():
 
 
 def get_data():
-    data: list[dict] = []
+    res: list[dict] = []
 
-    for i in trange(30_000, desc="gathering data on different facilities"):
+    for i in trange(100_000, desc="gathering data on different facilities"):
         i += 10102000
         facility_drawer = GraphDrawer(i)
         abs_graph = facility_drawer.get_abstracted_graph()
@@ -313,9 +316,9 @@ def get_data():
         storage = tuple([None] * 5)
         supply_map = {i: hash(i) for i in facility_drawer.supplies}
 
-        runtime, res = get_runtime(lambda: memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set()))
+        runtime, super_path = get_runtime(lambda: memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set()))
 
-        path = facility_drawer.get_path_from_super_path(res[0])
+        path = facility_drawer.get_path_from_super_path(super_path[0])
 
         def has_edge(u, v) -> bool:
             if u[0] == v[0]:
@@ -329,24 +332,28 @@ def get_data():
         is_correct &= (path[-1] == facility_drawer.exit_a or path[-1] == facility_drawer.exit_b)
         is_correct &= all(has_edge(path[i], path[i + 1]) for i in range(len(path) - 1))
 
-        abstraction_vertices = len(abs_graph)
+        abstraction_vertices = sum(len(g) for g in abs_graph[0])
         n_wings = facility_drawer.n_wings
+        n_supplies = len(supplies)
         salient_vertices = len(list(chain(*facility_drawer.junctions))) + len(exits) + len(supplies) + 1
         solution_len = len(path) - 1
-        data.append({"abstraction_vertices_count": abstraction_vertices,
-                    "n_wings": n_wings,
+        res.append({"seed": i,
+                     "abstraction_vertices_count": abstraction_vertices,
+                     "n_wings": n_wings,
+                     "n_supplies": n_supplies,
                      "salient_vertices": salient_vertices,
                      "solution_len": solution_len,
-                     "runtime": runtime
+                     "runtime": runtime * 1000
                     })
 
-    if len(data) > 0:
-        with open("data.csv", "w", encoding="utf-8", newline='') as f:
+    if len(res) > 0:
+        with open("data_algorithm.csv", "w", encoding="utf-8", newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(data[0].keys())
-            writer.writerows([d.values() for d in data])
+            writer.writerow(res[0].keys())
+            writer.writerows([d.values() for d in res])
 
 if __name__ == "__main__":
-    test_memo1()
-    test_memo1a()
+    # test_memo1()
+    # test_memo1a()
     get_data()
+    test_stage_2()

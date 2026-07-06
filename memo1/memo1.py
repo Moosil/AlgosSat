@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.23.13"
 app = marimo.App(width="medium", app_title="Memo1", css_file="../custom.css")
 
 
@@ -684,7 +684,7 @@ def _(mo):
     ### Coherance
     - I use $\text{get\_neighbours}: \text{Graph} \times \text{Vertex} \to \text{Vertex}$ in the dijkstra's algorithm implementation in the algorithm to get the neighbours of the current visited vertex
     - I use $\text{has}: \text{Map} \times \text{Key} \to \text{Boolean}$ to reconstruct the shortest paths found by dijkstra's algorithm
-    - My pseudocode prefers square bracket notation to the ADT $\text{get}$ operation in Map and Array
+    - When I was going to use branch and bound, I realised that Lin-Kernighan requires a set operation which was not an ADT function (symmetric difference $\Delta$), which I solved by creating a p
 
     ### Operational Constraints
     - Load capacity: $A$ holds the supplies that CRUDY-1 currently holds

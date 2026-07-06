@@ -5,24 +5,14 @@ from typing import Generator, Iterable
 import networkx as nx
 import numpy as np
 
-
 class VertexT:
     pass
-
 
 WingT = nx.Graph
 
 SupplyID = int
 
 SupplyStorage = tuple[SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None]
-
-# Source - https://stackoverflow.com/a/8702435
-# Posted by Hugo Walter, modified by community. See post 'Timeline' for change history
-# Retrieved 2026-06-23, License - CC BY-SA 3.0
-from collections import defaultdict
-
-nested_dict = lambda: defaultdict(nested_dict)
-
 
 def bfs(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
     dist = {s: float('infinity') for s in g}
@@ -376,7 +366,7 @@ class UnionFind:
         self.parent[irep] = jrep
 
 
-def brute_force_ub(source: VertexT, sinks: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
+def branch_and_bound(source: VertexT, sinks: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
     def get_lower_bound(partial_sol: list[VertexT], sol_length: int) -> int:
         min_sol_length = float('infinity')
 
@@ -665,8 +655,17 @@ def get_salient_graph(G, entry, supplies, exits, prevs):
 
     return res
 
+def ember_rescue(
+    G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
+    entry: VertexT,
+    exits: set[VertexT],
+    supplies: set[VertexT],
+    supply_storage: SupplyStorage,
+    vertex_to_supply_id: dict[VertexT, SupplyID],
+    found_supply_ids: set[SupplyID]
+) -> tuple[list[VertexT], SupplyStorage]:
+    res: list[VertexT]
 
-def stage_1(G, entry, exits, supplies, supply_storage, vertex_to_supply_id, found_supply_ids):
     """Get supplies that could be collected in the graph"""
     supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
 
@@ -681,10 +680,10 @@ def stage_1(G, entry, exits, supplies, supply_storage, vertex_to_supply_id, foun
     """supplies apsp"""
     apsp_map = get_apsp(salient_graph, entry, exits, supplies)
     apsp_dist_map = get_apsp_dist(salient_graph, apsp_map)
-    return apsp_map, apsp_dist_map, prevs, number_of_supplies_to_collect
 
+    """stage 2"""
+    super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
 
-def reconstruct_super_path(G, super_path, apsp_map, prevs, supplies, supply_storage, number_of_supplies_to_collect, vertex_to_supply_id):
     res = get_path_from_super_path(super_path, apsp_map)
     res = get_path_from_super_path_bfs(G, res, prevs)
 
@@ -701,22 +700,3 @@ def reconstruct_super_path(G, super_path, apsp_map, prevs, supplies, supply_stor
     supply_storage = tuple(supply_storage)
 
     return res, supply_storage
-
-
-def ember_rescue(
-    G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
-    entry: VertexT,
-    exits: set[VertexT],
-    supplies: set[VertexT],
-    supply_storage: SupplyStorage,
-    vertex_to_supply_id: dict[VertexT, SupplyID],
-    found_supply_ids: set[SupplyID]
-) -> tuple[list[VertexT], SupplyStorage]:
-    res: list[VertexT]
-
-    apsp_map, apsp_dist_map, prevs, number_of_supplies_to_collect = stage_1(G, entry, exits, supplies, supply_storage, vertex_to_supply_id, found_supply_ids)
-
-    """stage 2"""
-    super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
-
-    return reconstruct_super_path(G, super_path, apsp_map, prevs, supplies, supply_storage, number_of_supplies_to_collect, vertex_to_supply_id)

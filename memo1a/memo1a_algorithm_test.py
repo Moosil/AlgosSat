@@ -255,12 +255,16 @@ def test_stage_2():
                    "lin-kernighan length": lk_len})
 
     TRIALS = 1
-    for n in trange(2, 13, desc="Exact Algorithms"):
+    for n in trange(2, 12, desc="Brute force"):
         data = pregen(n, TRIALS)
         bf_time, bf_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.brute_force)
-        bb_time, bb_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.branch_and_bound)
         res[n - 2]["brute force time"] = bf_time
         res[n - 2]["brute force length"] = bf_len
+
+    TRIALS = 1
+    for n in trange(2, 18, desc="Branch & bound"):
+        data = pregen(n, TRIALS)
+        bb_time, bb_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.branch_and_bound)
         res[n - 2]["branch & bound time"] = bb_time
         res[n - 2]["branch & bound length"] = bb_len
 

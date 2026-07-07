@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.13"
-app = marimo.App(width="medium", app_title="Memo1A1", css_file="../custom.css")
+app = marimo.App(width="medium", app_title="Memo1A2", css_file="../custom.css")
 
 
 @app.cell
@@ -11,6 +11,7 @@ def _():
     import networkx as nx
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
+    import matplotlib.colors as mcolors
     import pandas as pd
     import numpy as np
     from scipy import stats
@@ -18,16 +19,17 @@ def _():
     from itertools import chain
     import re
 
-    return chain, copy, mo, mpatches, np, nx, pd, plt, random, re, stats
+    return chain, mcolors, mo, mpatches, np, nx, pd, plt, random, re, stats
 
 
 @app.cell(hide_code=True)
-def _(chain, copy, mpatches, nx, plt, random, seed_input):
+def _(chain, mcolors, mpatches, nx, plt, random, seed_input):
     class GraphDrawer:
         def __init__(self) -> None:
+            self.seed = seed_input.value
             self.WING_COLS, self.WING_ROWS = 10, 10
 
-            self.n_wings, self.wing_names, self.wings, self.entry, self.exit_a, self.exit_b, self.supplies, self.junctions = self._get_multi_wing_facility(seed_input.value)
+            self._setup_multi_wing_facility(self.seed)
 
         @staticmethod
         def _neighbours(cols, rows, c, r):
@@ -57,15 +59,13 @@ def _(chain, copy, mpatches, nx, plt, random, seed_input):
             carve(0, 0)
             return g
 
-        def get_abstracted_graph(self) -> tuple[set[nx.Graph], set[tuple]]:
+        def get_abstracted_graph(self, weighted=True) -> tuple[set[nx.Graph], set[tuple]]:
             wings = set()
             for i in range(self.n_wings):
-                wing: nx.Graph = copy.deepcopy(self.wings[i])
+                wing: nx.Graph = self.weighted_wings[i].copy() if weighted else self.wings[i].copy()
                 for u, d in self.wings[i].degree:
                     w_u = tuple([i] + list(u))
-                    if d == 2 and w_u not in self.supplies and w_u not in {self.exit_a, self.exit_b,
-                                                                           self.entry} and w_u not in set(
-                        chain(*self.junctions)):
+                    if d == 2 and w_u not in self.supplies and w_u not in {self.exit_a, self.exit_b, self.entry} and w_u not in set(chain(*self.junctions)):
                         n0 = list(wing.neighbors(u))[0]
                         n1 = list(wing.neighbors(u))[1]
                         w = wing.get_edge_data(u, n0)["weight"] + wing.get_edge_data(u, n1)["weight"]
@@ -75,6 +75,14 @@ def _(chain, copy, mpatches, nx, plt, random, seed_input):
                 wings.add(wing)
 
             return wings, set(self.junctions)
+
+        def get_flat_graph(self, abs_graph: tuple[set[nx.Graph], set[tuple]]=None) -> nx.Graph:
+            if abs_graph is None:
+                abs_graph = self.get_abstracted_graph()
+            res: nx.Graph = nx.compose_all(abs_graph[0])
+            for u, v in abs_graph[1]:
+                res.add_edge(u, v, weight=self.junction_costs[(u, v)])
+            return res
 
         def get_path_from_super_path(self, path: list) -> list:
             res = []
@@ -90,66 +98,111 @@ def _(chain, copy, mpatches, nx, plt, random, seed_input):
             res.append(path[-1])
             return res
 
-        def _get_multi_wing_facility(self, seed):
+        def _setup_cost_models(self):
+            int_seed = self.seed
+
+            self.weighted_wings = [g.copy() for g in self.wings]
+
+            def _alpha_cost(c1, r1, c2, r2):
+                return 1
+
+            def _beta_cost(c1, r1, c2, r2):
+                return 1 + max(c1, c2) // 3
+
+            def _seeded_rng(wing_idx):
+                return random.Random(int_seed * 41 + wing_idx * 3331)
+
+            cost_models = []
+            for w, wg in enumerate(self.weighted_wings):
+                if w == 0:
+                    cost_fn = _alpha_cost
+                    model_name = "Uniform (cost = 1)"
+                    rng = None
+                elif w == 1:
+                    cost_fn = _beta_cost
+                    model_name = "Depth-based (cost = 1 + floor(col / 3))"
+                    rng = None
+                else:
+                    rng = _seeded_rng(w)
+                    edge_list = list(wg.edges())
+                    edge_costs = {tuple(sorted(e)): rng.randint(1, 5) for e in edge_list}
+                    cost_fn = None
+                    model_name = f"Seed-randomised (cost ∈ {{1..5}})"
+
+                cost_models.append(model_name)
+
+                for (c1, r1), (c2, r2) in wg.edges():
+                    if cost_fn is not None:
+                        w_cost = cost_fn(c1, r1, c2, r2)
+                    else:
+                        key = tuple(sorted([(c1, r1), (c2, r2)]))
+                        w_cost = edge_costs[key]
+                    wg[(c1, r1)][(c2, r2)]['weight'] = w_cost
+
+            # Junction costs = 1
+            junction_costs = {(n1, n2): 1 for n1, n2 in self.junctions}
+
+            self.junction_costs = junction_costs
+
+        def _setup_multi_wing_facility(self, seed):
             int_seed = int(seed)
-            n_wings = 2 + (int_seed % 3)  # 2, 3, or 4 wings from seed
-            wing_names = ['Alpha', 'Beta', 'Gamma', 'Delta'][:n_wings]
+            self.n_wings = 2 + (int_seed % 3)  # 2, 3, or 4 wings from seed
+            self.wing_names = ['Alpha', 'Beta', 'Gamma', 'Delta'][:self.n_wings]
 
             # Build each wing from a deterministic derived seed
-            wings = []
-            for w in range(n_wings):
+            self.wings = []
+            for w in range(self.n_wings):
                 wrng = random.Random(int_seed * 31 + w * 7919)
-                wings.append(self._build_wing(self.WING_COLS, self.WING_ROWS, wrng))
+                self.wings.append(self._build_wing(self.WING_COLS, self.WING_ROWS, wrng))
 
             # Inter-wing junctions: 2 corridors per adjacent wing pair
             # Each junction connects (w, WING_COLS-1, r) to (w+1, 0, r)
-            junctions = []
-            for w in range(n_wings - 1):
+            self.junctions = []
+            for w in range(self.n_wings - 1):
                 jrng = random.Random(int_seed * 17 + w * 5003)
                 rows_avail = list(range(2, self.WING_ROWS - 2))
                 jrng.shuffle(rows_avail)
                 r1, r2 = sorted(rows_avail[:2])
-                junctions.append(((w, self.WING_COLS - 1, r1), (w + 1, 0, r1)))
-                junctions.append(((w, self.WING_COLS - 1, r2), (w + 1, 0, r2)))
+                self.junctions.append(((w, self.WING_COLS - 1, r1), (w + 1, 0, r1)))
+                self.junctions.append(((w, self.WING_COLS - 1, r2), (w + 1, 0, r2)))
 
             # Fixed entry and exits
-            entry = (0, 0, 0)
-            exit_a = (n_wings - 1, self.WING_COLS - 1, self.WING_ROWS - 1)
-            exit_b = (n_wings - 1, self.WING_COLS - 1, 0)
+            self.entry = (0, 0, 0)
+            self.exit_a = (self.n_wings - 1, self.WING_COLS - 1, self.WING_ROWS - 1)
+            self.exit_b = (self.n_wings - 1, self.WING_COLS - 1, 0)
 
             # Supply placement: spread across wings, prefer dead-end nodes
             srng = random.Random(int_seed * 13 + 42)
-            reserved = {entry, exit_a, exit_b}
-            for n1, n2 in junctions:
+            reserved = {self.entry, self.exit_a, self.exit_b}
+            for n1, n2 in self.junctions:
                 reserved.add(n1)
                 reserved.add(n2)
 
             # Collect dead-end candidates per wing
             per_wing_cands = []
-            for w, wg in enumerate(wings):
-                de = [
-                    (w, c, r) for (c, r) in wg.nodes()
-                    if wg.degree((c, r)) == 1 and (w, c, r) not in reserved
-                ]
+            for w, wg in enumerate(self.wings):
+                de = [(w, c, r) for (c, r) in wg.nodes()
+                      if wg.degree((c, r)) == 1 and (w, c, r) not in reserved]
                 srng.shuffle(de)
                 per_wing_cands.append(de)
 
             # Round-robin: up to 2 supplies per wing, 5 total
-            supplies = []
+            self.supplies = []
             for _ in range(2):
                 for wl in per_wing_cands:
-                    if len(supplies) >= 5:
+                    if len(self.supplies) >= 5:
                         break
                     for n in wl:
-                        if n not in supplies:
-                            supplies.append(n)
+                        if n not in self.supplies:
+                            self.supplies.append(n)
                             break
-                if len(supplies) >= 5:
+                if len(self.supplies) >= 5:
                     break
 
-            return n_wings, wing_names, wings, entry, exit_a, exit_b, supplies[:5], junctions
+            self.supplies = self.supplies[:5]
+            self._setup_cost_models()
 
-        def draw_multi_wing(self, highlight_path=None, node_colors=None,
+        def draw_multi_wing(self, weighted=True, highlight_path=None, node_colors=None,
                             supply_collected=None, title="Multi-Wing Facility"):
             COL_BG = '#F5F7FA'
             COL_GRID = '#C8D0DC'
@@ -162,7 +215,17 @@ def _(chain, copy, mpatches, nx, plt, random, seed_input):
             COL_FRONTIER = '#F4C97A'
             COL_CURRENT = '#E8603C'
             COL_JUNCTION = '#7A1E2C'
+
             _GAP = 1  # grid-unit gap between wings in the visualisation
+
+            # Weight colour scale: 1=lightest, 5=darkest
+            WEIGHT_CMAP = mcolors.LinearSegmentedColormap.from_list(
+                'wcost', ['#B8E0DE', '#F4C97A', '#E88A4A', '#C84A30', '#7A1E2C']
+            )
+
+            def _weight_colour(w, wmin=1, wmax=5):
+                t = (w - wmin) / max(wmax - wmin, 1)
+                return WEIGHT_CMAP(t)
 
             total_w = self.n_wings * self.WING_COLS + (self.n_wings - 1) * _GAP
 
@@ -176,7 +239,7 @@ def _(chain, copy, mpatches, nx, plt, random, seed_input):
                 return w * (self.WING_COLS + _GAP)
 
             # Draw each wing
-            for w, wing in enumerate(self.wings):
+            for w, wing in enumerate(self.weighted_wings if weighted else self.wings):
                 ox = xoff(w)
 
                 # Grid lines
@@ -197,6 +260,17 @@ def _(chain, copy, mpatches, nx, plt, random, seed_input):
                         f"Wing {self.wing_names[w]}",
                         ha='center', va='bottom', fontsize=9,
                         fontweight='bold', color='#0B1F3B', zorder=8)
+
+                # Draw each corridor coloured by weight
+                for (c1, r1), (c2, r2) in wing.edges():
+                    cost = wing[(c1, r1)][(c2, r2)].get('weight', 1)
+                    col = _weight_colour(cost)
+                    x1, y1 = ox + c1 + 0.5, r1 + 0.5
+                    x2, y2 = ox + c2 + 0.5, r2 + 0.5
+                    ax.plot(
+                        [x1, x2], [y1, y2], color=col, lw=3.5,
+                        solid_capstyle='round', zorder=1, alpha=0.85
+                    )
 
                 # Internal walls (draw where no edge exists)
                 for c in range(self.WING_COLS):
@@ -345,8 +419,7 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 1.1 Limitations of Previous Model
-    - The previous model assumed the facility was just the one wing
-    - The previous model wasn't taking advantage of properties of this problem
+    - The previous models handles the new information well, only requiring the new properties to be minimally abstracted into $G$ as the total cost of traversing coridoors between salient sectors rather than just the number of them.
     """)
     return
 
@@ -362,20 +435,10 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The previous algorithm assumed the facility was just one wing, and could be represented as a tree. While it could work on this graph with a flat graph abstraction, I chose to instead revise the algorithm for the new problem.
-
-    I also discovered new ways of doing both stages of the algorithm, which were tested to determine that brute force is still the best way of doing this problem...
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     # 2 Abstraction
     Let $G = (V_w, E_w, w)$ be a meta-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
 
-    $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the spans of sectors between two salient sectors which are adjacent to just two other sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
+    $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the total cost of traversing the span of sectors  which are adjacent to just two other sectors and between two salient sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
 
     We will designate source vertex $s \in V$, the set of sink vertices $X \subseteq V$, and the set of prize vertices $S \subseteq V$, each representing the entry, exit, and supply unit-containing sectors respectively.
 
@@ -540,7 +603,16 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.6 ADTs
+    ## 2.6 Sector traversal costs
+    In this ammendment, there are 2 main ways you could represent the non-uniform sector traversal cost: seperate weight functions for each wing, or one weight function overall. Due to the current abstraction
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 2.7 ADTs
     Since we are using a hierarchical graph representation, we will need to represent this as an ADT. To do this, we will require one new ADT, the tuple. The Hyper
 
     We do _not_ need each vertex to store its wing, because we can check that by checking if that vertex is each wing's vertex set.
@@ -549,7 +621,7 @@ def _(mo):
 
     A recap of each ADT and its signature specifications are below:
 
-    ### 2.6.1 Graph
+    ### 2.7.1 Graph
 
     Edges are a tuple of two vertices
 
@@ -565,7 +637,7 @@ def _(mo):
     - $\text{set\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \times \mathbb{R}^+ \cup \{0\} \to \text{Graph}$
     - $\text{get\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex}) \to \mathbb{R}^+ \cup \{0\}$
 
-    ### 2.6.2 Set
+    ### 2.7.2 Set
     - $\text{union}: \text{Set} \times \text{Set} \to \text{Set}$
     - $\text{intersection}: \text{Set} \times \text{Set} \to \text{Set}$
     - $\text{difference}: \text{Set} \times \text{Set} \to \text{Set}$
@@ -576,7 +648,7 @@ def _(mo):
     - $\text{subset\_of}: \text{Set} \times \text{Set} \to \text{boolean}$
     - $\text{are\_equal}: \text{Set} \times \text{Set} \to \text{boolean}$
 
-    ### 2.6.3 Map
+    ### 2.7.3 Map
     - $\text{size}: \text{Map} \to \mathbb{R}^+ \cup \{0\}$
     - $\text{has}: \text{Map} \times \text{Key} \to \text{boolean}$
     - $\text{at}: \text{Map} \times \text{Key} \to \text{Value}$
@@ -584,18 +656,18 @@ def _(mo):
     - $\text{set}: \text{Map} \times \text{Key} \times \text{Value} \to \text{Map}$
     - $\text{get\_keys}: \text{Map} \to \text{Set}[\text{Key}]$
 
-    ### 2.6.3 List
+    ### 2.7.3 List
     - $\text{push}: \text{List} \times \text{Item} \to \text{List}$
     - $\text{pop}: \text{List} \to \text{List}$
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
 
-    ### 2.6.4 Array
+    ### 2.7.4 Array
     - $\text{set}: \text{Array} \times \mathbb{Z}^+ \times \text{Item} \to \text{List}$
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
 
-    ### 2.6.5 Tuple
+    ### 2.7.5 Tuple
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
     """)
@@ -605,7 +677,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.6 Justification of Each ADT
+    ## 2.7 Justification of Each ADT
     Above, I justified the use of the graph in the hierarchical representation.
 
     By using a graph, we can encapsulate only the salient features of a wubg, where other structures would introduce non-salient features.
@@ -653,7 +725,7 @@ def _(mo):
 
     Greedy patterns are often efficient, but will be unlikely to find an optimal solution, unless the problem has the greedy property. Due to small $n$, and the facility not having the greedy property, we will avoid Greedy algorithms in finding an exact solution. Greedy algorithms will be used in the algorithm to provide a fast upper-bound on path length which is useful for other approaches.
 
-    Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. 2-opt and 3-opt are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than nearest neighbour. Lin-kernighan, which adapts the k-opt, runs in $O(n^2.2)$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm tabu-search to prohibit found local minima and hopefully find a global minima.
+    Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. 2-opt and 3-opt are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than nearest neighbour. Lin-kernighan, which adapts the k-opt, runs in $O(n^{2.2})$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm tabu-search to prohibit found local minima and hopefully find a global minima.
 
     #### 3.1.2.2 Backtracking & Linear Programming
 
@@ -699,7 +771,7 @@ def _(mo):
 
     Instead of linear programming overhead, we will instead create a tree whose root node is the entry, and leaf nodes are the exits. The branch nodes will be supplies, and the tree will contain each possible ordering of supplies. Searching this tree exhaustively is too time consuming, but we will instead compute a lower bound for each branch and prune those that have a lower bound greater than an upper bound we find. We will prefer depth first search on this tree to hopefully reduce our upper bound.
 
-    To calculate the lower bounds, we first define $T_x = (V_S', E_S', w_S)$ to be a minimum spanning tree of a subset of $G_S = (V_S, E_S, w_S)$, where $V_S' = V_S \ \{x\}$. Then our lower bound will be $\displaystyle\min_{x \in X} \displaystyle\sum_{\{u, v\} \in E_S'} w_S(u, v.
+    To calculate the lower bounds, we first define $T_x = (V_S', E_S', w_S)$ to be a minimum spanning tree of a subset of $G_S = (V_S, E_S, w_S)$, where $V_S' = V_S \backslash \{x\}$. Then our lower bound will be $\displaystyle\min_{x \in X} \displaystyle\sum_{\{u, v\} \in E_S'} w_S(u, v)$.
 
     To calculate the upper bound, we can find one greedily using a greedy algorithm considered above. We will use a modification of the Lin-Kernighan Heuristic for this purpose. As shown below, we can expect ~12% solution gap for 5 supplies.
 
@@ -804,21 +876,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 3.2 Balancing Priorities
-    """)
-    return
-
-
-@app.cell
-def _():
-    """add some animations for different goals cause it looks cool"""
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 3.3 Wing traversal strategy
+    ## 3.2 Wing traversal strategy
     The algorithm will traverse between wings based on the best walk, not necessarily collecting each supply in a wing before moving to the next wing and often coming back to a wing previously traversed through. This was done to use a common path optimisation where directly travelling between two junctions in a wing, $j_1$ and $j_2$, may be slower than a path through $j_1$, $j_1'$, $j_2'$ and $j_2$, where $j_n'$ is the vertex a junction connects to via an interwing coridoor.
 
     Since we are still aiming for an exact algorithm that always outputs the optimal solution, we must allow for revisiting wings and partial collection of supplies.
@@ -829,7 +887,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 3.4 Revised Algorithm
+    ## 3.3 Revised Algorithm
     """)
     return
 
@@ -837,7 +895,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### 3.4.1 Explanation
+    ### 3.3.1 Explanation
     We split the algorithm into two stages, with the first stage creating a flat graph, $F$, where each vertex is a supply, junction, entry or exit, and edges between vertices exist if they are in the same wing, after which we will find the shortest path on $F$ between each entry and supply, and each exit and supply, creating a complete graph $H$ using these minimum cost paths as edge weights.
 
     In the second stage, the algorithm will find the shortest hamiltonian path on this second graph which starts at the entry and ends at an exit.
@@ -854,13 +912,13 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### 3.4.2 Algorithm Explorer
+    ### 3.3.2 Algorithm Explorer
     """)
     return
 
 
 @app.cell
-def _(facility_drawer, memo1a_algorithm, mo):
+def _(facility_drawer, memo1b_algorithm, mo):
     _abs_graph = facility_drawer.get_abstracted_graph()
     _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
     _supplies = set(facility_drawer.supplies)
@@ -880,7 +938,7 @@ def _(facility_drawer, memo1a_algorithm, mo):
         pr = cProfile.Profile()
         pr.enable()
         for i in range(trials):
-            memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
+            memo1b_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
         return ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3] / trials
@@ -893,14 +951,14 @@ def _(facility_drawer, memo1a_algorithm, mo):
 
         tracemalloc.start()
 
-        memo1a_algorithm.ember_rescue(
+        memo1b_algorithm.ember_rescue(
             _abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set()
         )
 
         snapshot = tracemalloc.take_snapshot()
         tracemalloc.stop()
         top_stats = snapshot.statistics('filename')
-        return sum(stat.size for stat in top_stats if "memo1a_algorithm.py" in stat.traceback._frames[0][0])
+        return sum(stat.size for stat in top_stats if "memo1b_algorithm.py" in stat.traceback._frames[0][0])
 
     _ave_mem = round(sum([_get_mem() for _ in range(_trials)]) / _trials)
 
@@ -931,7 +989,7 @@ def _(facility_drawer, mo):
 
     @mo.cache
     def ember_rescue_cached():
-        return memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
+        return memo1b_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
 
     _res = ember_rescue_cached()
 
@@ -946,7 +1004,7 @@ def _(facility_drawer, mo):
         full_width=True,
         include_input=True
     )
-    return ember_rescue_cached, memo1a_algorithm, path_len
+    return ember_rescue_cached, memo1b_algorithm, path_len
 
 
 @app.cell
@@ -968,10 +1026,14 @@ def _(ember_rescue_cached, facility_drawer, mo, path_len):
             return (u, v) in facility_drawer.junctions or (v, u) in facility_drawer.junctions
 
     _path = facility_drawer.get_path_from_super_path(_res[0])
+    _flat_graph = facility_drawer.get_flat_graph(_abs_graph)
+    _path_cost = sum(_flat_graph.get_edge_data(_res[0][i], _res[0][i + 1])["weight"] for i in range(len(_res[0]) - 1))
     mo.vstack([
         mo.hstack([
-                mo.stat(label="Complete Path length",
+                mo.stat(label="Total Path length",
                         value=f"{len(_path) - 1} steps"),
+                mo.stat(label="Total Path Cost",
+                        value=f"{_path_cost}"),
                 mo.stat(label="Supplies collected",
                         value=f"{len([None for u in _path[:path_len.value] if u in _supplies])}/{len(_supplies)}"),
                 mo.stat(label="Ends at exit",
@@ -979,7 +1041,9 @@ def _(ember_rescue_cached, facility_drawer, mo, path_len):
                 mo.stat(label="All moves valid",
                         value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value)) else "❌ No")
             ], gap=1, wrap=True),
-        path_len
+        path_len,
+        mo.md("Path in form (Wing name, x, y), ... where x and y are 0, 0 in bottom right: " + ", ".join("(" + facility_drawer.wing_names[w] + f", {u}, {v})" for w, u, v in _path)),
+        mo.md("Cumulative cost at wing transitions: " + ", ".join(f"Transition from {facility_drawer.wing_names[_res[0][j][0]]} to {facility_drawer.wing_names[_res[0][j + 1][0]]}: " + str(sum(_flat_graph.get_edge_data(_res[0][i], _res[0][i + 1])["weight"] for i in range(j))) for j in range(len(_res[0]) - 1) if (_res[0][j], _res[0][j + 1]) in facility_drawer.junctions or (_res[0][j + 1], _res[0][j]) in facility_drawer.junctions))
     ])
     return
 
@@ -1884,6 +1948,7 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 5.1 Suitability
+    ### 5.1.1 Assumptions
     To allow for a more optimised solution, our algorithm makes assumptions about the problem:
 
     These assumptions are justified by checking a large quantity of facility blueprints, all of which satisfied the property:
@@ -1892,6 +1957,9 @@ def _(mo):
     - 5 supplies in the facility allows brute force and branch and bound for stage 2. Without significant optimisations, these exact approaches would not be possible if the supplies grows above 7 or 8.
     - Each wing is connected, allows only 1 depth first search to be run on each wing. Without this assumption, we would need to run it starting from each supply, entry, exit and junction in each wing, drastically reducing the time and space efficiency of the algorithm which would also need to store each `prev` Map.
     - Each sector is connected to its adjacent sectors bi-directionally, which may if the previous assumption is not satisfied disallow collection of some supplies that are reachable but cannot be walked through and then to an exit.
+
+    ### 5.1.2 Quality of Solutions
+    The algorithm finds the global optimum, with brute force searching the entire solution space. Compared with the previous uniform cost facility, the algorithm avoids backtracking in the right part of Wing Beta. Particularily, in my seed, 28122007, the algorithm does not collect supply 2 when going past the junction connecting to the top of Wing Beta because it avoids the cost of backtracking and then eventually traversing that path again later. The path found traverses through 50 sectors more than when the algorithm was not informed of this non-uniform traversal cost.
     """)
     return
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.20.2"
+__generated_with = "0.23.13"
 app = marimo.App(width="medium")
 
 
@@ -630,43 +630,19 @@ def action_a23b_code(mo):
 def action_a23b_runner(mo):
     run_btn = mo.ui.run_button(label="▶ Run implementation")
     run_btn
-    return (run_btn,)
+    return
 
 
 @app.cell
-def action_a23b_output(
-    a23b_code,
-    draw_weighted_facility,
-    mo,
-    run_btn,
-    weighted_fac,
-):
-    mo.stop(not run_btn.value, mo.md("*Press Run to execute your implementation.*"))
+def action_a23b_output(draw_weighted_facility, weighted_fac):
     _g = {
         'weighted_fac': weighted_fac,
         'draw_weighted_facility': draw_weighted_facility,
     }
-    try:
-        exec(a23b_code.value, _g)
-        _route = _g.get('route')
-        _cost  = _g.get('cost')
-        if _route is not None:
-            _fig = draw_weighted_facility(
-                weighted_fac,
-                highlight_path=_route,
-                title=f"Optimal Route — Total Cost: {_cost}"
-            )
-            mo.vstack([
-                mo.as_html(_fig),
-                mo.callout(
-                    mo.md(f"**Route length:** {len(_route)} nodes  |  **Total cost:** {_cost}"),
-                    kind="success"
-                )
-            ])
-        else:
-            mo.callout(mo.md("Code ran but no `route` variable was set."), kind="warn")
-    except Exception as _e:
-        mo.callout(mo.md(f"**Error:** `{_e}`"), kind="danger")
+    _fig = draw_weighted_facility(
+        weighted_fac
+    )
+    _fig
     return
 
 

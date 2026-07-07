@@ -384,23 +384,19 @@ def branch_and_bound(source: VertexT, sinks: set[VertexT], exits: set[VertexT], 
             for i in range(len(partial_sol) - 1):
                 cc.unite(partial_sol[i], partial_sol[i + 1])
             edges.sort()
-
+            assert partial_sol[0] == source, "fuck"
             united = len(partial_sol) - 1
-            max_i = 0
-            if united < fuel:
-                for i, (w, u, v) in enumerate(edges):
-                    max_i = i
+            if united < fuel + 1:
+                for w, u, v in edges:
                     if cc.find(u) != cc.find(v):
                         curr_sol_length += w
                         cc.unite(u, v)
                         united += 1
-                        if united == fuel:
+                        if united == fuel + 1:
                             break
-            for w, u, v in edges[max_i:]:
-                if (u == ex or v == ex) and cc.find(u) != cc.find(v):
-                    curr_sol_length += w
 
             min_sol_length = min(curr_sol_length, min_sol_length)
+
         return sol_length + min_sol_length
 
     def get_upper_bound(partial_sol: list[VertexT], sol_length: int) -> int:

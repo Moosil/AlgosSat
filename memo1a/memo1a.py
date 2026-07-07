@@ -375,7 +375,7 @@ def _(mo):
     # 2 Abstraction
     Let $G = (V_w, E_w, w)$ be a meta-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
 
-    $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the spans of sectors between two salient sectors which are adjacent to just two other sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
+    $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the spans of sectors which are adjacent to just two other sectors and between two salient sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
 
     We will designate source vertex $s \in V$, the set of sink vertices $X \subseteq V$, and the set of prize vertices $S \subseteq V$, each representing the entry, exit, and supply unit-containing sectors respectively.
 
@@ -653,7 +653,7 @@ def _(mo):
 
     Greedy patterns are often efficient, but will be unlikely to find an optimal solution, unless the problem has the greedy property. Due to small $n$, and the facility not having the greedy property, we will avoid Greedy algorithms in finding an exact solution. Greedy algorithms will be used in the algorithm to provide a fast upper-bound on path length which is useful for other approaches.
 
-    Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. 2-opt and 3-opt are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than nearest neighbour. Lin-kernighan, which adapts the k-opt, runs in $O(n^2.2)$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm tabu-search to prohibit found local minima and hopefully find a global minima.
+    Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. 2-opt and 3-opt are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than nearest neighbour. Lin-kernighan, which adapts the k-opt, runs in $O(n^{2.2})$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm tabu-search to prohibit found local minima and hopefully find a global minima.
 
     #### 3.1.2.2 Backtracking & Linear Programming
 
@@ -699,7 +699,7 @@ def _(mo):
 
     Instead of linear programming overhead, we will instead create a tree whose root node is the entry, and leaf nodes are the exits. The branch nodes will be supplies, and the tree will contain each possible ordering of supplies. Searching this tree exhaustively is too time consuming, but we will instead compute a lower bound for each branch and prune those that have a lower bound greater than an upper bound we find. We will prefer depth first search on this tree to hopefully reduce our upper bound.
 
-    To calculate the lower bounds, we first define $T_x = (V_S', E_S', w_S)$ to be a minimum spanning tree of a subset of $G_S = (V_S, E_S, w_S)$, where $V_S' = V_S \ \{x\}$. Then our lower bound will be $\displaystyle\min_{x \in X} \displaystyle\sum_{\{u, v\} \in E_S'} w_S(u, v.
+    To calculate the lower bounds, we first define $T_x = (V_S', E_S', w_S)$ to be a minimum spanning tree of a subset of $G_S = (V_S, E_S, w_S)$, where $V_S' = V_S \backslash \{x\}$. Then our lower bound will be $\displaystyle\min_{x \in X} \displaystyle\sum_{\{u, v\} \in E_S'} w_S(u, v)$.
 
     To calculate the upper bound, we can find one greedily using a greedy algorithm considered above. We will use a modification of the Lin-Kernighan Heuristic for this purpose. As shown below, we can expect ~12% solution gap for 5 supplies.
 
@@ -804,21 +804,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 3.2 Balancing Priorities
-    """)
-    return
-
-
-@app.cell
-def _():
-    """add some animations for different goals cause it looks cool"""
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 3.3 Wing traversal strategy
+    ## 3.2 Wing traversal strategy
     The algorithm will traverse between wings based on the best walk, not necessarily collecting each supply in a wing before moving to the next wing and often coming back to a wing previously traversed through. This was done to use a common path optimisation where directly travelling between two junctions in a wing, $j_1$ and $j_2$, may be slower than a path through $j_1$, $j_1'$, $j_2'$ and $j_2$, where $j_n'$ is the vertex a junction connects to via an interwing coridoor.
 
     Since we are still aiming for an exact algorithm that always outputs the optimal solution, we must allow for revisiting wings and partial collection of supplies.
@@ -829,7 +815,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 3.4 Revised Algorithm
+    ## 3.3 Revised Algorithm
     """)
     return
 
@@ -837,7 +823,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### 3.4.1 Explanation
+    ### 3.3.1 Explanation
     We split the algorithm into two stages, with the first stage creating a flat graph, $F$, where each vertex is a supply, junction, entry or exit, and edges between vertices exist if they are in the same wing, after which we will find the shortest path on $F$ between each entry and supply, and each exit and supply, creating a complete graph $H$ using these minimum cost paths as edge weights.
 
     In the second stage, the algorithm will find the shortest hamiltonian path on this second graph which starts at the entry and ends at an exit.
@@ -854,7 +840,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### 3.4.2 Algorithm Explorer
+    ### 3.3.2 Algorithm Explorer
     """)
     return
 

@@ -16,8 +16,9 @@ def _():
     from scipy import stats
     import copy
     from itertools import chain
+    import re
 
-    return chain, copy, mo, mpatches, nx, plt, random
+    return chain, copy, mo, mpatches, np, nx, pd, plt, random, re, stats
 
 
 @app.cell(hide_code=True)
@@ -361,8 +362,9 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### 1.2.1 Algorithm & Abstraction Changes
     The previous algorithm assumed the facility was just one wing, and could be represented as a tree. While it could work on this graph with a flat graph abstraction, I chose to instead revise the algorithm for the new problem.
+
+    I also discovered new ways of doing both stages of the algorithm, which were tested to determine that brute force is still the best way of doing this problem...
     """)
     return
 
@@ -377,7 +379,7 @@ def _(mo):
 
     We will designate source vertex $s \in V$, the set of sink vertices $X \subseteq V$, and the set of prize vertices $S \subseteq V$, each representing the entry, exit, and supply unit-containing sectors respectively.
 
-    We will have $A$ be an array of size 5 representing CRUDY-1's supply unit storage, which contains `SupplyID`s or the null ID: 0, function $M: S \to \text{SupplyID}$ mapping each supply vertex to its `SupplyID`, and set $F$ be the set of found `SupplyID`s. When a supply is collected, it will be added to $A$, and $A_\text{new}$ will be returned.
+    We will have $A$ be an array of size 5 representing CRUDY-1's supply unit storage, which contains `SupplyID`s or NULL, function $M: S \to \text{SupplyID}$ mapping each supply vertex to its `SupplyID`, and set $F$ be the set of found `SupplyID`s. When a supply is collected, it will be added to $A$, and $A_\text{new}$ will be returned.
 
     We will be designing an algorithm to traverse meta-graph $G$, from $s$ to an $x$, returning an ordered sequence of vertices in list $W$, and CRUDY-1's updated supply unit storage.
     """)
@@ -487,8 +489,51 @@ def _(mo):
 
 
 @app.cell
-def _():
-    """Hierarchical vs Flat graph algorithm time"""
+def _(np, pd, plt, stats):
+    _df = pd.read_csv("memo1a/data_memos.csv")
+
+    _df = _df[(np.abs(stats.zscore(_df)) < 2).all(axis=1)]
+
+    _fig, ((_ax1, _ax2), (_ax3, _ax4)) = plt.subplots(2, 2, figsize=(6, 6), height_ratios=[14, 1], width_ratios=[1, 14])
+    _ax2.scatter(_df["Memo1 time"], _df["Memo1A1 time"], c='b', label="Brute force", marker='o', s=10, alpha=.01)
+    _ax2.set_xlim(0, 10)
+    _ax2.set_ylim(0, 10)
+
+    _ax1.boxplot(_df["Memo1A1 time"], orientation="vertical", widths=[.9])
+    _ax1.set_ylim(0, 10)
+    _ax1.margins(x=0)
+    _ax1.set_axis_off()
+
+    _ax4.boxplot(_df["Memo1 time"], orientation="horizontal", widths=[.9])
+    _ax4.set_xlim(0, 10)
+    _ax4.margins(y=0)
+    _ax4.set_axis_off()
+
+    _ax3.set_axis_off()
+
+    _fig.suptitle("Comparing Hierarchical & Flat graph implementations")
+    _fig.supxlabel("Flat graph time (ms)")
+    _fig.supylabel("Hierarchical graph time (ms)")
+
+    _fig.tight_layout()
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The figure above comparse the runtime of a hierarchical graph implementation and a flat graph one. It is shown that the algorithm leveraging the additional information provided by the hierarchical graph will run faster in the vast majority of cases than the one using the flat graph representation.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 2.5.1
+    No new ADT operations are _required_ to use the hierarchical graph. Finding the wing of a vertex $v$ is possible in $|W|$ time by checking for each $w = (V_w, E_w) \in W$, if $v \in V_w$. This is possible due to assumption that each wing's vertex sets are disjoint. There is a tradeoff between storage and efficiency here, with storing the wings allowing for quick retrieval at the cost of space and getting the wings being a time cost. I chose to the latter option as it seemed in implementation that finding the wings did not affect performance to any noticeable amount
+    """)
     return
 
 
@@ -521,9 +566,6 @@ def _(mo):
     - $\text{get\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex}) \to \mathbb{R}^+ \cup \{0\}$
 
     ### 2.6.2 Set
-
-    For Set operations, the mathematical symbol will be preferred ($\cup$, $\cap$, $\backslash$, $\Delta$, $\vert \dots \vert$, $\in$, $\subset$, $\subseteq$ and $=$ respectively)
-
     - $\text{union}: \text{Set} \times \text{Set} \to \text{Set}$
     - $\text{intersection}: \text{Set} \times \text{Set} \to \text{Set}$
     - $\text{difference}: \text{Set} \times \text{Set} \to \text{Set}$
@@ -540,13 +582,12 @@ def _(mo):
     - $\text{at}: \text{Map} \times \text{Key} \to \text{Value}$
     - $\text{remove}: \text{Map} \times \text{Key} \to \text{Map}$
     - $\text{set}: \text{Map} \times \text{Key} \times \text{Value} \to \text{Map}$
-    - $\text{Keys}: \text{Map} \to \text{Set}[\text{Key}]$
+    - $\text{get\_keys}: \text{Map} \to \text{Set}[\text{Key}]$
 
     ### 2.6.3 List
     - $\text{push}: \text{List} \times \text{Item} \to \text{List}$
     - $\text{pop}: \text{List} \to \text{List}$
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
-    - $\text{is\_empty}: \text{List} \to \text{Boolean}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
 
     ### 2.6.4 Array
@@ -670,27 +711,25 @@ def _(mo):
 
 
 @app.cell
-def _(plt):
-    _data_brute_force = [9.400000000000001e-06,2.164e-05,7.708000000000001e-05,0.0004078500000000001,0.0024332000000000004,0.01711474,0.16651036000000002,1.6340282600000002,16.59655123,130.9417754]
-    _data_branch_and_bound = [0.00038199,0.00136872,0.00612076,0.022506820000000004,0.08311501,0.26701634,0.9436050100000001,1.5229356600000001,6.59688893,3.6579898]
-    _data_nearest_neighbour = [6.270000000000001e-06,7.43e-06,1.4460000000000002e-05,1.163e-05,1.2760000000000001e-05,1.4540000000000001e-05,1.665e-05,1.8670000000000003e-05,2.1810000000000003e-05,2.472e-05,2.5810000000000005e-05,2.8840000000000002e-05,3.086e-05,4.2730000000000006e-05,3.951e-05,4.131e-05,4.388000000000001e-05,4.731e-05,8.1e-05,6.82e-05,6.96e-05,7.350000000000001e-05,7.900000000000001e-05,8.39e-05,8.67e-05,9.27e-05,0.0002538,0.0001431,9.94e-05,0.0001071,0.000115,0.0001194,0.0001269,0.0001297,0.0001303,0.0001473,0.00015030000000000002,0.0001595,0.00015780000000000001,0.0001789,0.00019610000000000002,0.0001974,0.000209,0.00021600000000000002,0.0002134,0.0002254,0.0002809,0.0002482,0.00024200000000000003,0.00024890000000000003,0.0002633,0.0002677,0.0002809,0.00028900000000000003,0.00030930000000000004,0.0003064,0.0003192,0.00032480000000000003,0.0003323,0.0003411,0.0003637,0.00036710000000000003,0.0003796,0.0005753,0.00039890000000000005,0.0004018,0.0004059,0.0004263,0.00044520000000000003,0.00045220000000000004,0.00046520000000000003,0.00047870000000000003,0.0004922,0.0005083,0.0005289,0.0005367,0.0005452,0.0005465,0.0015204,0.0005571,0.0005767000000000001,0.0006050000000000001,0.0006875000000000001,0.0006577,0.0006948000000000001,0.0006991,0.000711,0.0007118000000000001,0.0007492,0.0007545000000000001,0.0007618000000000001,0.0007786000000000001,0.0007801,0.0008219000000000001,0.0008190000000000001,0.0008486,0.0008751000000000001,0.0008993]
-    _data_lin_kernighan = [0.0001017,0.00013758000000000002,0.00026988,0.00036490000000000003,0.0005146300000000001,0.0007108,0.0009627800000000001,0.00131383,0.0014377600000000002,0.0018070800000000002,0.0025650200000000003,0.0031454200000000003,0.0033789900000000006,0.0049346,0.0055303900000000005,0.007394490000000001,0.00829403,0.00941312,0.0039345000000000005,0.0041478,0.004743300000000001,0.0045415,0.0048947,0.0054383,0.0065658,0.0067648000000000005,0.006992300000000001,0.008744700000000001,0.007468700000000001,0.0090393,0.0112969,0.010661700000000001,0.015110900000000002,0.0130235,0.0140444,0.0169301,0.021728300000000002,0.029162,0.0338094,0.0345527,0.038339500000000006,0.0460657,0.0611041,0.0587053,0.0722793,0.0773292,0.0841214,0.09166010000000001,0.10660370000000001,0.11081780000000001,0.1218183,0.14642090000000002,0.1482165,0.18951980000000002,0.2029814,0.23812850000000002,0.24091410000000002,0.28944420000000004,0.3016151,0.3269696,0.35769650000000003,0.3435302,0.45921120000000004,0.5068758,0.20932910000000002,0.5504193000000001,0.5856132000000001,0.6330972,0.6425996,0.6871557,0.7721858,0.7866022,0.8199189,0.8599855000000001,0.9603877000000001,0.0089177,1.0469717,0.9971110000000001,1.2440345000000002,1.0307895,1.0849713,1.1504269,1.2012740000000002,1.2386941,0.36228160000000004,1.4069538000000001,1.3261769,1.4711739000000001,1.5595736,1.5790983,1.6374989000000002,1.1390892000000001,1.7154255,1.77176,1.8395085000000002,1.9003779,0.4290295,2.0640527]
+def _(pd, plt):
+    _df = pd.read_csv("memo1a/data_stage_2.csv")
 
+    _dot_size = 8.
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6), sharey=True)
-    _ax1.scatter([i+2 for i in range(len(_data_brute_force))], _data_brute_force, c='b', label="Brute force", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_data_branch_and_bound))], _data_branch_and_bound, c='r', label="Branch and bound", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_data_nearest_neighbour))], _data_nearest_neighbour, c='g', label="Nearest neighbour", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_data_lin_kernighan))], _data_lin_kernighan, c='orange', label="Lin-Kernighan", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_df["brute force time"]))], _df["brute force time"], c='b', label="Brute force", marker='o', s=_dot_size)
+    _ax1.scatter([i+2 for i in range(len(_df["branch & bound time"]))], _df["branch & bound time"], c='r', label="Branch and bound", marker='o', s=_dot_size)
+    _ax1.scatter([i+2 for i in range(len(_df["nearest neighbour time"]))], _df["nearest neighbour time"], c='g', label="Nearest neighbour", marker='o', s=_dot_size)
+    _ax1.scatter([i+2 for i in range(len(_df["lin-kernighan time"]))], _df["lin-kernighan time"], c='orange', label="Lin-Kernighan", marker='o', s=_dot_size)
     _ax1.legend(loc="upper right")
     _ax1.set_yscale("log", base=10)
 
     _local_range = range(2, 7)
     _range_len = _local_range.stop-_local_range.start
 
-    _ax2.scatter([i for i in _local_range], _data_brute_force[:_range_len], c='b', label="Brute force", marker='o')
-    _ax2.scatter([i for i in _local_range], _data_branch_and_bound[:_range_len], c='r', label="Branch and bound", marker='o')
-    _ax2.scatter([i for i in _local_range], _data_nearest_neighbour[:_range_len], c='g', label="Nearest neighbour", marker='o')
-    _ax2.scatter([i for i in _local_range], _data_lin_kernighan[:_range_len], c='orange', label="Lin-Kernighan", marker='o')
+    _ax2.scatter([i for i in _local_range], _df["brute force time"][:_range_len], c='b', label="Brute force", marker='o')
+    _ax2.scatter([i for i in _local_range], _df["branch & bound time"][:_range_len], c='r', label="Branch and bound", marker='o')
+    _ax2.scatter([i for i in _local_range], _df["nearest neighbour time"][:_range_len], c='g', label="Nearest neighbour", marker='o')
+    _ax2.scatter([i for i in _local_range], _df["lin-kernighan time"][:_range_len], c='orange', label="Lin-Kernighan", marker='o')
     _ax2.legend(loc="upper right")
     _ax2.set_yscale("log", base=10)
     _ax2.set_xticks(_local_range)
@@ -711,7 +750,7 @@ def _(mo):
     As expected, Brute force has the worst run-time, followed closely by Branch-and-bound. The heuristic algorithms then follow, with Lin-Kernighan running Nearest neighbour to get its first guess (which it finds a local solution of), it takes longer than Nearest neighbour does.
     <br><span style='color: silver;'>(as seen in left figure)</span>
 
-    At $n = 5 = |S|$, which is what $|S|$ is in the problem, we can notice that Brute force runs faster than Branch and bound, and isn't much slower than Nearest neighbour. This is the reason why it will be used over those other more efficient approaches.
+    At $n = 5 = |S|$, which is what $|S|$ is in the problem, we can notice that Brute force runs an order of magnitude faster than Branch and bound. While it is ~1.5 orders of magnitude slower than nearest neighbour, it is still very fast and is optimal. This is the reason why it will be used over those other more efficient approaches.
     <br><span style='color: silver;'>(as seen in right figure)</span>
 
     If $n$ was to increase, it will become impossible to consider Brute-force, and Branch-and-bound will only be usable with significant optimisations (discussed later). This can be seen in the left figure, with both these algorithms not being graphed after $n = 12$
@@ -720,32 +759,31 @@ def _(mo):
 
 
 @app.cell
-def _(plt):
-    _data_brute_force_length = [86.8,153.9,164.9,217.7,230.8,291.7,307.6,364.0,378.3,401.0]
-    _data_branch_and_bound_length = [86.8,153.9,164.9,217.7,230.8,291.7,307.6,364.0,378.3,401.0]
-    _data_nearest_neighbour_length = [87.3,162.8,182.2,245.8,259.2,337.7,353.8,421.2,439.4,495.5,520.9,585.7,601.4,690.8,711.5,793.6,813.8,898.2,724.0,803.0,805.0,890.0,906.0,953.0,957.0,983.0,1002.0,1076.0,1102.0,1143.0,1165.0,1257.0,1265.0,1352.0,1378.0,1514.0,1554.0,1601.0,1659.0,1692.0,1730.0,1853.0,1879.0,1982.0,2024.0,2101.0,2097.0,2171.0,2319.0,2345.0,2361.0,2464.0,2466.0,2644.0,2652.0,2731.0,2733.0,2863.0,2873.0,3040.0,3056.0,3141.0,3163.0,3333.0,3335.0,3417.0,3421.0,3496.0,3554.0,3595.0,3723.0,3803.0,3831.0,3984.0,3990.0,4067.0,4139.0,4199.0,4261.0,4370.0,4386.0,4427.0,4489.0,4573.0,4583.0,4707.0,4719.0,4761.0,4863.0,4934.0,4968.0,5104.0,5110.0,5232.0,5234.0,5253.0,5255.0,5436.0]
-    _data_lin_kernighan_length = [87.3,160.8,181.2,239.2,259.0,327.1,345.4,416.4,436.4,470.5,510.3,573.9,568.0,688.8,682.9,766.8,801.4,893.6,724.0,803.0,805.0,890.0,906.0,953.0,957.0,983.0,1002.0,1076.0,1102.0,1141.0,1143.0,1257.0,1265.0,1302.0,1378.0,1424.0,1554.0,1511.0,1569.0,1692.0,1700.0,1777.0,1817.0,1920.0,1962.0,2077.0,2097.0,2137.0,2247.0,2345.0,2283.0,2372.0,2466.0,2644.0,2652.0,2599.0,2601.0,2833.0,2843.0,2952.0,3056.0,3141.0,3163.0,3153.0,3327.0,3337.0,3249.0,3496.0,3516.0,3595.0,3681.0,3717.0,3831.0,3868.0,3990.0,3979.0,4139.0,4165.0,4137.0,4252.0,4386.0,4321.0,4383.0,4515.0,4477.0,4707.0,4715.0,4761.0,4863.0,4856.0,4968.0,5050.0,5058.0,5140.0,5234.0,5209.0,5255.0,5436.0]
+def _(np, pd, plt):
+    _df = pd.read_csv("memo1a/data_stage_2.csv")
 
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
-    _ax1.scatter([i+2 for i in range(len(_data_brute_force_length))], _data_brute_force_length, c='b', label="Brute force", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_data_branch_and_bound_length))], _data_branch_and_bound_length, c='r', label="Branch and bound", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_data_nearest_neighbour_length))], _data_nearest_neighbour_length, c='g', label="Nearest neighbour", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_data_lin_kernighan_length))], _data_lin_kernighan_length, c='orange', label="Lin-Kernighan", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_df["brute force length"]))], _df["brute force length"], c='b', label="Brute force", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_df["branch & bound length"]))], _df["branch & bound length"], c='r', label="Branch and bound", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_df["nearest neighbour length"]))], _df["nearest neighbour length"], c='g', label="Nearest neighbour", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_df["lin-kernighan length"]))], _df["lin-kernighan length"], c='orange', label="Lin-Kernighan", marker='.')
     _ax1.set_title("Different approaches' solution length")
     _ax1.legend(loc="upper right")
     _ax1.set_ylabel("Average Solution Length (units)")
 
-    def _solution_gap(data) -> list[float]:
-        return [100 * (data[i] - _data_branch_and_bound_length[i]) / _data_branch_and_bound_length[i] for i in range(min(len(_data_branch_and_bound_length), len(data)))]
+    _solution_gap_len = len([None for i in np.isnan(_df["branch & bound length"]) if not i])
 
-    _ax2.scatter([i+2 for i in range(len(_data_brute_force_length))], _solution_gap(_data_brute_force_length), c='b', label="Brute force", marker='o')
-    _ax2.scatter([i+2 for i in range(len(_data_branch_and_bound_length))], _solution_gap(_data_branch_and_bound_length), c='r', label="Branch and bound", marker='.')
-    _ax2.scatter([i+2 for i in range(len(_data_branch_and_bound_length))], _solution_gap(_data_nearest_neighbour_length), c='g', label="Nearest neighbour", marker='o')
-    _ax2.scatter([i+2 for i in range(len(_data_branch_and_bound_length))], _solution_gap(_data_nearest_neighbour_length), c='orange', label="Lin-Kernighan", marker='.')
+    def _solution_gap(data) -> list[float]:
+        return [100 * (data[i] - _df["branch & bound length"][i]) / _df["branch & bound length"][i] for i in range(min(_solution_gap_len, len([None for i in data if i])))]
+
+    _dot_size = 8
+    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["brute force length"]), c='b', label="Brute force", marker='o', s=_dot_size, alpha=.7)
+    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["branch & bound length"]), c='r', label="Branch and bound", marker='o', s=_dot_size, alpha=.7)
+    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["nearest neighbour length"]), c='g', label="Nearest neighbour", marker='o', s=_dot_size, alpha=.7)
+    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["lin-kernighan length"]), c='orange', label="Lin-Kernighan", marker='o', s=_dot_size, alpha=.7)
     _ax2.set_title("Different approaches' optimality gap")
     _ax2.legend(loc="upper right")
     _ax2.set_ylabel("Average Solution Gap (%)")
-    _ax2.set_xticks(range(len(_data_branch_and_bound_length) + 2))
 
     _fig.supxlabel("Supply Unit (# of)")
     _fig.tight_layout()
@@ -969,9 +1007,99 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## 4.1 Pseudocode
     Notes for Pseudocode:
     - RAISE is used when a function _may_ not return something, but that would occur only for an invalid input
-    - syntax highlighting is weird but not much I can do about that...
+    - SupplyID is a identifier for each supply, which is unique from each other supply that has different contents
+    """)
+    return
+
+
+@app.cell
+def _(mo, re):
+    def _parse_pseudocode(code: str) -> str:
+        procedures = []
+        i: int = 0
+        while True:
+            i = code.find("PROCEDURE ", i)
+            if i == -1:
+                break
+
+            i += len("PROCEDURE ")
+            end = code.find('(', i)
+            procedures.append(code[i:end])
+
+
+        del i
+
+        res = code.replace('\n', "<br>").replace("    ", "&#9;")
+        res = re.sub("PROCEDURE(?= )", "<span class='pseudocode-command'>PROCEDURE</span>", res)
+        res = re.sub("FUNCTION(?= )", "<span class='pseudocode-command'>FUNCTION</span>", res)
+        res = re.sub("WHILE(?= )", "<span class='pseudocode-command'>WHILE</span>", res)
+        res = re.sub("FOR EACH(?= )", "<span class='pseudocode-command'>FOR EACH</span>", res)
+        res = re.sub(r"FOR(?=. <-)", "<span class='pseudocode-command'>FOR</span>", res)
+        res = re.sub("IF(?= )", "<span class='pseudocode-command'>IF</span>", res)
+        for command in ["PROCEDURE", "FUNCTION", "WHILE", "FOR", "IF"]:
+            res = re.sub(f"END {command}", f"<span class='pseudocode-command'>END {command}</span>", res)
+
+
+        for command in ["AND", "OR", "NOT", "RAISE", "DO", "THEN", "IN", "TO", "RETURN"]:
+            res = re.sub(fr"(?:(?<=\s)|(?<=&#9;)|(?<=\<br\>)){command}(?:(?=\s)|(?=&#9;)|(?=\<br\>))", f"<span class='pseudocode-command'>{command}</span>", res)
+
+        for operator in [r"<-", "=", ">", "<", "<=", ">=", "+", "-"]:
+            res = re.sub(fr"(?<= ){operator}(?= )",  f"<span class='pseudocode-op'>{operator}</span>", res)
+
+
+        res = re.sub(r"∅", "<span class='pseudocode-bracket'>∅</span>", res)
+        for bracket in ["[", "]", "(", ")"]:
+            res = re.sub(fr"\{bracket}", f"<span class='pseudocode-bracket'>{bracket}</span>", res)
+
+        def find_all(p_str: str, find_str: str, func) -> str:
+            i: int = 0
+            while True:
+                i = p_str.find(find_str, i)
+                if i == -1:
+                    break
+
+                p_str = func(p_str, i, find_str)
+                i += len(find_str)
+            return p_str
+
+        def syntax_highlight_name(p_str: str, names: list[str], class_name: str) -> str:
+            surrounding = r"\s\.\:\,\(\)\[\]\{\}\<\>"
+            for name in names:
+                p_str = re.sub(fr"(?<=[{surrounding}]){name}(?=[{surrounding}])", f"<span class='{class_name}'>{name}</span>", p_str)
+            return p_str
+
+        def syntax_highlight_proc(p_str: str, i: int, find_str: str) -> str:
+            params_start = p_str.find('(', i) + len("</span>") + 1
+            line_end = p_str.find('<br>', params_start)
+            params_end = p_str.find(')', params_start)
+            first_line = p_str[params_start:params_end]
+            param_names = [s for s in first_line.split(':')]
+            param_names = [param_names[0]] + [s.split(', ')[-1] for s in param_names[1:-1]]
+
+            end = p_str.find(f"END {find_str}", i + len(find_str))
+            if end == -1:
+                return p_str
+            substr = p_str[i:end]
+            substr = syntax_highlight_name(substr, param_names, "pseudocode-param")
+            return p_str[:i] + substr + p_str[end:]
+
+        adt_operators = ["get_vertices","get_edges","add_vertex","add_edge","remove_vertex","remove_edge","get_neighbours","has_edge","get_vertices","set_edge_weight","get_edge_weight","union","intersection","difference",'symmetric_difference',"size",'element_of',"strict_subset_of","subset_of","are_equal","size","has","at","remove","set","get_keys","push","pop","get","set","get","length",
+        "enqueue","update_priority"]
+
+        res = syntax_highlight_name(res, list(set(adt_operators)) + ["List", "Array", "Set", "Map", "Graph", "Tuple", "Priority Queue", "Positive Integer", "Integer", "Real"], "pseudocode-atomic")
+        res = syntax_highlight_name(res, list(set(procedures)), "pseudocode-proc")
+        res = syntax_highlight_name(res, ["SupplyID", "Vertex"], "pseudocode-type")
+
+        res = find_all(res, "PROCEDURE</span>", syntax_highlight_proc)
+        res = find_all(res, "FUNCTION</span>", syntax_highlight_proc)
+
+        return res
+
+    mo.md(rf"""
+    <div style="font-family: monospace; font-size: 14px; white-space: pre-wrap;">{_parse_pseudocode(open("memo1a/raw_pseudocode.txt", encoding="utf-8").read())}</div>
     """)
     return
 
@@ -979,14 +1107,768 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <div style="font-family: monospace; font-size: 14px; white-space: pre-wrap;">PROCEDURE bfs(g: Graph, source: Vertex) -> Map[Vertex, Vertex]<br>&#9;dist <- map with ∞ FOR EACH vertex IN g.get_vertices(); dist[source] <- 0<br>&#9;visited <- ∅<br>&#9;prev <- empty map<br>&#9;stack <- [source]<br>&#9;<br>&#9;WHILE stack.size() > 0 DO<br>&#9;&#9;u <- stack.pop()<br>&#9;&#9;<br>&#9;&#9;IF u ∉ visited THEN<br>&#9;&#9;&#9;visited <- visited ∪ {u}<br>&#9;&#9;&#9;<br>&#9;&#9;&#9;FOR EACH v IN g.neighbours(u) DO<br>&#9;&#9;&#9;&#9;w <- g.get_edge_weight(u, v)<br>&#9;&#9;&#9;&#9;IF dist[u] + w < dist[v] THEN<br>&#9;&#9;&#9;&#9;&#9;prev[v] <- u<br>&#9;&#9;&#9;&#9;&#9;dist[v] <- dist[u] + w<br>&#9;&#9;&#9;&#9;&#9;stack.push(v)<br>&#9;&#9;&#9;&#9;END IF<br>&#9;&#9;&#9;END FOR<br>&#9;&#9;END IF<br>&#9;END WHILE<br>&#9;RETURN prev<br>END PROCEDURE<br><br>PROCEDURE get_path_from_bfs(source: Vertex, sink: Vertex, prev: Map[Vertex, Vertex]) -> List[Vertex]<br>&#9;left_path <- [source]<br>&#9;right_path <- [sink]<br>&#9;left <- source<br>&#9;right <- sink<br>&#9;<br>&#9;WHILE prev.has(left) OR prev.has(right) DO<br>&#9;&#9;IF prev.has(left) THEN<br>&#9;&#9;&#9;left <- prev[left]<br>&#9;&#9;&#9;left_path.push(left)<br>&#9;&#9;END IF<br>&#9;&#9;<br>&#9;&#9;IF prev.has(right) THEN<br>&#9;&#9;&#9;right <- prev[right]<br>&#9;&#9;&#9;right_path.push(right)<br>&#9;&#9;END IF<br>&#9;&#9;<br>&#9;&#9;FOR i <- 1 TO |left_path| DO<br>&#9;&#9;&#9;IF right = left_path[i] THEN<br>&#9;&#9;&#9;&#9;res <- []<br>&#9;&#9;&#9;&#9;FOR j <- 1 TO i DO<br>&#9;&#9;&#9;&#9;&#9;res.push(left_path[j])<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;&#9;<br>&#9;&#9;&#9;&#9;FOR j <- 1 TO |right_path| DO<br>&#9;&#9;&#9;&#9;&#9;res.push(right_path[1 + |right_path| - j])<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;&#9;RETURN res<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;&#9;<br>&#9;&#9;FOR i <- 1 TO |right_path| DO<br>&#9;&#9;&#9;IF left = right_path[i] THEN<br>&#9;&#9;&#9;&#9;res <- []<br>&#9;&#9;&#9;&#9;FOR j <- 1 TO |left_path| DO<br>&#9;&#9;&#9;&#9;&#9;res.push(left_path[j])<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;&#9;<br>&#9;&#9;&#9;&#9;FOR j <- 1 TO i DO<br>&#9;&#9;&#9;&#9;&#9;res.push(right_path[1 + i - j])<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;&#9;RETURN res<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;END WHILE<br>&#9;RAISE InputError<br>END PROCEDURE<br><br>PROCEDURE get_supplies_to_collect(supplies: Set[Vertex], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: Set[SupplyID], supply_storage: Array[SupplyID, 5]) -> Set[Supply]<br>&#9;dont_collect_supply_ids <- found_supply_ids<br>&#9;FOR EACH supply IN supply_storage DO<br>&#9;&#9;dont_collect_supply_ids <- dont_collect_supply_ids ∪ {supply}<br>&#9;END FOR<br><br>&#9;res <- ∅<br>&#9;FOR EACH supply IN supplies DO<br>&#9;&#9;IF vertex_to_supply_id[supply] ∉ dont_collect_supply_ids THEN<br>&#9;&#9;&#9;res <- res ∪ {supply}<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;RETURN res<br>END PROCEDURE<br><br>PROCEDURE max(a: Integer, b: Integer) -> Integer<br>&#9;IF a > b THEN<br>&#9;&#9;RETURN a<br>&#9;END IF<br>&#9;RETURN b<br>END PROCEDURE<br><br>PROCEDURE get_path_length(g: Graph, path: List[Vertex]) -> Positive Integer or 0<br>&#9;res <- 0<br>&#9;FOR i <- 1 TO |path| - 1 DO<br>&#9;&#9;res <- res + g.get_edge_weight(path[i], path[i + 1])<br>&#9;END FOR<br>&#9;RETURN res<br>END PROCEDURE<br><br>PROCEDURE reverse(list: List) -> List<br>&#9;res <- []<br>&#9;FOR i <- 1 TO |list| DO<br>&#9;&#9;res.push(list[1 + |list| - i])<br>&#9;END FOR<br>&#9;RETURN res<br>END PROCEDURE<br><br>PROCEDURE reconstruct_path(prev: Map[Vertex, Vertex], sink: Vertex) -> List[Vertex]<br>&#9;res <- [sink]<br>&#9;WHILE prev.has(curr) DO<br>&#9;&#9;curr <- prev[curr]<br>&#9;&#9;res.push(curr)<br>&#9;END WHILE<br>&#9;RETURN reverse(res)<br>END PROCEDURE<br><br>PROCEDURE dijkstra(g: Graph, source: Vertex, sinks: Set[Vertex]) -> Map[Vertex, list[Vertex]]<br>&#9;res <- empty Map<br>&#9;dist <- map with ∞ FOR EACH vertex IN g.get_vertices(); dist[source] <- 0<br>&#9;prev <- empty map<br>&#9;<br>&#9;pq <- Priority Queue<br>&#9;FOR EACH vertex IN g.get_vertices() DO<br>&#9;&#9;pq.enqueue(vertex, dist[vertex])<br>&#9;END FOR<br>&#9;WHILE |pq| > 0 DO<br>&#9;&#9;u <- pq.extract_min()<br>&#9;&#9;<br>&#9;&#9;IF u ∈ sinks THEN<br>&#9;&#9;&#9;res[u] <- reconstruct_path(prev, u)<br>&#9;&#9;&#9;IF |res| = |sinks| THEN<br>&#9;&#9;&#9;&#9;RETURN res<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END IF<br>&#9;&#9;<br>&#9;&#9;FOR EACH v IN g.neighbours(u) DO<br>&#9;&#9;&#9;w <- g.get_edge_weight(u, v)<br>&#9;&#9;&#9;IF dist[u] + w < dist[v] THEN<br>&#9;&#9;&#9;&#9;prev[v] <- u<br>&#9;&#9;&#9;&#9;dist[v] <- dist[u] + w<br>&#9;&#9;&#9;&#9;pq.update_priority(v, dist[v])<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;END WHILE<br>&#9;RAISE InputError<br>END PROCEDURE<br><br>PROCEDURE get_path_matrix(g: Graph, entry: Vertex, exits: set[Vertex], supplies: set[Vertex]) -> Map[Vertex, Map[Vertex, List[Vertex]]]<br>&#9;res <- empty Map<br>&#9;FOR EACH source IN supplies ∪ {entry} DO<br>&#9;&#9;res[source] <- dijkstra(g, source, supplies ∪ exits)<br>&#9;END FOR<br>&#9;RETURN res<br>END PROCEDURE<br><br>PROCEDURE get_path_cost_matrix(g: Graph, path_matrix: Map[Vertex, Map[Vertex, List[Vertex]]]) -> Map[Vertex, Map[Vertex, Positive Integer or 0]]<br>&#9;res <- empty Map<br>&#9;FOR EACH source IN path_matrix.keys() DO<br>&#9;&#9;res[source] <- empty Map<br>&#9;&#9;sink_paths <- path_matrix[source]<br>&#9;&#9;FOR EACH sink IN sink_paths.keys() DO<br>&#9;&#9;&#9;res[source][sink] <- get_path_length(g, path)<br>&#9;&#9;END FOR<br>&#9;END FOR<br>&#9;RETURN res<br>END PROCEDURE<br><br>PROCEDURE brute_force_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0) -> Tuple[List[Vertex], Positive Integer or 0]<br>&#9;min_cost <- ∞<br>&#9;min_cost_path <- []<br>&#9;<br>&#9;IF fuel = 0 THEN<br>&#9;&#9;FOR EACH exit IN exits DO<br>&#9;&#9;&#9;cost <- path_cost_matrix[source][exit]<br>&#9;&#9;&#9;IF cost < min_cost THEN<br>&#9;&#9;&#9;&#9;min_cost <- cost<br>&#9;&#9;&#9;&#9;min_cost_path <- [sink]<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;END IF<br>&#9;IF fuel != 0 THEN<br>&#9;&#9;FOR EACH sink IN sinks DO<br>&#9;&#9;&#9;recursive_res <- brute_force_recursive(sink, sinks \ {sink}, exits, path_cost_matrix, fuel - 1)<br>&#9;&#9;&#9;min_path_through <- recursive_res[0]<br>&#9;&#9;&#9;cost <- recursive_res[1]<br>&#9;&#9;&#9;cost <- cost + path_cost_matrix[source][sink]<br>&#9;&#9;&#9;IF cost < min_cost THEN <br>&#9;&#9;&#9;&#9;min_cost <- cost<br>&#9;&#9;&#9;&#9;min_cost_path <- [sink]<br>&#9;&#9;&#9;&#9;FOR vertex IN min_path_through DO<br>&#9;&#9;&#9;&#9;&#9;min_cost_path.push(vertex)<br>&#9;&#9;&#9;&#9;END FOR<br>&#9;&#9;&#9;END IF<br>&#9;&#9;END FOR<br>&#9;END IF<br>&#9;RETURN (min_cost_walk, min_cost)<br>END PROCEDURE<br><br>PROCEDURE brute_force(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0) -> List[Vertex]<br>&#9;path <- brute_force_recursive(entry, supplies, exits, path_cost_matrix, fuel)[0]<br><br>&#9;res <- [entry]<br>&#9;FOR EACH vertex IN path DO<br>&#9;&#9;res.push(path)<br>&#9;END FOR<br>&#9;RETURN res<br>END PROCEDURE<br><br>PROCEDURE get_F_path_from_H_path(H_path: List[Vertex], path_matrix: Map[Vertex, Map[Vertex, List[Vertex]]]) -> List[Vertex]<br>&#9;res <- []<br>&#9;FOR i <- 1 TO |H_path| - 1 DO<br>&#9;&#9;path <- path_matrix[H_path[i]][H_path[i + 1]]<br>&#9;&#9;FOR j <- 1 TO |path| - 1 DO<br>&#9;&#9;&#9;res.push(path[j])<br>&#9;&#9;END FOR<br>&#9;END FOR<br>&#9;res.push(H_path[|H_path|])<br>&#9;RETURN res<br>END PROCEDURE<br><br>PROCEDURE get_which_wing(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], vertex: Vertex) -> Graph<br>&#9;FOR EACH wing IN G[0] DO<br>&#9;&#9;IF vertex IN g.get_vertices() THEN<br>&#9;&#9;&#9;RETURN g<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;RAISE InputError<br>END PROCEDURE<br><br>PROCEDURE get_G_path_from_F_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], F_path: List[Vertex], prevs: Map[Graph, Map[VertexT, VertexT]]) -> List[Vertex]<br>&#9;res <- []<br>&#9;FOR i <- 1 TO |F_path| - 1 DO<br>&#9;&#9;u <- F_path[i]<br>&#9;&#9;v <- F_path[i + 1]<br>&#9;&#9;u_wing <- get_which_wing(G, u)<br>&#9;&#9;v_wing <- get_which_wing(G, v)<br>&#9;&#9;IF u_wing = v_wing THEN<br>&#9;&#9;&#9;path <- get_path_from_bfs(u, v, prevs[u_wing])<br>&#9;&#9;&#9;FOR j <- 1 TO |path| - 1 DO<br>&#9;&#9;&#9;&#9;res.push(path[j])<br>&#9;&#9;&#9;END FOR<br>&#9;&#9;END IF<br>&#9;&#9;IF u_wing != v_wing THEN<br>&#9;&#9;&#9;res.push(u)<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;res.push(F_path[|F_path|])<br>&#9;RETURN res<br>END PROCEDURE<br><br>PROCEDURE get_F(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], prevs: Map[Vertex, Vertex]) -> Graph<br>&#9;res <- empty Graph<br>&#9;FOR EACH v IN {entry} ∪ supplies ∪ exits DO<br>&#9;&#9;res.add_vertex(v)<br>&#9;END FOR<br>&#9;<br>&#9;junction_vertices <- ∅<br>&#9;FOR EACH e IN G[1] DO<br>&#9;&#9;res.add_vertex(e[0])<br>&#9;&#9;res.add_vertex(e[1])<br>&#9;&#9;res.add_edge(e[0], e[1], 1)<br>&#9;&#9;<br>&#9;&#9;junction_vertices <- junction_vertices ∪ {e[0]}<br>&#9;&#9;junction_vertices <- junction_vertices ∪ {e[1]}<br>&#9;END FOR<br>&#9;<br>&#9;FOR EACH wing IN G[0] DO<br>&#9;&#9;salient_vertices <- []<br>&#9;&#9;FOR EACH v IN ({entry} ∩ wing.get_vertices()) ∪ (supplies ∩ wing.get_vertices()) ∪ (exits ∩ wing.get_vertices()) ∪ (junction_vertices ∩ wing.get_vertices()) DO<br>&#9;&#9;&#9;salient_vertices.push(v)<br>&#9;&#9;END FOR<br>&#9;&#9;<br>&#9;&#9;FOR i <- 1 TO |salient_vertices| DO<br>&#9;&#9;&#9;FOR j <- i + 1 TO |salient_vertices| DO<br>&#9;&#9;&#9;&#9;u <- salient_vertices[i]<br>&#9;&#9;&#9;&#9;v <- salient_vertices[i + 1]<br>&#9;&#9;&#9;&#9;<br>&#9;&#9;&#9;&#9;path <- get_path_from_bfs(u, v, prevs[wing])<br>&#9;&#9;&#9;&#9;weight <- get_path_length(wing, path)<br>&#9;&#9;&#9;&#9;<br>&#9;&#9;&#9;&#9;res.add_edge(u, v, weight)<br>&#9;&#9;&#9;END FOR<br>&#9;&#9;END FOR<br>&#9;END FOR<br>&#9;RETURN res<br>END PROCEDURE<br><br>PROCEDURE get_new_supply_storage(supply_storage: Array[SupplyID, 5], vertex_to_supply_id: Map[Vertex, SupplyID], num_of_supplies_to_collect: Positive Integer, H_path: List[VertexT]) -> Array[SupplyID, 5]<br>&#9;collected_supplies <- []<br>&#9;FOR EACH v IN H_path DO<br>&#9;&#9;IF v ∈ uncollected_supplies THEN<br>&#9;&#9;&#9;collected_supplies.push(v)<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;<br>&#9;supply_idx <- 1<br>&#9;supply_storage_idx <- 1<br>&#9;WHILE supply_storage_idx <= |supply_storage| AND supply_idx <= num_of_supplies_to_collect DO<br>&#9;&#9;IF supply_storage[supply_storage_idx] = NULL THEN<br>&#9;&#9;&#9;supply_storage[supply_storage_idx] <- vertex_to_supply_id[collected_supplies[supply_idx]]<br>&#9;&#9;&#9;supply_idx <- supply_idx + 1<br>&#9;&#9;END IF<br>&#9;END WHILE<br>&#9;RETURN supply_storage<br>END PROCEDURE<br><br>FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, exits: Set[Vertex], supplies: Set[Vertex], exits: Set[Vertex], supply_storage: Array[SupplyID, 5], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: Set[SupplyID]) -> Tuple[List[Vertex], Array[Supply, 5]]<br>&#9;uncollected_supplies <- get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)<br>&#9;<br>&#9;num_of_supplies_to_collect <- 0<br>&#9;FOR EACH id IN supply_storage DO<br>&#9;&#9;IF id isn't the null id THEN<br>&#9;&#9;&#9;num_of_supplies_to_collect <- num_of_supplies_to_collect + 1<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;num_of_supplies_to_collect <- max(num_of_supplies_to_collect, |supplies|)<br>&#9;<br>&#9;prevs <- empty map<br>&#9;FOR EACH wing IN G[0] DO<br>&#9;&#9;IF |wing.get_vertices()| > 0 THEN<br>&#9;&#9;&#9;prevs[wing] <- bfs(wing, a vertex in wing)<br>&#9;&#9;END IF<br>&#9;END FOR<br>&#9;<br>&#9;F = get_F(G, entry, supplies, exits, prevs)<br><br>&#9;path_matrix <- get_path_matrix(F, entry, exits, uncollected_supplies)<br>&#9;<br>&#9;path_cost_matrix <- get_path_cost_matrix(F, path_matrix)<br>&#9;<br>&#9;H_path <- brute_force(entry, supplies, exits, path_cost_matrix, num_of_supplies_to_collect)<br>&#9;<br>&#9;F_path <- get_F_path_from_H_path(H_path, path_matrix)<br>&#9;<br>&#9;G_path <- get_G_path_from_F_path(G, F_path, prevs)<br>&#9;<br>&#9;new_supply_storage <- get_new_supply_storage(supply_storage, vertex_to_supply_id, num_of_supplies_to_collect, H_path)<br>&#9;RETURN G_path, supply_storage<br>END FUNCTION</div>
+    ## 4.2 Python Implementation
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.ui.code_editor(r"""import heapq
+    from collections import defaultdict
+    from itertools import chain
+    from typing import Generator, Iterable
+
+    import networkx as nx
+    import numpy as np
+
+
+    class VertexT:
+        pass
+
+
+    WingT = nx.Graph
+
+    SupplyID = int
+
+    SupplyStorage = tuple[SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None]
+
+
+    def bfs(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
+        dist = {s: float('infinity') for s in g}
+
+        dist[source] = 0
+
+        visited = set()
+
+        prev: dict[VertexT, VertexT | None] = dict({source: None})
+        stack: list[VertexT] = [source]
+        while len(stack) > 0:
+            u = stack.pop()
+
+            if u in visited:
+                continue
+
+            visited.add(u)
+
+            for v in g.neighbors(u):
+                w = g.get_edge_data(u, v)["weight"]
+                if dist[u] + w < dist[v]:
+                    prev[v] = u
+                    dist[v] = dist[u] + w
+                    stack.append(v)
+
+        return prev
+
+
+    def get_pair_shortest_path(source: VertexT, sink: VertexT, prev: dict[VertexT, VertexT | None]) -> list[VertexT]:
+        left_path = [source]
+        right_path = [sink]
+        left = source
+        right = sink
+        while True:
+            if prev[left] is not None:
+                left = prev[left]
+                left_path.append(left)
+            if prev[right] is not None:
+                right = prev[right]
+                right_path.append(right)
+
+            if right in left_path:
+                right_index = left_path.index(right)
+                return left_path[:right_index] + list(reversed(right_path))
+
+            if left in right_path:
+                left_index = right_path.index(left)
+                return left_path + list(reversed(right_path[:left_index]))
+
+
+    def get_supplies_to_collect(
+        supplies: set[VertexT], vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID],
+        supply_storage: SupplyStorage
+    ) -> set[VertexT]:
+        return supplies.difference(
+            (s for s in supplies if vertex_to_supply_id[s] in found_supply_ids or vertex_to_supply_id[s] in supply_storage)
+        )
+
+
+    def get_which_wing(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], vertex: VertexT) -> WingT:
+        for g in G[0]:
+            if vertex in g.nodes:
+                return g
+        raise ValueError(f"vertex {vertex} is not in any graph in G")
+
+
+    def get_vertices_in_wing(wing: WingT, vertices: Iterable[VertexT]) -> Generator[VertexT]:
+        return (v for v in vertices if v in wing.nodes)
+
+
+    def get_junctions_in_wing(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], wing: WingT) -> Generator[VertexT]:
+        return get_vertices_in_wing(wing, chain(*G[1]))
+
+
+    def get_junction_other(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], junction: VertexT) -> VertexT:
+        edge = tuple(next(filter(lambda e: junction in e, G[1])))
+        if edge[0] == junction:
+            return edge[1]
+        else:
+            return edge[0]
+
+
+    def reconstruct_path(came_from: dict[VertexT, VertexT | None], e: VertexT) -> list[VertexT]:
+        res = []
+        curr = e
+        while curr in came_from:
+            res.append(curr)
+            curr = came_from[curr]
+        res.reverse()
+        return res
+
+
+    def dijkstra(g: nx.Graph, source: VertexT, sinks: set[VertexT]) -> dict[VertexT, list[VertexT]]:
+        res = {}
+        dist = {s: float('infinity') for s in g}
+
+        dist[source] = 0
+
+        # visited set replaced update(PQ, v)
+        visited = set()
+
+        prev: dict[VertexT, VertexT | None] = {source: None}
+        pq = [(0., source)]
+        heapq.heapify(pq)
+        while len(pq) > 0:
+            _, u = heapq.heappop(pq)
+
+            # required for the python heapq that doesn't allow changing priority
+            if u in visited:
+                continue
+            visited.add(u)
+
+            if u in sinks:
+                res[u] = reconstruct_path(prev, u)
+                if len(res) == len(sinks):
+                    return res
+
+            for v in g.neighbors(u):
+                w = g.get_edge_data(u, v)["weight"]
+                if dist[u] + w < dist[v]:
+                    prev[v] = u
+                    dist[v] = dist[u] + w
+                    heapq.heappush(pq, (dist[v], v))
+
+        return res
+
+
+    def get_apsp(g: nx.Graph, entry: VertexT, exits: set[VertexT], supplies: set[VertexT]) -> dict[VertexT, dict[VertexT, list[VertexT]]]:
+        res: dict[VertexT, dict[VertexT, list[VertexT]]] = defaultdict(dict)
+        for source in supplies.union((entry,)):
+            res[source] = dijkstra(g, source, supplies.union(exits))
+
+        return res
+
+
+    def get_path_length(g: nx.Graph, path: list[VertexT]) -> int:
+        return sum(g.get_edge_data(path[i], path[i + 1])["weight"] for i in range(len(path) - 1))
+
+
+    def get_apsp_dist(g: nx.Graph, pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> dict[VertexT, dict[VertexT, int]]:
+        res: dict[VertexT, dict[VertexT, int]] = defaultdict(dict)
+        for source, sink_dict in pair_path_map.items():
+            for sink, path in sink_dict.items():
+                res[source][sink] = get_path_length(g, path)
+
+        return res
+
+
+    def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
+        min_cost = float('infinity')
+        min_cost_walk = None
+
+        if fuel == 0:
+            for sink in exits:
+                cost = dist_matrix[source][sink]
+                if cost < min_cost:
+                    min_cost_walk = [sink]
+                    min_cost = cost
+        else:
+            for sink in sinks:
+                min_walk_through, cost = brute_force_recursive(sink, sinks.difference({sink}), exits, dist_matrix, fuel - 1)
+                cost += dist_matrix[source][sink]
+                if cost < min_cost:
+                    min_cost = cost
+                    min_cost_walk = [sink] + min_walk_through
+
+        return min_cost_walk, min_cost
+
+
+    def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
+        return [entry] + brute_force_recursive(entry, supplies, exits, dist_matrix, max_supplies)[0]
+
+        def get_path_from_super_path(super_path: list[VertexT], apsp_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> list[VertexT]:
+        res = []
+        for i in range(len(super_path) - 1):
+            pair_path = apsp_map[super_path[i]][super_path[i + 1]]
+            res += pair_path
+            if i != len(super_path) - 2:
+                res.pop()
+
+        return res
+
+
+    def get_path_from_super_path_bfs(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], super_path: list[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> list[VertexT]:
+        res = []
+        for i in range(len(super_path) - 1):
+            u, v = super_path[i], super_path[i + 1]
+            u_wing, v_wing = get_which_wing(G, u), get_which_wing(G, v)
+            if u_wing == v_wing:
+                pair_path = get_pair_shortest_path(u, v, prevs[u_wing])
+                res += pair_path
+                res.pop()
+            else:
+                res.append(u)
+        res.append(super_path[-1])
+        return res
+
+
+    def get_salient_graph(G, entry, supplies, exits, prevs):
+        res = nx.Graph()
+        res.add_node(entry)
+
+        res.add_nodes_from(supplies)
+
+        res.add_nodes_from(exits)
+
+        for u, v in G[1]:
+            res.add_node(u)
+            res.add_node(v)
+            res.add_edge(u, v, weight=1)
+
+        for wing in G[0]:
+            salient_in_wing = list(get_vertices_in_wing(wing, (entry,))) + list(get_vertices_in_wing(wing, exits)) + list(get_vertices_in_wing(wing, supplies)) + list(get_vertices_in_wing(wing, [u for u, _ in G[1]] + [v for _, v in G[1]]))
+            for i in range(len(salient_in_wing)):
+                for j in range(i + 1, len(salient_in_wing)):
+                    u, v = salient_in_wing[i], salient_in_wing[j]
+                    path = get_pair_shortest_path(u, v, prevs[wing])
+                    res.add_edge(u, v, weight=get_path_length(wing, path))
+
+        return res
+
+        def ember_rescue(
+        G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
+        entry: VertexT,
+        exits: set[VertexT],
+        supplies: set[VertexT],
+        supply_storage: SupplyStorage,
+        vertex_to_supply_id: dict[VertexT, SupplyID],
+        found_supply_ids: set[SupplyID]
+    ) -> tuple[list[VertexT], SupplyStorage]:
+        res: list[VertexT]
+
+        supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
+
+        number_of_supplies_to_collect = min(len(supplies), len([None for i in supply_storage if i is None]))
+
+        prevs: dict[WingT, dict[VertexT, VertexT | None]] = {wing: bfs(wing, list(wing.nodes)[0]) for wing in G[0]}
+
+        salient_graph = get_salient_graph(G, entry, supplies, exits, prevs)
+
+        apsp_map = get_apsp(salient_graph, entry, exits, supplies)
+        apsp_dist_map = get_apsp_dist(salient_graph, apsp_map)
+
+        super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
+
+        res = get_path_from_super_path(super_path, apsp_map)
+        res = get_path_from_super_path_bfs(G, res, prevs)
+
+        j: int = 0
+        collected_supplies = [v for v in res if v in supplies]
+        supply_storage = list(supply_storage)
+        for i in range(len(supply_storage)):
+            if j >= number_of_supplies_to_collect:
+                break
+            if supply_storage[i] is None:
+                supply_storage[i] = vertex_to_supply_id[collected_supplies[j]]
+                j += 1
+
+        supply_storage = tuple(supply_storage)
+
+        return res, supply_storage""", disabled=True)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 4.3 Other Stage 2 Implementations
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 4.3.1 Branch & Bound
+    This implementation of Branch & Bound is not fully optimised, but would still be slower than Brute force even if it was. Ideally it should find lower bounds with an MST constructed by Borůvka's algorithm or derivatives of it that run in linear time average case, but since it was implemented to test viability of different algorithms, Kruskal's algorithm was used instead.
     """)
     return
 
 
 @app.cell
-def _():
-    """python code"""
+def _(mo):
+    mo.ui.code_editor(r"""class UnionFind:
+        def __init__(self, entries):
+            # Initialize the parent array with each
+            # element as its own representative
+            self.parent = {e: e for e in entries}
+
+        def find(self, i):
+            # If i itself is root or representative
+            if self.parent[i] == i:
+                return i
+
+            # Else recursively find the representative
+            # of the parent
+            return self.find(self.parent[i])
+
+        def unite(self, i, j):
+            # Representative of set containing i
+            irep = self.find(i)
+
+            # Representative of set containing j
+            jrep = self.find(j)
+
+            # Make the representative of i's set
+            # be the representative of j's set
+            self.parent[irep] = jrep
+
+    def branch_and_bound(source: VertexT, sinks: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
+        def get_lower_bound(partial_sol: list[VertexT], sol_length: int) -> int:
+            min_sol_length = float('infinity')
+
+            if len(exits.intersection(partial_sol)) > 0:
+                ex = list(exits.intersection(partial_sol))[0]
+
+                curr_sol_length = 0
+                edges = [(dist_matrix[u][v], u, v) for u in dist_matrix for v in dist_matrix[u] if
+                         dist_matrix[u][v] != 0 and (v not in exits or v == ex)]
+                verts = [u for u in dist_matrix] + [v for v in dist_matrix[list(dist_matrix.keys())[0]] if
+                                                    v not in dist_matrix and (v not in exits or v == ex)]
+                cc: UnionFind = UnionFind(verts)
+                for i in range(len(partial_sol) - 1):
+                    cc.unite(partial_sol[i], partial_sol[i + 1])
+                united = len(partial_sol)
+                edges.sort()
+                for w, u, v in edges:
+                    if cc.find(u) != cc.find(v):
+                        curr_sol_length += w
+                        cc.unite(u, v)
+                        united += 1
+                    if united > fuel:
+                        break
+
+                min_sol_length = min(curr_sol_length, min_sol_length)
+            else:
+                for ex in exits:
+                    curr_sol_length = 0
+                    edges = [(dist_matrix[u][v], u, v) for u in dist_matrix for v in dist_matrix[u] if
+                             dist_matrix[u][v] != 0 and (v not in exits or v == ex)]
+                    verts = [u for u in dist_matrix] + [v for v in dist_matrix[list(dist_matrix.keys())[0]] if
+                                                        v not in dist_matrix and (v not in exits or v == ex)]
+                    cc: UnionFind = UnionFind(verts)
+                    for i in range(len(partial_sol) - 1):
+                        cc.unite(partial_sol[i], partial_sol[i + 1])
+                    edges.sort()
+                    for w, u, v in edges:
+                        if cc.find(u) != cc.find(v):
+                            curr_sol_length += w
+                            cc.unite(u, v)
+
+                    min_sol_length = min(curr_sol_length, min_sol_length)
+            return sol_length + min_sol_length
+
+        def get_upper_bound(partial_sol: list[VertexT], sol_length: int) -> int:
+            _entry = partial_sol[-1]
+            _supplies = sinks.difference(curr)
+            _ub, _ub_cost = nearest_neighbour(_entry, _supplies, exits, dist_matrix, fuel - len(partial_sol) + 1)
+            _supplies = {s for s in _supplies if s in _ub}
+            _exits = {x for x in exits if x in _ub}
+            _dist_matrix = {k0: {k1: v1 for k1, v1 in v0.items() if k1 in _ub} for k0, v0 in dist_matrix.items() if
+                            k0 in _ub}
+            _, _ub_cost = _lin_kernighan(_entry, _supplies, _exits, _dist_matrix, (_ub, _ub_cost))
+            return sol_length + _ub_cost
+
+        tree = [(0, [source])]
+        best_found, ub = nearest_neighbour(source, sinks, exits, dist_matrix, fuel)
+
+        while len(tree) > 0:
+            length, curr = tree.pop()
+
+            if len(curr) == fuel + 1:
+                min_cost, min_exit = min([(dist_matrix[curr[-1]][exit_v], exit_v) for exit_v in exits])
+                length += min_cost
+                if length <= ub:
+                    best_found = curr + [min_exit]
+                    ub = length
+                continue
+
+            curr_lb = get_lower_bound(curr, length)
+            curr_ub = get_upper_bound(curr, length)
+            if curr_lb > ub:
+                continue
+
+            if curr_ub < ub:
+                ub = curr_ub
+
+            for sink in sinks.difference(curr):
+                tree.append((length + dist_matrix[curr[-1]][sink], curr + [sink]))
+
+        return best_found""", disabled=True)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 4.3.2 Lin-Kernighan
+    The Lin-Kernighan heuristic is a heuristic that, given a tour of a graph, finds a local minimum of that tour's neighbourhood. This algorithm was adapted to this problem (from the TSP). Ideally, it should use, for its initial path, a path given by an algorithm that uses properties of the Borůvka algorithm
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.ui.code_editor(r"""def lin_kernighan(source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
+        ub, ub_cost = nearest_neighbour(source, supplies, exits, dist_matrix, fuel)
+        supplies = {s for s in supplies if s in ub}
+        exits = {x for x in exits if x in ub}
+        dist_matrix = {k0: {k1: v1 for k1, v1 in v0.items() if k1 in ub} for k0, v0 in dist_matrix.items() if k0 in ub}
+        return _lin_kernighan(source, supplies, exits, dist_matrix, (ub, ub_cost))[0]
+
+
+    def _lin_kernighan(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], ub: tuple[list[VertexT], int]) -> tuple[list[VertexT], int]:
+        BACKTRACK_DEPTH = 5
+        INFEASIBLE_DEPTH = 2
+
+        def reconstruct_walk_set(edges: set[tuple[VertexT, VertexT]]) -> list[VertexT]:
+            edges = edges.copy()
+            curr_edge = next(filter(lambda x: x[0] == entry, edges))
+            res: list[VertexT] = [entry]
+
+            while len(edges) > 1:
+                prev = next(filter(lambda x: x != res[-1], curr_edge))
+                res.append(prev)
+                edges.remove(curr_edge)
+                curr_edge = next(filter(lambda x: x[0] == prev or x[1] == prev, edges))
+            res.append(next(filter(lambda x: x != prev, curr_edge)))
+
+            return res
+
+        def symmetric_difference(set0: set, set1: set) -> set:
+            return set0.union(set1).difference(set0.intersection(set1))
+
+        def has_alternating(edges0: set[tuple[VertexT, VertexT]], edges1: set[tuple[VertexT, VertexT]]) -> bool:
+            edges = symmetric_difference(edges0, edges1)
+            try:
+                counter = defaultdict(float)
+                for u, v in edges:
+                    counter[u] += 1
+                    counter[v] += 1
+
+                for v in supplies:
+                    if counter[v] != 2:
+                        return False
+
+                if sum(counter[v] for v in exits) != 1:
+                    return False
+
+                if counter[entry] != 1:
+                    return False
+
+                curr_edge = next(filter(lambda x: x[0] == entry, edges))
+                res: list[VertexT] = [entry]
+
+                while len(edges) > 1:
+                    prev = next(filter(lambda x: x != res[-1], curr_edge))
+                    res.append(prev)
+                    edges.remove(curr_edge)
+                    curr_edge = next(filter(lambda x: x[0] == prev or x[1] == prev, edges))
+
+                if next(filter(lambda x: x != prev, list(edges)[0])) not in exits:
+                    return False
+
+                return True
+            except:
+                return False
+
+        def get_swap(v0, v1):
+            if v1 == entry:
+                return v1, v0
+            if v0 in exits:
+                return v1, v0
+            return v0, v1
+
+        for u in supplies:
+            dist_matrix[u].pop(u)
+
+        stack: list[tuple[VertexT, int, int]] = [(u, 0, 0) for u in dist_matrix]
+
+        best_walk = {(ub[0][i], ub[0][i + 1]) for i in range(len(ub[0]) - 1)}
+        best_swaps: set = set()
+        best_gain: int = 1
+        savings: int = -best_gain
+
+        while best_gain != 0:
+            savings += best_gain
+            best_gain = 0
+            curr: list[VertexT | None] = [None] * 2 * (len(supplies) + 1 + len(exits))
+            while len(stack) > 0:
+                u, i, g = stack.pop()
+                curr[i] = u
+                curr_swaps = {get_swap(curr[j], curr[j + 1]) for j in range(i)}
+                if i % 2 == 0:
+                    if g > 0 and g > best_gain and has_alternating(best_walk, curr_swaps):
+                        best_swaps = curr_swaps
+                        best_gain = g
+                    early_ret: int = 2
+                    if u in exits:
+                        for v in dist_matrix[entry]:
+                            if v not in exits:
+                                if (v, u) in set(best_walk).difference(curr_swaps):
+                                    if i <= INFEASIBLE_DEPTH or ((v, u) not in best_walk.union(curr_swaps) and has_alternating(best_walk, curr_swaps)):
+                                        stack.append((v, i + 1, g + dist_matrix[v][u]))
+                                        early_ret -= 1
+                                        if early_ret == 0:
+                                            break
+                    else:
+                        for v in dist_matrix[u]:
+                            if (u, v) in set(best_walk).difference(curr_swaps):
+                                if i <= INFEASIBLE_DEPTH or ((u, v) not in best_walk.union(curr_swaps) and has_alternating(best_walk, curr_swaps)):
+                                    stack.append((v, i + 1, g + dist_matrix[u][v]))
+                                    early_ret -= 1
+                                    if early_ret == 0:
+                                        break
+
+                        if u != entry:
+                            if (entry, u) in set(best_walk).difference(curr_swaps):
+                                if i <= INFEASIBLE_DEPTH or ((entry, u) not in best_walk.union(curr_swaps) and has_alternating(best_walk, curr_swaps)):
+                                    stack.append((entry, i + 1, g + dist_matrix[entry][u]))
+                else:
+                    if u in exits:
+                        for v in dist_matrix[entry]:
+                            if v not in exits:
+                                if g > dist_matrix[v][u] and (v, u) not in best_walk.union(curr_swaps):
+                                    stack.append((v, i + 1, g - dist_matrix[v][u]))
+                    else:
+                        for v in dist_matrix[u]:
+                            if g > dist_matrix[u][v] and (u, v) not in best_walk.union(curr_swaps):
+                                stack.append((v, i + 1, g - dist_matrix[u][v]))
+
+                        if u != entry:
+                            if g > dist_matrix[entry][u] and (entry, u) not in best_walk.union(curr_swaps):
+                                stack.append((entry, i + 1, g - dist_matrix[entry][u]))
+
+                if len(stack) > 0:
+                    u, j, g = stack[-1]
+                    if i <= j:
+                        if best_gain > 0:
+                            best_walk = symmetric_difference(best_walk, best_swaps)
+                        elif i > BACKTRACK_DEPTH:
+                            while j > BACKTRACK_DEPTH:
+                                _, j, _ = stack.pop()
+
+        return reconstruct_walk_set(best_walk), ub[1] - savings""", disabled=True)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 4.3.3 Nearest Neighbour
+    Nearest neighbour is a simple greedy algorithm, which due to the physical representation of this problem being _almost_ a tree, performs quite well on this problem.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.ui.code_editor(r"""def nearest_neighbour(source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
+        sinks = supplies.copy()
+        res: list[VertexT] = [source]
+        cost: int = 0
+        curr = source
+        while fuel >= 1:
+            min_found = list(sinks)[0]
+            min_cost = dist_matrix[curr][min_found]
+            for sink in sinks:
+                curr_cost = dist_matrix[curr][sink]
+                if curr_cost < min_cost:
+                    min_found = sink
+                    min_cost = curr_cost
+
+            sinks.remove(min_found)
+            res.append(min_found)
+            curr = min_found
+            cost += min_cost
+            fuel -= 1
+
+        min_found = list(exits)[0]
+        min_cost = dist_matrix[curr][min_found]
+        for sink in exits:
+            curr_cost = dist_matrix[curr][sink]
+            if curr_cost < min_cost:
+                min_found = sink
+                min_cost = curr_cost
+
+        res.append(min_found)
+        cost += min_cost
+        return res, cost""", disabled=True)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 4.3.4 Simplex
+    I was testing the runtime, and simplex was slower than Branch & Bound on all tested problem instances, which meant that Branch & Cut, the algorithm I was planning to use for this ammendment, would be slower than a easier to implement approach. This algorithm is not correct or complete, but for larger $n$, is part of the Branch & Cut algorithm which is considered the best exact TSP algorithm. With this problem being similar to TSP, that algorithm would perform well given many 'cuts'. Cuts are linear programs that if solved, reduce the possible solution space. The only necessary cut is the cycle elimination cut, which procedurally adds cycle elimination constraints to the linear program when a cycle is present in the solution returned by the simplex algorithm.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.ui.code_editor("""def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray | None:
+        # Turns min  cTx:
+        #      s.t. Ax = b;
+        #           x >= 0
+        # Into min  eTz:
+        #      s.t. Ax + Iz = b;
+        #           x >= 0;
+        #           z >= 0
+
+        e = np.array([[0]] * c.shape[0] + [[1]] * A.shape[0])
+        dummy_A = np.block([[A, np.identity(A.shape[0])]])
+        artificial_indices = [i for i in range(A.shape[1], A.shape[1] + A.shape[0])]
+        dummy_basis = np.array(artificial_indices)
+        dummy_initial = np.array([np.hstack(([0] * A.shape[1], b.transpose()[0]))]).transpose()
+
+        dummy, basis = _simplex(dummy_A, b, e, dummy_basis, dummy_initial, np.linalg.inv(dummy_A[:, dummy_basis]), artificial_indices)
+
+        non_artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] != 1]]
+
+        # we know the problem is solvable, so we're ignoring a case
+        # artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] == 1]].ravel()
+
+        if basis.max() >= A.shape[1]:
+            # bad case
+            # hope and pray no cycling <3
+            for pivrow in range(basis.size):
+                if basis[pivrow] > A.shape[1]:
+                    non_zero_row = [col for col in range(A.shape[1]) if abs(A[pivrow, col]) > 0 and col not in basis]
+                    if len(non_zero_row) > 0:
+                        pivcol = non_zero_row[0]
+                        basis[pivrow] = pivcol
+                        pivval = A[pivrow, pivcol]
+                        A[pivrow] = A[pivrow] / pivval
+                        for irow in range(A.shape[0]):
+                            if irow != pivrow:
+                                A[irow] = A[irow] - A[pivrow] * A[irow, pivcol]
+
+            return _simplex(A, b, c, basis, dummy, np.linalg.inv(A[:, basis]))[0]
+        else:
+            # good case
+            return _simplex(A, b, c, basis, non_artificial_vars, np.linalg.inv(A[:, basis]))[0]
+
+
+    def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basis: np.ndarray, initial: np.ndarray, inv_a_basis: np.ndarray, artificial_rows=None) -> tuple[np.ndarray | None, np.ndarray | None]:
+
+        # Solves min cTx: Ax = b, x >= 0
+
+        # https://www.matem.unam.mx/~omar/math340/revised-simplex.html
+        # https://people.math.carleton.ca/~kcheung/math/notes/MATH5801/05/5_1_simplex.html
+        # https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html
+        non_basis = np.array([i for i in range(c.size) if i not in basis])
+        a_non_basis = A[:, non_basis]
+        select_k = c[non_basis].transpose() - c[basis].transpose() @ inv_a_basis @ a_non_basis
+        k: int = -1
+        max_found: int = 0
+        for i in range(select_k.size):
+            if select_k[0][i] < max_found:
+                k = i
+                max_found = select_k[0][i]
+
+        if k == -1:
+            # optimal solution found
+            return initial, basis
+        else:
+            k = non_basis[k]
+
+        d = inv_a_basis @ A[:, k]
+
+        initial_basis = initial[basis]
+
+        min_idx = -1
+        min_found = float('infinity')
+        for i in range(len(initial_basis)):
+            if d[i] > 0:
+                if initial_basis[i][0] / d[i] < min_found:
+                    min_found = initial_basis[i][0] / d[i]
+                    min_idx = i
+
+        if min_idx == -1:
+            raise IndexError("not possible")
+
+        t = initial_basis[min_idx][0] / d[min_idx]
+
+        next_x = initial.copy()
+        next_x[k] = t
+
+        for i in range(len(basis)):
+            next_x[int(basis[i])][0] -= t * d[i]
+
+        inv_E = np.identity(inv_a_basis.shape[1])
+        pivot = d[min_idx]
+
+        inv_E[:, min_idx] = -d / pivot
+        inv_E[min_idx, min_idx] = 1. / pivot
+        next_inv_a_basis = inv_E @ inv_a_basis
+
+        next_basis = basis.copy()
+        next_basis[min_idx] = k
+
+        return _simplex(A, b, c, next_basis, next_x, next_inv_a_basis, artificial_rows)
+
+
+    # lower bound by solving dual
+    def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]]) -> int:
+        # Dual problem started:
+        # A = np.array([[1 if i == u or i == v else 0 for i in [entry] + list(supplies) + [exits] + list(supplies)] for u in supplies.union([entry]) for v in supplies.union(exits)])
+        # b = np.array([[pair_path_costs[u][v]] for u in supplies.union([entry]) for v in supplies.union(exits)])
+        # c = np.ones((1 + len(exits) + 2 * len(supplies), 1))
+        #
+        # initial = [i for u in supplies.union([entry]) for v in supplies.union(exits)])
+
+        A = np.array(
+            [[1 if i == u else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v] for i in [entry] + list(supplies)] + \
+            [[1 if i == v else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v] for i in list(supplies)]
+        )
+
+        # I think exit constraint is linearly dependent (n-dash) it is redundant:
+        # [[1 if v in exits else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v]]
+
+        b = np.ones((2 * len(supplies) + 1, 1))
+        c = np.array([[dist_matrix[u][v]] for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v])
+
+        answer = simplex(A, b, c)
+
+        res: int = 0
+        mapping = [(u, v) for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v]
+        for i, a in enumerate(answer):
+            if a[0] > 0:
+                edge = mapping[i]
+                res += dist_matrix[edge[0]][edge[1]] * a[0]
+
+        return res""", disabled=True)
     return
 
 
@@ -1008,7 +1890,8 @@ def _(mo):
     - Each wing being a tree graph allows for a more efficient algorithm used in stage 1.
     - The facility having at most 4 wings, and each wing being a 12x12 grid of sectors guides our choice of a nieve algorithm: brute force for stage 2, as well as the approach of abstracting the graph into a path cost matrix.
     - 5 supplies in the facility allows brute force and branch and bound for stage 2. Without significant optimisations, these exact approaches would not be possible if the supplies grows above 7 or 8.
-    - Each wing is connected, allows only 1 depth first search to be run on each wing. Without this assumption, we would need to run it starting from each supply, entry, exit and junction in each wing, drastically reducing the time and space efficiency of the algorithm which would also need to store each `prev` Map
+    - Each wing is connected, allows only 1 depth first search to be run on each wing. Without this assumption, we would need to run it starting from each supply, entry, exit and junction in each wing, drastically reducing the time and space efficiency of the algorithm which would also need to store each `prev` Map.
+    - Each sector is connected to its adjacent sectors bi-directionally, which may if the previous assumption is not satisfied disallow collection of some supplies that are reachable but cannot be walked through and then to an exit.
     """)
     return
 
@@ -1028,7 +1911,18 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 5.3 Fit for Purpose
-    - Talk about the making the algorithm without assuming the size of the facility is just what we have right now
+    The algorithm considers each operational constraint:
+    - Load capacity: $A$ holds the supplies that CRUDY-1 currently holds
+    - Extraction: The algorithm always terminates at an exit
+    - Energy budget: The algorithm always finds a minimum cost walk through the facility that collects all supplies and exits at an exit
+    - Revisiting sectors: Is allowed and is used to find the shortest path
+    - Supply collection: $\text{get\_unfound\_supplies}: \text{Set}[\text{Vertex}] \times \{\text{Vertex} \to \text{String or NULL}\} \times Set[String] \to \text{Set}[\text{Vertex}]$ makes sure CRUDY-1 ignores already collected supplies
+    - Objective: All supplies will be collected and there are no energy constraints
+    - Mission Directive:
+      - The algorithm does not priorities structural stability, as we have not information about how CRUDY-1 has any affect on the stability of sectors of the facility
+      - The algorithm will always have a successful extraction if one exists.
+
+    The algorithm is robust to different numbers and sizes of wings, and differing numbers of junction sectors, however would fail to run if there are too many supplies. In the case that a new report notices increased numbers of supplies and adjusts CRUDY-1's supply storage to collect more supplies, brute force will be unusable and branch & bound will need to be further optimised, replaced with branch and cut, or may be not possible, in which case a heuristic approach will be used instead.
     """)
     return
 

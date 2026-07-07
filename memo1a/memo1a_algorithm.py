@@ -1,18 +1,22 @@
 import heapq
+from collections import defaultdict
 from itertools import chain
 from typing import Generator, Iterable
 
 import networkx as nx
 import numpy as np
 
+
 class VertexT:
     pass
+
 
 WingT = nx.Graph
 
 SupplyID = int
 
 SupplyStorage = tuple[SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None]
+
 
 def bfs(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
     dist = {s: float('infinity') for s in g}
@@ -370,9 +374,7 @@ def branch_and_bound(source: VertexT, sinks: set[VertexT], exits: set[VertexT], 
     def get_lower_bound(partial_sol: list[VertexT], sol_length: int) -> int:
         min_sol_length = float('infinity')
 
-        if len(exits.intersection(partial_sol)) > 0:
-            ex = list(exits.intersection(partial_sol))[0]
-
+        for ex in exits:
             curr_sol_length = 0
             edges = [(dist_matrix[u][v], u, v) for u in dist_matrix for v in dist_matrix[u] if
                      dist_matrix[u][v] != 0 and (v not in exits or v == ex)]
@@ -382,29 +384,23 @@ def branch_and_bound(source: VertexT, sinks: set[VertexT], exits: set[VertexT], 
             for i in range(len(partial_sol) - 1):
                 cc.unite(partial_sol[i], partial_sol[i + 1])
             edges.sort()
-            for w, u, v in edges:
-                if cc.find(u) != cc.find(v):
-                    curr_sol_length += w
-                    cc.unite(u, v)
 
-            min_sol_length = min(curr_sol_length, min_sol_length)
-        else:
-            for ex in exits:
-                curr_sol_length = 0
-                edges = [(dist_matrix[u][v], u, v) for u in dist_matrix for v in dist_matrix[u] if
-                         dist_matrix[u][v] != 0 and (v not in exits or v == ex)]
-                verts = [u for u in dist_matrix] + [v for v in dist_matrix[list(dist_matrix.keys())[0]] if
-                                                    v not in dist_matrix and (v not in exits or v == ex)]
-                cc: UnionFind = UnionFind(verts)
-                for i in range(len(partial_sol) - 1):
-                    cc.unite(partial_sol[i], partial_sol[i + 1])
-                edges.sort()
-                for w, u, v in edges:
+            united = len(partial_sol) - 1
+            max_i = 0
+            if united < fuel:
+                for i, (w, u, v) in enumerate(edges):
+                    max_i = i
                     if cc.find(u) != cc.find(v):
                         curr_sol_length += w
                         cc.unite(u, v)
+                        united += 1
+                        if united == fuel:
+                            break
+            for w, u, v in edges[max_i:]:
+                if (u == ex or v == ex) and cc.find(u) != cc.find(v):
+                    curr_sol_length += w
 
-                min_sol_length = min(curr_sol_length, min_sol_length)
+            min_sol_length = min(curr_sol_length, min_sol_length)
         return sol_length + min_sol_length
 
     def get_upper_bound(partial_sol: list[VertexT], sol_length: int) -> int:
@@ -655,6 +651,26 @@ def get_salient_graph(G, entry, supplies, exits, prevs):
 
     return res
 
+
+def stage_1(G, entry, supplies, exits, supply_storage, vertex_to_supply_id, found_supply_ids):
+    """Get supplies that could be collected in the graph"""
+    supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
+
+    """Get number of supplies to find"""
+    number_of_supplies_to_collect = min(len(supplies), len([None for i in supply_storage if i is None]))
+
+    """Get entry/junction -> exit/junction pair paths"""
+    prevs: dict[WingT, dict[VertexT, VertexT | None]] = {wing: bfs(wing, list(wing.nodes)[0]) for wing in G[0]}
+
+    salient_graph = get_salient_graph(G, entry, supplies, exits, prevs)
+
+    """supplies apsp"""
+    apsp_map = get_apsp(salient_graph, entry, exits, supplies)
+    apsp_dist_map = get_apsp_dist(salient_graph, apsp_map)
+
+    return apsp_map, apsp_dist_map, prevs, supplies, number_of_supplies_to_collect
+
+
 def ember_rescue(
     G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
     entry: VertexT,
@@ -670,7 +686,7 @@ def ember_rescue(
     supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
 
     """Get number of supplies to find"""
-    number_of_supplies_to_collect = max(len(supplies), len([i for i in supply_storage if i is not None]))
+    number_of_supplies_to_collect = min(len(supplies), len([None for i in supply_storage if i is None]))
 
     """Get entry/junction -> exit/junction pair paths"""
     prevs: dict[WingT, dict[VertexT, VertexT | None]] = {wing: bfs(wing, list(wing.nodes)[0]) for wing in G[0]}

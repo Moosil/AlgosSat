@@ -4,6 +4,7 @@ import csv
 import math
 import pstats
 import random
+import sys
 import tracemalloc
 from itertools import chain
 from pstats import SortKey
@@ -11,7 +12,6 @@ from pstats import SortKey
 import networkx as nx
 from tqdm import trange
 
-import sys
 sys.path.append('../AlgosSat')
 from memo1 import memo1_algorithm
 import memo1a_algorithm
@@ -212,17 +212,17 @@ def test_stage_2():
 
         exits = [{facility_drawer[i].exit_a, facility_drawer[i].exit_b} for i in range(trials)]
         supplies = [set(facility_drawer[i].supplies) for i in range(trials)]
-        storage = tuple([None] * 5)
+        storage = tuple([None] * len(supplies))
         supply_map = [{i: hash(i) for i in facility_drawer[i].supplies} for i in range(trials)]
 
-        stage_1_res = [memo1a_algorithm.stage_1(abs_graph[i], facility_drawer[i].entry, exits[i], supplies[i], storage, supply_map[i], set()) for i in range(trials)]
-        return facility_drawer, [f.entry for f in facility_drawer], supplies, exits, stage_1_res
+        stage_1_res = [memo1a_algorithm.stage_1(abs_graph[i], facility_drawer[i].entry, supplies[i], exits[i], storage, supply_map[i], set()) for i in range(trials)]
+        return abs_graph, facility_drawer, [f.entry for f in facility_drawer], supplies, exits, stage_1_res
 
     def get_runtime_trials_with_n(p_data, trials, technique) -> tuple[float, float]:
         if trials < 1:
             return 0, 0
 
-        facility_drawer, entry, supplies, exits, stage_1_res = p_data
+        abs_graph, facility_drawer, entry, supplies, exits, stage_1_res = p_data
         """source: https://docs.python.org/3/library/profile.html"""
 
         pathlen = []
@@ -231,38 +231,39 @@ def test_stage_2():
         from pstats import SortKey
         pr = cProfile.Profile()
         pr.enable()
-        for j in range(trials):
-            pathlen.append(technique(entry[j], supplies[j], exits[j], stage_1_res[j][1], stage_1_res[j][3]))
+        for i in range(trials):
+            pathlen.append(technique(entry[i], supplies[i], exits[i], stage_1_res[i][1], stage_1_res[i][4]))
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
 
-        pathlen = [len(facility_drawer[j].get_path_from_super_path(memo1a_algorithm.get_path_from_super_path(pathlen[j], stage_1_res[j][0]))) for j in range(trials)]
+        pathlen = [len(facility_drawer[i].get_path_from_super_path(memo1a_algorithm.get_path_from_super_path_bfs(abs_graph[i], memo1a_algorithm.get_path_from_super_path(pathlen[i], stage_1_res[i][0]), stage_1_res[i][2]))) for i in range(trials)]
         pathlen = sum(pathlen) / len(pathlen)
 
         return [v for k, v in ps.stats.items() if technique.__name__ in k[2]][0][3] / trials * 1000, pathlen
 
-
     res: list[dict] = []
 
-    TRIALS = 5
-    for n in trange(2, 120, desc="Heuristic Algorithms"):
+    TRIALS = 10
+    for n in trange(2, 100, desc="Heuristic Algorithms"):
         data = pregen(n, TRIALS)
         nn_time, nn_len = get_runtime_trials_with_n(data, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0])
         lk_time, lk_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.lin_kernighan)
-        res.append({"nearest neighbour time": nn_time,
-                   "nearest neighbour length": nn_len,
-                   "lin-kernighan time": lk_time,
-                   "lin-kernighan length": lk_len})
+        res.append(
+            {
+                "nearest neighbour time": nn_time,
+                "nearest neighbour length": nn_len,
+                "lin-kernighan time": lk_time,
+                "lin-kernighan length": lk_len
+            }
+        )
 
-    TRIALS = 1
-    for n in trange(2, 12, desc="Brute force"):
+    for n in trange(2, 11, desc="Brute force"):
         data = pregen(n, TRIALS)
         bf_time, bf_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.brute_force)
         res[n - 2]["brute force time"] = bf_time
         res[n - 2]["brute force length"] = bf_len
 
-    TRIALS = 1
-    for n in trange(2, 18, desc="Branch & bound"):
+    for n in trange(2, 15, desc="Branch & bound"):
         data = pregen(n, TRIALS)
         bb_time, bb_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.branch_and_bound)
         res[n - 2]["branch & bound time"] = bb_time
@@ -272,7 +273,7 @@ def test_stage_2():
         with open("data_stage_2.csv", "w", encoding="utf-8", newline='') as f:
             writer = csv.writer(f)
             writer.writerow(res[0].keys())
-            writer.writerows([d.values() for d in res])
+            writer.writerows([[res[i][k] if k in res[i] else "" for k in res[0]] for i in range(len(res))])
 
 
 def test_memo1a():
@@ -286,16 +287,15 @@ def test_memo1a():
 
     run_test(lambda: memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set())[0], facility_drawer)
 
+def get_flat_graph(
+    abs_graph: tuple[set[nx.Graph], set[tuple]]
+) -> nx.Graph:
+    res: nx.Graph = nx.compose_all(abs_graph[0])
+    for u, v in abs_graph[1]:
+        res.add_edge(u, v, weight=1)
+    return res
 
 def test_memo1():
-    def get_flat_graph(
-        abs_graph: tuple[set[nx.Graph], set[tuple]]
-    ) -> nx.Graph:
-        res: nx.Graph = nx.compose_all(abs_graph[0])
-        for u, v in abs_graph[1]:
-            res.add_edge(u, v, weight=1)
-        return res
-
     facility_drawer = GraphDrawer(28122007)
     flat_graph = get_flat_graph(facility_drawer.get_abstracted_graph())
 
@@ -341,14 +341,17 @@ def get_data():
         n_supplies = len(supplies)
         salient_vertices = len(list(chain(*facility_drawer.junctions))) + len(exits) + len(supplies) + 1
         solution_len = len(path) - 1
-        res.append({"seed": i,
-                     "abstraction_vertices_count": abstraction_vertices,
-                     "n_wings": n_wings,
-                     "n_supplies": n_supplies,
-                     "salient_vertices": salient_vertices,
-                     "solution_len": solution_len,
-                     "runtime": runtime * 1000
-                    })
+        res.append(
+            {
+                "seed": i,
+                "abstraction_vertices_count": abstraction_vertices,
+                "n_wings": n_wings,
+                "n_supplies": n_supplies,
+                "salient_vertices": salient_vertices,
+                "solution_len": solution_len,
+                "runtime": runtime * 1000
+            }
+            )
 
     if len(res) > 0:
         with open("data_algorithm.csv", "w", encoding="utf-8", newline='') as f:
@@ -356,8 +359,40 @@ def get_data():
             writer.writerow(res[0].keys())
             writer.writerows([d.values() for d in res])
 
+def get_memo_difference():
+    res: list[dict] = []
+
+    TRIALS = 10000
+    for i in trange(TRIALS, desc="Testing Memo1 vs Memo1A1"):
+        facility_drawer = GraphDrawer(10102000 + i)
+        abs_graph = facility_drawer.get_abstracted_graph()
+        flat_graph = get_flat_graph(abs_graph)
+
+        exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+        supplies = set(facility_drawer.supplies)
+        storage = tuple([None] * 5)
+        supply_map = {i: hash(i) for i in facility_drawer.supplies}
+
+        m1a1_time = get_runtime(lambda: memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set()))[0]
+        m1_time = get_runtime(lambda: memo1_algorithm.ember_rescue(flat_graph, facility_drawer.entry, exits, supplies, supply_map, storage, set()))[0]
+        res.append(
+            {
+                "Memo1 time": m1_time * 1000,
+                "Memo1A1 time": m1a1_time * 1000,
+            }
+        )
+
+    if len(res) > 0:
+        with open("data_memos.csv", "w", encoding="utf-8", newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(res[0].keys())
+            writer.writerows([[res[i][k] if k in res[i] else "" for k in res[0]] for i in range(len(res))])
+
+
 if __name__ == "__main__":
     # test_memo1()
     # test_memo1a()
-    get_data()
+    # get_data()
     test_stage_2()
+    # get_memo_difference()
+    pass

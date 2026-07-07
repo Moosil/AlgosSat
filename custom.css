@@ -1,5 +1,35 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 
+@import url('https://cdn.jsdelivr.net/npm/@catppuccin/palette/css/catppuccin.css');
+
 :root {
     --marimo-monospace-font: "JetBrains Mono";
+}
+
+.pseudocode-command {
+    color: var(--ctp-mocha-mauve);
+}
+
+.pseudocode-param {
+    color: var(--ctp-mocha-red);
+}
+
+.pseudocode-atomic {
+    color: var(--ctp-mocha-peach);
+}
+
+.pseudocode-type {
+    color: var(--ctp-mocha-yellow);
+}
+
+.pseudocode-proc {
+    color: var(--ctp-mocha-blue);
+}
+
+.pseudocode-op {
+    color: var(--ctp-mocha-sky);
+}
+
+.pseudocode-bracket {
+    color: var(--ctp-mocha-subtext0);
 }

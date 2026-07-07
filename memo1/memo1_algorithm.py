@@ -84,10 +84,10 @@ def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[Verte
 	min_cost_walk = None
 
 	if fuel == 0:
-		for exit in exits:
-			cost = pair_path_costs[source][exit]
+		for v in exits:
+			cost = pair_path_costs[source][v]
 			if cost < min_cost:
-				min_cost_walk = [exit]
+				min_cost_walk = [v]
 				min_cost = cost
 
 	for sink in sinks:
@@ -110,7 +110,7 @@ def ember_rescue(g: nx.Graph, v_e: VertexT, exits: set[VertexT], supplies: set[V
 
 	num_supplies_carrying = len([i for i in supply_storage if i is not None])
 
-	super_path = brute_force(v_e, unfound_supplies, exits, pairs_paths_costs, 5 - num_supplies_carrying)
+	super_path = brute_force(v_e, unfound_supplies, exits, pairs_paths_costs, min(len(supplies), 5 - num_supplies_carrying))
 
 	res = []
 

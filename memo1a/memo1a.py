@@ -820,6 +820,56 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## 3.2 Other Stage 2 Options
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.2.1 Branch and Bound
+    Branch and bound solves an optimisation problem by searching through the solution tree using either depth or breath first search. It finds sub-problems of the original problem and eliminates ones that cannot contain the optimal solution by finding their lower and upper bounds, comparing against the best found upper bound. If a subproblem $P'$ has a lower bound greater than the best upper bound, it cannot contain the solution and therefore does not need to be explored. This can reduce the solution tree in the average and best cases depending on the problem and the 'tightness' of the bounds: how close they are to the true lower and upper bounds of $P'$. To maintain correctness, the lower bound must be inclusive of the true lower bound and the upper bound must be inclusive of the true upper bound such that $lb_\text{true} \leq lb_\text{heuristic} \leq ub_\text{heuristic} \leq ub_\text{true}$. Due to the algorithm requiring fast lower and upper bound calculation, this is done with heuristic methods.
+
+    While branch and bound and brute force share $O(n!)$ worst case, branch and bound will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.2.2 Lin-Kernighan
+    Lin-Kernighan is a heuristic algorithm for optimising a found solution to a shortest-path or cycle problem. It swaps different combinations of edges to find the local minimum of a solution. This will always produce a better or equal path than the one found, so it is a good step for finding a close-to-optimal solution for branch and bound algorithms or optimising a different heuristic algorithm.
+
+    This algorithm runs in $O(n^{2.2})$ average case, but has significant constant and lower order costs, which make it less efficient than brute force for this problem, while giving non-optimal solutions
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.2.3 Nearest Neighbour
+    Nearest neighbour is a greedy algorithm, which due to the physical representation of this problem being _almost_ a tree, performs quite well on this problem. It runs in $O(n^2)$ worst case, but with $n$ being small, brute force can find an optimal solution in an adequate amount of time
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.2.4 Linear programming
+    For large $n$ travelling salesman problems, branch and cut, a combination of branch and bound, and the cutting plane method, performs well. This is normally done by solving a relaxed version of the problem and adding cuts back when the original problem's cuts are broken. Solving these relaxed linear programs can be done with the simplex method, however for $n = 5$, just one run of the simplex method takes longer than any other approach considered.
+
+    Additionally, due to CRUDY-1 needing to pick up fewer than 5 supplies if it is carrying some, I was unable to create a tight enough linear program for this problem to be useful.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 3.2 Wing traversal strategy
     The algorithm will traverse between wings based on the best walk, not necessarily collecting each supply in a wing before moving to the next wing and often coming back to a wing previously traversed through. This was done to use a common path optimisation where directly travelling between two junctions in a wing, $j_1$ and $j_2$, may be slower than a path through $j_1$, $j_1'$, $j_2'$ and $j_2$, where $j_n'$ is the vertex a junction connects to via an interwing coridoor.
 
@@ -1396,56 +1446,6 @@ def _(mo):
         supply_storage = tuple(supply_storage)
 
         return res, supply_storage""", disabled=True)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 4.3 Other Stage 2 Options
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 4.3.1 Branch and Bound
-    Branch and bound solves an optimisation problem by searching through the solution tree using either depth or breath first search. It finds sub-problems of the original problem and eliminates ones that cannot contain the optimal solution by finding their lower and upper bounds, comparing against the best found upper bound. If a subproblem $P'$ has a lower bound greater than the best upper bound, it cannot contain the solution and therefore does not need to be explored. This can reduce the solution tree in the average and best cases depending on the problem and the 'tightness' of the bounds: how close they are to the true lower and upper bounds of $P'$. To maintain correctness, the lower bound must be inclusive of the true lower bound and the upper bound must be inclusive of the true upper bound such that $lb_\text{true} \leq lb_\text{heuristic} \leq ub_\text{heuristic} \leq ub_\text{true}$. Due to the algorithm requiring fast lower and upper bound calculation, this is done with heuristic methods.
-
-    While branch and bound and brute force share $O(n!)$ worst case, branch and bound will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 4.3.2 Lin-Kernighan
-    Lin-Kernighan is a heuristic algorithm for optimising a found solution to a shortest-path or cycle problem. It swaps different combinations of edges to find the local minimum of a solution. This will always produce a better or equal path than the one found, so it is a good step for finding a close-to-optimal solution for branch and bound algorithms or optimising a different heuristic algorithm.
-
-    This algorithm runs in $O(n^{2.2})$ average case, but has significant constant and lower order costs, which make it less efficient than brute force for this problem, while giving non-optimal solutions
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 4.3.3 Nearest Neighbour
-    Nearest neighbour is a greedy algorithm, which due to the physical representation of this problem being _almost_ a tree, performs quite well on this problem. It runs in $O(n^2)$ worst case, but with $n$ being small, brute force can find an optimal solution in an adequate amount of time
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 4.3.4 Linear programming
-    For large $n$ travelling salesman problems, branch and cut, a combination of branch and bound, and the cutting plane method, performs well. This is normally done by solving a relaxed version of the problem and adding cuts back when the original problem's cuts are broken. Solving these relaxed linear programs can be done with the simplex method, however for $n = 5$, just one run of the simplex method takes longer than any other approach considered.
-
-    Additionally, due to CRUDY-1 needing to pick up fewer than 5 supplies if it is carrying some, I was unable to create a tight enough linear program for this problem to be useful.
-    """)
     return
 
 

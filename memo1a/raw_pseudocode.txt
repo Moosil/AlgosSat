@@ -1,21 +1,21 @@
 PROCEDURE bfs(g: Graph, source: Vertex) -> Map[Vertex, Vertex]
-    dist <- Map with ∞ FOR EACH vertex IN g.get_vertices(); dist[source] <- 0
+    dist <- Map with ∞ FOR EACH vertex IN get_vertices(g); dist[source] <- 0
     visited <- ∅
     prev <- empty Map
     stack <- [source]
 
-    WHILE stack.size() > 0 DO
-        u <- stack.pop()
+    WHILE length(stack) > 0 DO
+        u <- pop(stack)
 
-        IF NOT visited.element_of(u) THEN
-            visited <- visited.union({u})
+        IF NOT element_of(visited, u) THEN
+            visited <- union(visited, {u})
 
-            FOR EACH v IN g.get_neighbours(u) DO
-                w <- g.get_edge_weight(u, v)
+            FOR EACH v IN get_neighbours(g, u) DO
+                w <- get_edge_weight(g, u, v)
                 IF dist[u] + w < dist[v] THEN
                     prev[v] <- u
                     dist[v] <- dist[u] + w
-                    stack.push(v)
+                    push(stack, v)
                 END IF
             END FOR
         END IF
@@ -29,40 +29,40 @@ PROCEDURE get_path_from_bfs(source: Vertex, sink: Vertex, prev: Map[Vertex, Vert
     left <- source
     right <- sink
 
-    WHILE prev.has(left) OR prev.has(right) DO
-        IF prev.has(left) THEN
+    WHILE has(prev, left) OR has(prev, right) DO
+        IF has(prev, left) THEN
             left <- prev[left]
-            left_path.push(left)
+            push(left_path, left)
         END IF
 
-        IF prev.has(right) THEN
+        IF has(prev, right) THEN
             right <- prev[right]
-            right_path.push(right)
+            push(right_path, right)
         END IF
 
-        FOR i <- 1 TO left_path.length() DO
+        FOR i <- 1 TO length(left_path) DO
             IF right = left_path[i] THEN
                 res <- []
                 FOR j <- 1 TO i DO
-                    res.push(left_path[j])
+                    push(res, left_path[j])
                 END FOR
 
-                FOR j <- 1 TO right_path.length() DO
-                    res.push(right_path[1 + right_path.length() - j])
+                FOR j <- 1 TO length(right_path) DO
+                    push(res, right_path[1 + length(right_path) - j])
                 END FOR
                 RETURN res
             END IF
         END FOR
 
-        FOR i <- 1 TO right_path.length() DO
+        FOR i <- 1 TO length(right_path) DO
             IF left = right_path[i] THEN
                 res <- []
-                FOR j <- 1 TO left_path.length() DO
-                    res.push(left_path[j])
+                FOR j <- 1 TO length(left_path) DO
+                    push(res, left_path[j])
                 END FOR
 
                 FOR j <- 1 TO i DO
-                    res.push(right_path[1 + i - j])
+                    push(res, right_path[1 + i - j])
                 END FOR
                 RETURN res
             END IF
@@ -74,13 +74,13 @@ END PROCEDURE
 PROCEDURE get_supplies_to_collect(supplies: Set[Vertex], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: Set[SupplyID], supply_storage: Array[SupplyID, 5]) -> Set[Supply]
     dont_collect_supply_ids <- found_supply_ids
     FOR EACH supply IN supply_storage DO
-        dont_collect_supply_ids <- dont_collect_supply_ids.union({supply})
+        dont_collect_supply_ids <- union(dont_collect_supply_ids, {supply})
     END FOR
 
     res <- ∅
     FOR EACH supply IN supplies DO
-        IF NOT dont_collect_supply_ids.element_of(vertex_to_supply_id[supply]) THEN
-            res <- res.union({supply})
+        IF NOT element_of(dont_collect_supply_ids, vertex_to_supply_id[supply]) THEN
+            res <- union(res, {supply})
         END IF
     END FOR
     RETURN res
@@ -95,54 +95,54 @@ END PROCEDURE
 
 PROCEDURE get_path_length(g: Graph, path: List[Vertex]) -> Positive Integer or 0
     res <- 0
-    FOR i <- 1 TO path.length() - 1 DO
-        res <- res + g.get_edge_weight(path[i], path[i + 1])
+    FOR i <- 1 TO length(path) - 1 DO
+        res <- res + get_edge_weight(g, path[i], path[i + 1])
     END FOR
     RETURN res
 END PROCEDURE
 
 PROCEDURE reverse(list: List) -> List
     res <- []
-    FOR i <- 1 TO list.length() DO
-        res.push(list[1 + list.length() - i])
+    FOR i <- 1 TO length(list) DO
+        push(res, list[1 + length(list) - i])
     END FOR
     RETURN res
 END PROCEDURE
 
 PROCEDURE reconstruct_path(prev: Map[Vertex, Vertex], sink: Vertex) -> List[Vertex]
     res <- [sink]
-    WHILE prev.has(curr) DO
+    WHILE has(prev, curr) DO
         curr <- prev[curr]
-        res.push(curr)
+        push(res, curr)
     END WHILE
     RETURN reverse(res)
 END PROCEDURE
 
 PROCEDURE dijkstra(g: Graph, source: Vertex, sinks: Set[Vertex]) -> Map[Vertex, List[Vertex]]
     res <- empty Map
-    dist <- Map with ∞ FOR EACH vertex IN g.get_vertices(); dist[source] <- 0
+    dist <- Map with ∞ FOR EACH vertex IN get_vertices(g); dist[source] <- 0
     prev <- empty Map
 
     pq <- empty Priority Queue
-    FOR EACH vertex IN g.get_vertices() DO
-        pq.enqueue(vertex, dist[vertex])
+    FOR EACH vertex IN get_vertices(g) DO
+        enqueue(pq, vertex, dist[vertex])
     END FOR
-    WHILE pq.length() > 0 DO
-        u <- pq.extract_min()
+    WHILE length(pq) > 0 DO
+        u <- extract_min(pq)
 
-        IF sinks.element_of(u) THEN
+        IF element_of(sinks, u) THEN
             res[u] <- reconstruct_path(prev, u)
-            IF res.length() = sinks.length() THEN
+            IF length(res) = length(sinks) THEN
                 RETURN res
             END IF
         END IF
 
-        FOR EACH v IN g.get_neighbours(u) DO
-            w <- g.get_edge_weight(u, v)
+        FOR EACH v IN get_neighbours(g, u) DO
+            w <- get_edge_weight(g, u, v)
             IF dist[u] + w < dist[v] THEN
                 prev[v] <- u
                 dist[v] <- dist[u] + w
-                pq.update_priority(v, dist[v])
+                update_priority(pq, v, dist[v])
             END IF
         END FOR
     END WHILE
@@ -151,18 +151,18 @@ END PROCEDURE
 
 PROCEDURE get_path_matrix(g: Graph, entry: Vertex, exits: set[Vertex], supplies: set[Vertex]) -> Map[Vertex, Map[Vertex, List[Vertex]]]
     res <- empty Map
-    FOR EACH source IN supplies.union({entry}) DO
-        res[source] <- dijkstra(g, source, supplies.union(exits))
+    FOR EACH source IN union(supplies, {entry}) DO
+        res[source] <- dijkstra(g, source, union(supplies, exits))
     END FOR
     RETURN res
 END PROCEDURE
 
 PROCEDURE get_path_cost_matrix(g: Graph, path_matrix: Map[Vertex, Map[Vertex, List[Vertex]]]) -> Map[Vertex, Map[Vertex, Positive Integer or 0]]
     res <- empty Map
-    FOR EACH source IN path_matrix.get_keys() DO
+    FOR EACH source IN get_keys(path_matrix) DO
         res[source] <- empty Map
         sink_paths <- path_matrix[source]
-        FOR EACH sink IN sink_paths.get_keys() DO
+        FOR EACH sink IN get_keys(sink_paths) DO
             res[source][sink] <- get_path_length(g, path)
         END FOR
     END FOR
@@ -184,7 +184,7 @@ PROCEDURE brute_force_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set
     END IF
     IF fuel != 0 THEN
         FOR EACH sink IN sinks DO
-            recursive_res <- brute_force_recursive(sink, sinks.difference({sink}), exits, path_cost_matrix, fuel - 1)
+            recursive_res <- brute_force_recursive(sink, difference(sinks, {sink}), exits, path_cost_matrix, fuel - 1)
             min_path_through <- recursive_res[0]
             cost <- recursive_res[1]
             cost <- cost + path_cost_matrix[source][sink]
@@ -192,7 +192,7 @@ PROCEDURE brute_force_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set
                 min_cost <- cost
                 min_cost_path <- [sink]
                 FOR vertex IN min_path_through DO
-                    min_cost_path.push(vertex)
+                    push(min_cost_path, vertex)
                 END FOR
             END IF
         END FOR
@@ -205,26 +205,26 @@ PROCEDURE brute_force(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], 
 
     res <- [entry]
     FOR EACH vertex IN path DO
-        res.push(path)
+        push(res, path)
     END FOR
     RETURN res
 END PROCEDURE
 
 PROCEDURE get_F_path_from_H_path(H_path: List[Vertex], path_matrix: Map[Vertex, Map[Vertex, List[Vertex]]]) -> List[Vertex]
     res <- []
-    FOR i <- 1 TO H_path.length() - 1 DO
+    FOR i <- 1 TO length(H_path) - 1 DO
         path <- path_matrix[H_path[i]][H_path[i + 1]]
-        FOR j <- 1 TO path.length() - 1 DO
-            res.push(path[j])
+        FOR j <- 1 TO length(path) - 1 DO
+            push(res, path[j])
         END FOR
     END FOR
-    res.push(H_path[H_path.length()])
+    length(res.push(H_path[H_path)])
     RETURN res
 END PROCEDURE
 
 PROCEDURE get_which_wing(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], vertex: Vertex) -> Graph
     FOR EACH wing IN G[0] DO
-        IF vertex IN g.get_vertices() THEN
+        IF vertex IN get_vertices(g) THEN
             RETURN g
         END IF
     END FOR
@@ -233,36 +233,36 @@ END PROCEDURE
 
 PROCEDURE get_G_path_from_F_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], F_path: List[Vertex], prevs: Map[Graph, Map[Vertex, Vertex]]) -> List[Vertex]
     res <- []
-    FOR i <- 1 TO F_path.length() - 1 DO
+    FOR i <- 1 TO length(F_path) - 1 DO
         u <- F_path[i]
         v <- F_path[i + 1]
         u_wing <- get_which_wing(G, u)
         v_wing <- get_which_wing(G, v)
         IF u_wing = v_wing THEN
             path <- get_path_from_bfs(u, v, prevs[u_wing])
-            FOR j <- 1 TO path.length() - 1 DO
-                res.push(path[j])
+            FOR j <- 1 TO length(path) - 1 DO
+                push(res, path[j])
             END FOR
         END IF
         IF u_wing != v_wing THEN
-            res.push(u)
+            push(res, u)
         END IF
     END FOR
-    res.push(F_path[F_path.length()])
+    length(res.push(F_path[F_path)])
     RETURN res
 END PROCEDURE
 
 PROCEDURE get_F(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], prevs: Map[Vertex, Vertex]) -> Graph
     res <- empty Graph
-    FOR EACH v IN supplies.union(exits).union({entry}) DO
-        res.add_vertex(v)
+    FOR EACH v IN union(supplies.union(exits), {entry}) DO
+        add_vertex(res, v)
     END FOR
 
     junction_vertices <- ∅
     FOR EACH e IN G[1] DO
-        res.add_vertex(e[0])
-        res.add_vertex(e[1])
-        res.add_edge(e[0], e[1], 1)
+        add_vertex(res, e[0])
+        add_vertex(res, e[1])
+        add_edge(res, e[0], e[1], 1)
 
         junction_vertices <- junction_vertices ∪ {e[0]}
         junction_vertices <- junction_vertices ∪ {e[1]}
@@ -270,19 +270,19 @@ PROCEDURE get_F(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex,
 
     FOR EACH wing IN G[0] DO
         salient_vertices <- []
-        FOR EACH v IN supplies.union(exits).union(junction_vertices).union({entry}).intersection(wing.get_vertices()) DO
-            salient_vertices.push(v)
+        FOR EACH v IN get_vertices(supplies.union(exits).union(junction_vertices).union({entry}).intersection(wing, )) DO
+            push(salient_vertices, v)
         END FOR
 
-        FOR i <- 1 TO salient_vertices.length() DO
-            FOR j <- i + 1 TO salient_vertices.length() DO
+        FOR i <- 1 TO length(salient_vertices) DO
+            FOR j <- i + 1 TO length(salient_vertices) DO
                 u <- salient_vertices[i]
                 v <- salient_vertices[i + 1]
 
                 path <- get_path_from_bfs(u, v, prevs[wing])
                 weight <- get_path_length(wing, path)
 
-                res.add_edge(u, v, weight)
+                add_edge(res, u, v, weight)
             END FOR
         END FOR
     END FOR
@@ -292,14 +292,14 @@ END PROCEDURE
 PROCEDURE get_new_supply_storage(supplies: Set[Vertex], supply_storage: Array[SupplyID, 5], vertex_to_supply_id: Map[Vertex, SupplyID], num_of_supplies_to_collect: Positive Integer, H_path: List[Vertex]) -> Array[SupplyID, 5]
     collected_supplies <- []
     FOR EACH v IN H_path DO
-        IF supplies.element_of(v) THEN
-            collected_supplies.push(v)
+        IF element_of(supplies, v) THEN
+            push(collected_supplies, v)
         END IF
     END FOR
 
     supply_idx <- 1
     supply_storage_idx <- 1
-    WHILE supply_storage_idx <= supply_storage.length() AND supply_idx <= num_of_supplies_to_collect DO
+    WHILE supply_storage_idx <= length(supply_storage) AND supply_idx <= num_of_supplies_to_collect DO
         IF supply_storage[supply_storage_idx] = NULL THEN
             supply_storage[supply_storage_idx] <- vertex_to_supply_id[collected_supplies[supply_idx]]
             supply_idx <- supply_idx + 1
@@ -321,7 +321,7 @@ FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: V
 
     prevs <- empty Map
     FOR EACH wing IN G[0] DO
-        IF wing.get_vertices().size() > 0 THEN
+        IF size(wing.get_vertices()) > 0 THEN
             prevs[wing] <- bfs(wing, a vertex in wing)
         END IF
     END FOR

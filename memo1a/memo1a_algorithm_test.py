@@ -243,8 +243,8 @@ def test_stage_2():
 
     res: list[dict] = []
 
-    TRIALS = 10
-    for n in trange(2, 100, desc="Heuristic Algorithms"):
+    TRIALS = 100
+    for n in trange(2, 40, desc="Heuristic Algorithms"):
         data = pregen(n, TRIALS)
         nn_time, nn_len = get_runtime_trials_with_n(data, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0])
         lk_time, lk_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.lin_kernighan)
@@ -257,13 +257,13 @@ def test_stage_2():
             }
         )
 
-    for n in trange(2, 12, desc="Brute force"):
+    for n in trange(2, 10, desc="Brute force"):
         data = pregen(n, TRIALS)
         bf_time, bf_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.brute_force)
         res[n - 2]["brute force time"] = bf_time
         res[n - 2]["brute force length"] = bf_len
 
-    for n in trange(2, 13, desc="Branch & bound"):
+    for n in trange(2, 10, desc="Branch & bound"):
         data = pregen(n, TRIALS)
         bb_time, bb_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.branch_and_bound)
         res[n - 2]["branch & bound time"] = bb_time

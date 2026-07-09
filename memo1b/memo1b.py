@@ -397,7 +397,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Memo 1 Amendment 1
+    # Memo 1 Amendment 2
     """)
     return
 
@@ -452,33 +452,8 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.1 Inputs & Outputs
-    The specificities of the inputs and outputs are above, and both concise lists are below:
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 2.1.1 Inputs
-    1. $G$
-    2. $s$
-    3. $X$
-    4. $S$
-    5. $A$
-    6. $M$
-    7. $F$
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 2.1.2 Outputs
-    1. $W$
-    2. $A_\text{new}$
+    ## 2.1 Signature specification:
+    $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Array}[\text{SupplyID}, 5] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \to \text{List}[\text{Vertex}] \times \text{Array}[\text{SupplyID}, 5]$
     """)
     return
 
@@ -487,9 +462,9 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 2.2 Output Constraints
-    The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many supply vertices as possible.
+    The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many supply vertices as possible, while reducing the total cost of this walk, $\displaystyle\sum_{i=0}^{n - 1} w(v_i, v_{i + 1})$.
 
-    $\forall i \leq \text{length}(A), A_\text{new}[i] \neq A[i] \implies A[i] = \varnothing$ and $A[i] \neq \varnothing \iff A_\text{new} = A[i]$
+    The algorithm should return CRUDY-1's new supply storage, updating it with each supply collected: $\forall i \leq |A|, A_\text{new}[i] \neq A[i] \implies A[i] = \text{NULL}$, $A[i] \neq \text{NULL} \iff A_\text{new} = A[i]$ and $\forall v \text{ in } W | v \in S, A_\text{new} \text{ contains } v$.
     """)
     return
 
@@ -519,7 +494,7 @@ def _(mo):
     ## 2.4 Salient Features
     Decisions made for how much abstraction is done on certain properties of the problem are guided by maintaining correctness, completeness, and allowing for an appropriate run-time given the size of each variable in the current problem. In particular, finding an exact solution requires searching through a portion of the solution space, and thus we have an at most exponential growth in $O(b^d)$. Reducing $b$ and $d$ allow for further depth and will allow the algorithm to run faster, allow for exact algorithms/better heuristic upper-bounds, and allow for this algorithm to be considered on larger facilities.
 
-    By representing the facility as a hierarchical graph, we can use strategies to reduce the depth of the combinatorial explosion of algorithms that can be used to assist with the objective. Instead of $O(b^d)$ exploding with $d = |E|$, we can instead have it increase with $d = |V_w|$ instead. We have each wing be a vertex on $G$, and each junction and inter-wing corridor.
+    By representing the facility as a hierarchical graph, we can use strategies to reduce the depth of the combinatorial explosion of algorithms that can be used to assist with the objective. Instead of $O(b^d)$ exploding with $d = |E|$, we can instead have it increase with $d = |V_w|$ instead. We have each wing be a vertex on $G$, and each junction and inter-wing corridor an edge.
 
     We choose to abstract individual sectors of the facility, opting to instead represent a subset of salient sectors to be on any wing graph $W_n$, abstracting the sectors on the paths between these salient sectors as edge weight through the function $w$.
 
@@ -574,7 +549,7 @@ def _(np, pd, plt, stats):
 
     _ax3.set_axis_off()
 
-    _fig.suptitle("Comparing Hierarchical & Flat graph implementations")
+    _fig.suptitle("Comparing Hierarchical and Flat graph implementations")
     _fig.supxlabel("Flat graph time (ms)")
     _fig.supylabel("Hierarchical graph time (ms)")
 
@@ -721,13 +696,13 @@ def _(mo):
 
     Since this problem is similar to the Travelling Salesman Problem (TSP), we will primarily consider design approaches that are used to solve this problem.
 
-    #### 3.1.2.1 Greedy & Heuristic
+    #### 3.1.2.1 Greedy and Heuristic
 
     Greedy patterns are often efficient, but will be unlikely to find an optimal solution, unless the problem has the greedy property. Due to small $n$, and the facility not having the greedy property, we will avoid Greedy algorithms in finding an exact solution. Greedy algorithms will be used in the algorithm to provide a fast upper-bound on path length which is useful for other approaches.
 
     Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. 2-opt and 3-opt are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than nearest neighbour. Lin-kernighan, which adapts the k-opt, runs in $O(n^{2.2})$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm tabu-search to prohibit found local minima and hopefully find a global minima.
 
-    #### 3.1.2.2 Backtracking & Linear Programming
+    #### 3.1.2.2 Backtracking and Linear Programming
 
     The problem can be expressed as a integer linear program (ILP) that if solved, will give the optimal solution to any problem instance as shown below. $\begin{array}{lrrll}
     \text{min} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
@@ -767,7 +742,7 @@ def _(mo):
 
     The problem with all this is the $n$ is so small that constant and lower order costs of solving linear programming problems many times is greater than other more nieve algorithms.
 
-    #### 3.1.2.3 Backtracking & Greedy / Heuristic
+    #### 3.1.2.3 Backtracking and Greedy / Heuristic
 
     Instead of linear programming overhead, we will instead create a tree whose root node is the entry, and leaf nodes are the exits. The branch nodes will be supplies, and the tree will contain each possible ordering of supplies. Searching this tree exhaustively is too time consuming, but we will instead compute a lower bound for each branch and prune those that have a lower bound greater than an upper bound we find. We will prefer depth first search on this tree to hopefully reduce our upper bound.
 
@@ -793,7 +768,6 @@ def _(pd, plt):
     _ax1.scatter([i+2 for i in range(len(_df["nearest neighbour time"]))], _df["nearest neighbour time"], c='g', label="Nearest neighbour", marker='o', s=_dot_size)
     _ax1.scatter([i+2 for i in range(len(_df["lin-kernighan time"]))], _df["lin-kernighan time"], c='orange', label="Lin-Kernighan", marker='o', s=_dot_size)
     _ax1.legend(loc="upper right")
-    _ax1.set_yscale("log", base=10)
 
     _local_range = range(2, 7)
     _range_len = _local_range.stop-_local_range.start
@@ -803,73 +777,15 @@ def _(pd, plt):
     _ax2.scatter([i for i in _local_range], _df["nearest neighbour time"][:_range_len], c='g', label="Nearest neighbour", marker='o')
     _ax2.scatter([i for i in _local_range], _df["lin-kernighan time"][:_range_len], c='orange', label="Lin-Kernighan", marker='o')
     _ax2.legend(loc="upper right")
-    _ax2.set_yscale("log", base=10)
     _ax2.set_xticks(_local_range)
 
+    _ax2.set_yscale("log", base=10)
     _fig.suptitle("Different approaches' runtime")
     _fig.supxlabel("Supply Unit (# of)")
     _fig.supylabel("Runtime (s)")
     _fig.tight_layout()
 
     _fig
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 3.1.3 Evaluation of Runtimes
-    As expected, Brute force has the worst run-time, followed closely by Branch-and-bound. The heuristic algorithms then follow, with Lin-Kernighan running Nearest neighbour to get its first guess (which it finds a local solution of), it takes longer than Nearest neighbour does.
-    <br><span style='color: silver;'>(as seen in left figure)</span>
-
-    At $n = 5 = |S|$, which is what $|S|$ is in the problem, we can notice that Brute force runs an order of magnitude faster than Branch and bound. While it is ~1.5 orders of magnitude slower than nearest neighbour, it is still very fast and is optimal. This is the reason why it will be used over those other more efficient approaches.
-    <br><span style='color: silver;'>(as seen in right figure)</span>
-
-    If $n$ was to increase, it will become impossible to consider Brute-force, and Branch-and-bound will only be usable with significant optimisations (discussed later). This can be seen in the left figure, with both these algorithms not being graphed after $n = 12$
-    """)
-    return
-
-
-@app.cell
-def _(np, pd, plt):
-    _df = pd.read_csv("memo1a/data_stage_2.csv")
-
-    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
-    _ax1.scatter([i+2 for i in range(len(_df["brute force length"]))], _df["brute force length"], c='b', label="Brute force", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_df["branch & bound length"]))], _df["branch & bound length"], c='r', label="Branch and bound", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_df["nearest neighbour length"]))], _df["nearest neighbour length"], c='g', label="Nearest neighbour", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_df["lin-kernighan length"]))], _df["lin-kernighan length"], c='orange', label="Lin-Kernighan", marker='.')
-    _ax1.set_title("Different approaches' solution length")
-    _ax1.legend(loc="upper right")
-    _ax1.set_ylabel("Average Solution Length (units)")
-
-    _solution_gap_len = len([None for i in np.isnan(_df["branch & bound length"]) if not i])
-
-    def _solution_gap(data) -> list[float]:
-        return [100 * (data[i] - _df["branch & bound length"][i]) / _df["branch & bound length"][i] for i in range(min(_solution_gap_len, len([None for i in data if i])))]
-
-    _dot_size = 8
-    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["brute force length"]), c='b', label="Brute force", marker='o', s=_dot_size, alpha=.7)
-    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["branch & bound length"]), c='r', label="Branch and bound", marker='o', s=_dot_size, alpha=.7)
-    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["nearest neighbour length"]), c='g', label="Nearest neighbour", marker='o', s=_dot_size, alpha=.7)
-    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["lin-kernighan length"]), c='orange', label="Lin-Kernighan", marker='o', s=_dot_size, alpha=.7)
-    _ax2.set_title("Different approaches' optimality gap")
-    _ax2.legend(loc="upper right")
-    _ax2.set_ylabel("Average Solution Gap (%)")
-
-    _fig.supxlabel("Supply Unit (# of)")
-    _fig.tight_layout()
-
-    _fig
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 3.1.4 Optimality & Solution Gap
-    Each algorithm poses a different gap from the optimal solution. An algorithm for a problem is optimal iff it has 0 solution gap on *all* problem instances. We calculate solution gap with $\displaystyle\frac{\text{Heuristic - Optimal}}{\text{Optimal}}$, and while Lin-Kernighan has a slighly better solution for large $n$ <span style='color: silver;'>(as seen in left figure)</span>, for small $n$, which what this problem is, the solution provided by Nearest neighbour is a local optimal, and thus Lin-Kernighan cannot further optimise it <span style='color: silver;'>(as seen in right figure)</span>.
-    """)
     return
 
 
@@ -1063,7 +979,7 @@ def algorithm_explorer(ember_rescue_cached, facility_drawer, mo, path_len):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 4 Pseudocode & Implementation
+    # 4 Pseudocode and Implementation
     """)
     return
 
@@ -1472,122 +1388,11 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### 4.3.1 Branch & Bound
-    This implementation of Branch & Bound is not fully optimised, but would still be slower than Brute force even if it was. Ideally it should find lower bounds with an MST constructed by Borůvka's algorithm or derivatives of it that run in linear time average case, but since it was implemented to test viability of different algorithms, Kruskal's algorithm was used instead.
+    ### 4.3.1 Branch and Bound
+    Branch and bound solves an optimisation problem by searching through the solution tree using either depth or breath first search. It finds sub-problems of the original problem and eliminates ones that cannot contain the optimal solution by finding their lower and upper bounds, comparing against the best found upper bound. If a subproblem $P'$ has a lower bound greater than the best upper bound, it cannot contain the solution and therefore does not need to be explored. This can reduce the solution tree in the average and best cases depending on the problem and the 'tightness' of the bounds: how close they are to the true lower and upper bounds of $P'$. To maintain correctness, the lower bound must be inclusive of the true lower bound and the upper bound must be inclusive of the true upper bound such that $lb_\text{true} \leq lb_\text{heuristic} \leq ub_\text{heuristic} \leq ub_\text{true}$. Due to the algorithm requiring fast lower and upper bound calculation, this is done with heuristic methods.
+
+    While branch and bound and brute force share $O(n!)$ worst case, branch and bound will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm.
     """)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.ui.code_editor(r"""class UnionFind:
-        def __init__(self, entries):
-            # Initialize the parent array with each
-            # element as its own representative
-            self.parent = {e: e for e in entries}
-
-        def find(self, i):
-            # If i itself is root or representative
-            if self.parent[i] == i:
-                return i
-
-            # Else recursively find the representative
-            # of the parent
-            return self.find(self.parent[i])
-
-        def unite(self, i, j):
-            # Representative of set containing i
-            irep = self.find(i)
-
-            # Representative of set containing j
-            jrep = self.find(j)
-
-            # Make the representative of i's set
-            # be the representative of j's set
-            self.parent[irep] = jrep
-
-    def branch_and_bound(source: VertexT, sinks: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
-        def get_lower_bound(partial_sol: list[VertexT], sol_length: int) -> int:
-            min_sol_length = float('infinity')
-
-            if len(exits.intersection(partial_sol)) > 0:
-                ex = list(exits.intersection(partial_sol))[0]
-
-                curr_sol_length = 0
-                edges = [(dist_matrix[u][v], u, v) for u in dist_matrix for v in dist_matrix[u] if
-                         dist_matrix[u][v] != 0 and (v not in exits or v == ex)]
-                verts = [u for u in dist_matrix] + [v for v in dist_matrix[list(dist_matrix.keys())[0]] if
-                                                    v not in dist_matrix and (v not in exits or v == ex)]
-                cc: UnionFind = UnionFind(verts)
-                for i in range(len(partial_sol) - 1):
-                    cc.unite(partial_sol[i], partial_sol[i + 1])
-                united = len(partial_sol)
-                edges.sort()
-                for w, u, v in edges:
-                    if cc.find(u) != cc.find(v):
-                        curr_sol_length += w
-                        cc.unite(u, v)
-                        united += 1
-                    if united > fuel:
-                        break
-
-                min_sol_length = min(curr_sol_length, min_sol_length)
-            else:
-                for ex in exits:
-                    curr_sol_length = 0
-                    edges = [(dist_matrix[u][v], u, v) for u in dist_matrix for v in dist_matrix[u] if
-                             dist_matrix[u][v] != 0 and (v not in exits or v == ex)]
-                    verts = [u for u in dist_matrix] + [v for v in dist_matrix[list(dist_matrix.keys())[0]] if
-                                                        v not in dist_matrix and (v not in exits or v == ex)]
-                    cc: UnionFind = UnionFind(verts)
-                    for i in range(len(partial_sol) - 1):
-                        cc.unite(partial_sol[i], partial_sol[i + 1])
-                    edges.sort()
-                    for w, u, v in edges:
-                        if cc.find(u) != cc.find(v):
-                            curr_sol_length += w
-                            cc.unite(u, v)
-
-                    min_sol_length = min(curr_sol_length, min_sol_length)
-            return sol_length + min_sol_length
-
-        def get_upper_bound(partial_sol: list[VertexT], sol_length: int) -> int:
-            _entry = partial_sol[-1]
-            _supplies = sinks.difference(curr)
-            _ub, _ub_cost = nearest_neighbour(_entry, _supplies, exits, dist_matrix, fuel - len(partial_sol) + 1)
-            _supplies = {s for s in _supplies if s in _ub}
-            _exits = {x for x in exits if x in _ub}
-            _dist_matrix = {k0: {k1: v1 for k1, v1 in v0.items() if k1 in _ub} for k0, v0 in dist_matrix.items() if
-                            k0 in _ub}
-            _, _ub_cost = _lin_kernighan(_entry, _supplies, _exits, _dist_matrix, (_ub, _ub_cost))
-            return sol_length + _ub_cost
-
-        tree = [(0, [source])]
-        best_found, ub = nearest_neighbour(source, sinks, exits, dist_matrix, fuel)
-
-        while len(tree) > 0:
-            length, curr = tree.pop()
-
-            if len(curr) == fuel + 1:
-                min_cost, min_exit = min([(dist_matrix[curr[-1]][exit_v], exit_v) for exit_v in exits])
-                length += min_cost
-                if length <= ub:
-                    best_found = curr + [min_exit]
-                    ub = length
-                continue
-
-            curr_lb = get_lower_bound(curr, length)
-            curr_ub = get_upper_bound(curr, length)
-            if curr_lb > ub:
-                continue
-
-            if curr_ub < ub:
-                ub = curr_ub
-
-            for sink in sinks.difference(curr):
-                tree.append((length + dist_matrix[curr[-1]][sink], curr + [sink]))
-
-        return best_found""", disabled=True)
     return
 
 
@@ -1595,153 +1400,53 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ### 4.3.2 Lin-Kernighan
-    The Lin-Kernighan heuristic is a heuristic that, given a tour of a graph, finds a local minimum of that tour's neighbourhood. This algorithm was adapted to this problem (from the TSP). Ideally, it should use, for its initial path, a path given by an algorithm that uses properties of the Borůvka algorithm
+    Lin-Kernighan is a heuristic algorithm for optimising a found solution to a shortest-path or cycle problem. It swaps different combinations of edges to find the local minimum of a solution. This will always produce a better or equal path than the one found, so it is a good step for finding a close-to-optimal solution for branch and bound algorithms or optimising a different heuristic algorithm.
+
+    This algorithm runs in $O(n^{2.2})$ average case, but has significant constant and lower order costs, which make it less efficient than brute force for this problem, while giving non-optimal solutions
     """)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
-    mo.ui.code_editor(r"""def lin_kernighan(source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> list[VertexT]:
-        ub, ub_cost = nearest_neighbour(source, supplies, exits, dist_matrix, fuel)
-        supplies = {s for s in supplies if s in ub}
-        exits = {x for x in exits if x in ub}
-        dist_matrix = {k0: {k1: v1 for k1, v1 in v0.items() if k1 in ub} for k0, v0 in dist_matrix.items() if k0 in ub}
-        return _lin_kernighan(source, supplies, exits, dist_matrix, (ub, ub_cost))[0]
+    mo.md(r"""
+    ### 3.1.4 Optimality and Solution Gap
+    Each algorithm poses a different gap from the optimal solution. An algorithm for a problem is optimal iff it has 0 solution gap on *all* problem instances. We calculate solution gap with $\displaystyle\frac{\text{Heuristic - Optimal}}{\text{Optimal}}$, and while Lin-Kernighan has a slighly better solution for large $n$ <span style='color: silver;'>(as seen in left figure)</span>, for small $n$, which what this problem is, the solution provided by Nearest neighbour is a local optimal, and thus Lin-Kernighan cannot further optimise it <span style='color: silver;'>(as seen in right figure)</span>.
+    """)
+    return
 
 
-    def _lin_kernighan(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], ub: tuple[list[VertexT], int]) -> tuple[list[VertexT], int]:
-        BACKTRACK_DEPTH = 5
-        INFEASIBLE_DEPTH = 2
+@app.cell(hide_code=True)
+def _(np, pd, plt):
+    _df = pd.read_csv("memo1a/data_stage_2.csv")
 
-        def reconstruct_walk_set(edges: set[tuple[VertexT, VertexT]]) -> list[VertexT]:
-            edges = edges.copy()
-            curr_edge = next(filter(lambda x: x[0] == entry, edges))
-            res: list[VertexT] = [entry]
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
+    _ax1.scatter([i+2 for i in range(len(_df["brute force length"]))], _df["brute force length"], c='b', label="Brute force", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_df["branch & bound length"]))], _df["branch & bound length"], c='r', label="Branch and bound", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_df["nearest neighbour length"]))], _df["nearest neighbour length"], c='g', label="Nearest neighbour", marker='.')
+    _ax1.scatter([i+2 for i in range(len(_df["lin-kernighan length"]))], _df["lin-kernighan length"], c='orange', label="Lin-Kernighan", marker='.')
+    _ax1.set_title("Different approaches' solution length")
+    _ax1.legend(loc="upper right")
+    _ax1.set_ylabel("Average Solution Length (units)")
 
-            while len(edges) > 1:
-                prev = next(filter(lambda x: x != res[-1], curr_edge))
-                res.append(prev)
-                edges.remove(curr_edge)
-                curr_edge = next(filter(lambda x: x[0] == prev or x[1] == prev, edges))
-            res.append(next(filter(lambda x: x != prev, curr_edge)))
+    _solution_gap_len = len([None for i in np.isnan(_df["branch & bound length"]) if not i])
 
-            return res
+    def _solution_gap(data) -> list[float]:
+        return [100 * (data[i] - _df["branch & bound length"][i]) / _df["branch & bound length"][i] for i in range(min(_solution_gap_len, len([None for i in data if i])))]
 
-        def symmetric_difference(set0: set, set1: set) -> set:
-            return set0.union(set1).difference(set0.intersection(set1))
+    _dot_size = 8
+    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["brute force length"]), c='b', label="Brute force", marker='o', s=_dot_size, alpha=.7)
+    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["branch & bound length"]), c='r', label="Branch and bound", marker='o', s=_dot_size, alpha=.7)
+    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["nearest neighbour length"]), c='g', label="Nearest neighbour", marker='o', s=_dot_size, alpha=.7)
+    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["lin-kernighan length"]), c='orange', label="Lin-Kernighan", marker='o', s=_dot_size, alpha=.7)
+    _ax2.set_title("Different approaches' optimality gap")
+    _ax2.legend(loc="upper right")
+    _ax2.set_ylabel("Average Solution Gap (%)")
 
-        def has_alternating(edges0: set[tuple[VertexT, VertexT]], edges1: set[tuple[VertexT, VertexT]]) -> bool:
-            edges = symmetric_difference(edges0, edges1)
-            try:
-                counter = defaultdict(float)
-                for u, v in edges:
-                    counter[u] += 1
-                    counter[v] += 1
+    _fig.supxlabel("Supply Unit (# of)")
+    _fig.tight_layout()
 
-                for v in supplies:
-                    if counter[v] != 2:
-                        return False
-
-                if sum(counter[v] for v in exits) != 1:
-                    return False
-
-                if counter[entry] != 1:
-                    return False
-
-                curr_edge = next(filter(lambda x: x[0] == entry, edges))
-                res: list[VertexT] = [entry]
-
-                while len(edges) > 1:
-                    prev = next(filter(lambda x: x != res[-1], curr_edge))
-                    res.append(prev)
-                    edges.remove(curr_edge)
-                    curr_edge = next(filter(lambda x: x[0] == prev or x[1] == prev, edges))
-
-                if next(filter(lambda x: x != prev, list(edges)[0])) not in exits:
-                    return False
-
-                return True
-            except:
-                return False
-
-        def get_swap(v0, v1):
-            if v1 == entry:
-                return v1, v0
-            if v0 in exits:
-                return v1, v0
-            return v0, v1
-
-        for u in supplies:
-            dist_matrix[u].pop(u)
-
-        stack: list[tuple[VertexT, int, int]] = [(u, 0, 0) for u in dist_matrix]
-
-        best_walk = {(ub[0][i], ub[0][i + 1]) for i in range(len(ub[0]) - 1)}
-        best_swaps: set = set()
-        best_gain: int = 1
-        savings: int = -best_gain
-
-        while best_gain != 0:
-            savings += best_gain
-            best_gain = 0
-            curr: list[VertexT | None] = [None] * 2 * (len(supplies) + 1 + len(exits))
-            while len(stack) > 0:
-                u, i, g = stack.pop()
-                curr[i] = u
-                curr_swaps = {get_swap(curr[j], curr[j + 1]) for j in range(i)}
-                if i % 2 == 0:
-                    if g > 0 and g > best_gain and has_alternating(best_walk, curr_swaps):
-                        best_swaps = curr_swaps
-                        best_gain = g
-                    early_ret: int = 2
-                    if u in exits:
-                        for v in dist_matrix[entry]:
-                            if v not in exits:
-                                if (v, u) in set(best_walk).difference(curr_swaps):
-                                    if i <= INFEASIBLE_DEPTH or ((v, u) not in best_walk.union(curr_swaps) and has_alternating(best_walk, curr_swaps)):
-                                        stack.append((v, i + 1, g + dist_matrix[v][u]))
-                                        early_ret -= 1
-                                        if early_ret == 0:
-                                            break
-                    else:
-                        for v in dist_matrix[u]:
-                            if (u, v) in set(best_walk).difference(curr_swaps):
-                                if i <= INFEASIBLE_DEPTH or ((u, v) not in best_walk.union(curr_swaps) and has_alternating(best_walk, curr_swaps)):
-                                    stack.append((v, i + 1, g + dist_matrix[u][v]))
-                                    early_ret -= 1
-                                    if early_ret == 0:
-                                        break
-
-                        if u != entry:
-                            if (entry, u) in set(best_walk).difference(curr_swaps):
-                                if i <= INFEASIBLE_DEPTH or ((entry, u) not in best_walk.union(curr_swaps) and has_alternating(best_walk, curr_swaps)):
-                                    stack.append((entry, i + 1, g + dist_matrix[entry][u]))
-                else:
-                    if u in exits:
-                        for v in dist_matrix[entry]:
-                            if v not in exits:
-                                if g > dist_matrix[v][u] and (v, u) not in best_walk.union(curr_swaps):
-                                    stack.append((v, i + 1, g - dist_matrix[v][u]))
-                    else:
-                        for v in dist_matrix[u]:
-                            if g > dist_matrix[u][v] and (u, v) not in best_walk.union(curr_swaps):
-                                stack.append((v, i + 1, g - dist_matrix[u][v]))
-
-                        if u != entry:
-                            if g > dist_matrix[entry][u] and (entry, u) not in best_walk.union(curr_swaps):
-                                stack.append((entry, i + 1, g - dist_matrix[entry][u]))
-
-                if len(stack) > 0:
-                    u, j, g = stack[-1]
-                    if i <= j:
-                        if best_gain > 0:
-                            best_walk = symmetric_difference(best_walk, best_swaps)
-                        elif i > BACKTRACK_DEPTH:
-                            while j > BACKTRACK_DEPTH:
-                                _, j, _ = stack.pop()
-
-        return reconstruct_walk_set(best_walk), ub[1] - savings""", disabled=True)
+    _fig
     return
 
 
@@ -1749,190 +1454,8 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ### 4.3.3 Nearest Neighbour
-    Nearest neighbour is a simple greedy algorithm, which due to the physical representation of this problem being _almost_ a tree, performs quite well on this problem.
+    Nearest neighbour is a simple greedy algorithm, which due to the physical representation of this problem being _almost_ a tree, performs quite well on this problem. It runs in $O(n^2)$ worst case, but with $n$ being small, brute force can find an optimal solution in an adequate amount of time
     """)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.ui.code_editor(r"""def nearest_neighbour(source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
-        sinks = supplies.copy()
-        res: list[VertexT] = [source]
-        cost: int = 0
-        curr = source
-        while fuel >= 1:
-            min_found = list(sinks)[0]
-            min_cost = dist_matrix[curr][min_found]
-            for sink in sinks:
-                curr_cost = dist_matrix[curr][sink]
-                if curr_cost < min_cost:
-                    min_found = sink
-                    min_cost = curr_cost
-
-            sinks.remove(min_found)
-            res.append(min_found)
-            curr = min_found
-            cost += min_cost
-            fuel -= 1
-
-        min_found = list(exits)[0]
-        min_cost = dist_matrix[curr][min_found]
-        for sink in exits:
-            curr_cost = dist_matrix[curr][sink]
-            if curr_cost < min_cost:
-                min_found = sink
-                min_cost = curr_cost
-
-        res.append(min_found)
-        cost += min_cost
-        return res, cost""", disabled=True)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 4.3.4 Simplex
-    I was testing the runtime, and simplex was slower than Branch & Bound on all tested problem instances, which meant that Branch & Cut, the algorithm I was planning to use for this ammendment, would be slower than a easier to implement approach. This algorithm is not correct or complete, but for larger $n$, is part of the Branch & Cut algorithm which is considered the best exact TSP algorithm. With this problem being similar to TSP, that algorithm would perform well given many 'cuts'. Cuts are linear programs that if solved, reduce the possible solution space. The only necessary cut is the cycle elimination cut, which procedurally adds cycle elimination constraints to the linear program when a cycle is present in the solution returned by the simplex algorithm.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.ui.code_editor("""def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray | None:
-        # Turns min  cTx:
-        #      s.t. Ax = b;
-        #           x >= 0
-        # Into min  eTz:
-        #      s.t. Ax + Iz = b;
-        #           x >= 0;
-        #           z >= 0
-
-        e = np.array([[0]] * c.shape[0] + [[1]] * A.shape[0])
-        dummy_A = np.block([[A, np.identity(A.shape[0])]])
-        artificial_indices = [i for i in range(A.shape[1], A.shape[1] + A.shape[0])]
-        dummy_basis = np.array(artificial_indices)
-        dummy_initial = np.array([np.hstack(([0] * A.shape[1], b.transpose()[0]))]).transpose()
-
-        dummy, basis = _simplex(dummy_A, b, e, dummy_basis, dummy_initial, np.linalg.inv(dummy_A[:, dummy_basis]), artificial_indices)
-
-        non_artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] != 1]]
-
-        # we know the problem is solvable, so we're ignoring a case
-        # artificial_vars = dummy[[i for i in range(e.shape[0]) if e[i] == 1]].ravel()
-
-        if basis.max() >= A.shape[1]:
-            # bad case
-            # hope and pray no cycling <3
-            for pivrow in range(basis.size):
-                if basis[pivrow] > A.shape[1]:
-                    non_zero_row = [col for col in range(A.shape[1]) if abs(A[pivrow, col]) > 0 and col not in basis]
-                    if len(non_zero_row) > 0:
-                        pivcol = non_zero_row[0]
-                        basis[pivrow] = pivcol
-                        pivval = A[pivrow, pivcol]
-                        A[pivrow] = A[pivrow] / pivval
-                        for irow in range(A.shape[0]):
-                            if irow != pivrow:
-                                A[irow] = A[irow] - A[pivrow] * A[irow, pivcol]
-
-            return _simplex(A, b, c, basis, dummy, np.linalg.inv(A[:, basis]))[0]
-        else:
-            # good case
-            return _simplex(A, b, c, basis, non_artificial_vars, np.linalg.inv(A[:, basis]))[0]
-
-
-    def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basis: np.ndarray, initial: np.ndarray, inv_a_basis: np.ndarray, artificial_rows=None) -> tuple[np.ndarray | None, np.ndarray | None]:
-
-        # Solves min cTx: Ax = b, x >= 0
-
-        # https://www.matem.unam.mx/~omar/math340/revised-simplex.html
-        # https://people.math.carleton.ca/~kcheung/math/notes/MATH5801/05/5_1_simplex.html
-        # https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html
-        non_basis = np.array([i for i in range(c.size) if i not in basis])
-        a_non_basis = A[:, non_basis]
-        select_k = c[non_basis].transpose() - c[basis].transpose() @ inv_a_basis @ a_non_basis
-        k: int = -1
-        max_found: int = 0
-        for i in range(select_k.size):
-            if select_k[0][i] < max_found:
-                k = i
-                max_found = select_k[0][i]
-
-        if k == -1:
-            # optimal solution found
-            return initial, basis
-        else:
-            k = non_basis[k]
-
-        d = inv_a_basis @ A[:, k]
-
-        initial_basis = initial[basis]
-
-        min_idx = -1
-        min_found = float('infinity')
-        for i in range(len(initial_basis)):
-            if d[i] > 0:
-                if initial_basis[i][0] / d[i] < min_found:
-                    min_found = initial_basis[i][0] / d[i]
-                    min_idx = i
-
-        if min_idx == -1:
-            raise IndexError("not possible")
-
-        t = initial_basis[min_idx][0] / d[min_idx]
-
-        next_x = initial.copy()
-        next_x[k] = t
-
-        for i in range(len(basis)):
-            next_x[int(basis[i])][0] -= t * d[i]
-
-        inv_E = np.identity(inv_a_basis.shape[1])
-        pivot = d[min_idx]
-
-        inv_E[:, min_idx] = -d / pivot
-        inv_E[min_idx, min_idx] = 1. / pivot
-        next_inv_a_basis = inv_E @ inv_a_basis
-
-        next_basis = basis.copy()
-        next_basis[min_idx] = k
-
-        return _simplex(A, b, c, next_basis, next_x, next_inv_a_basis, artificial_rows)
-
-
-    # lower bound by solving dual
-    def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]]) -> int:
-        # Dual problem started:
-        # A = np.array([[1 if i == u or i == v else 0 for i in [entry] + list(supplies) + [exits] + list(supplies)] for u in supplies.union([entry]) for v in supplies.union(exits)])
-        # b = np.array([[pair_path_costs[u][v]] for u in supplies.union([entry]) for v in supplies.union(exits)])
-        # c = np.ones((1 + len(exits) + 2 * len(supplies), 1))
-        #
-        # initial = [i for u in supplies.union([entry]) for v in supplies.union(exits)])
-
-        A = np.array(
-            [[1 if i == u else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v] for i in [entry] + list(supplies)] + \
-            [[1 if i == v else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v] for i in list(supplies)]
-        )
-
-        # I think exit constraint is linearly dependent (n-dash) it is redundant:
-        # [[1 if v in exits else 0 for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v]]
-
-        b = np.ones((2 * len(supplies) + 1, 1))
-        c = np.array([[dist_matrix[u][v]] for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v])
-
-        answer = simplex(A, b, c)
-
-        res: int = 0
-        mapping = [(u, v) for u in [entry] + list(supplies) for v in list(supplies) + list(exits) if u != v]
-        for i, a in enumerate(answer):
-            if a[0] > 0:
-                edge = mapping[i]
-                res += dist_matrix[edge[0]][edge[1]] * a[0]
-
-        return res""", disabled=True)
     return
 
 
@@ -1990,7 +1513,7 @@ def _(mo):
       - The algorithm does not priorities structural stability, as we have not information about how CRUDY-1 has any affect on the stability of sectors of the facility
       - The algorithm will always have a successful extraction if one exists.
 
-    The algorithm is robust to different numbers and sizes of wings, and differing numbers of junction sectors, however would fail to run if there are too many supplies. In the case that a new report notices increased numbers of supplies and adjusts CRUDY-1's supply storage to collect more supplies, brute force will be unusable and branch & bound will need to be further optimised, replaced with branch and cut, or may be not possible, in which case a heuristic approach will be used instead.
+    The algorithm is robust to different numbers and sizes of wings, and differing numbers of junction sectors, however would fail to run if there are too many supplies. In the case that a new report notices increased numbers of supplies and adjusts CRUDY-1's supply storage to collect more supplies, brute force will be unusable and branch and bound will need to be further optimised, replaced with branch and cut, or may be not possible, in which case a heuristic approach will be used instead.
     """)
     return
 

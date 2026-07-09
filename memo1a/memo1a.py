@@ -21,6 +21,21 @@ def _():
     return chain, copy, mo, mpatches, np, nx, pd, plt, random, re, stats
 
 
+@app.cell
+def _():
+    # Globals
+    _figure_names = []
+
+    def get_fig(figure_name: str) -> int:
+        if figure_name in _figure_names:
+            return _figure_names.index(figure_name) + 1
+        else:
+            _figure_names.append(figure_name)
+            return len(_figure_names)
+
+    return (get_fig,)
+
+
 @app.cell(hide_code=True)
 def _(chain, copy, mpatches, nx, plt, random, seed_input):
     class GraphDrawer:
@@ -346,7 +361,7 @@ def _(mo):
     mo.md(r"""
     ## 1.1 Limitations of Previous Model
     - The previous model assumed the facility was just the one wing
-    - The previous model wasn't taking advantage of properties of this problem
+    - The previous model wasn't taking full advantage of properties of this problem
     """)
     return
 
@@ -362,7 +377,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The previous algorithm assumed the facility was just one wing, and could be represented as a tree. While it could work on this graph with a flat graph abstraction, I chose to instead revise the algorithm for the new problem.
+    The previous algorithm assumed the facility was just one wing, and could be represented as a tree. While it could work on this graph with a flat graph abstraction, I chose to instead revise the abstaction to a heuristic one for the new problem.
 
     I also discovered new ways of doing both stages of the algorithm, which were tested to determine that brute force is still the best way of doing this problem...
     """)
@@ -375,7 +390,7 @@ def _(mo):
     # 2 Abstraction
     Let $G = (V_w, E_w, w)$ be a meta-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
 
-    $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the spans of sectors which are adjacent to just two other sectors and between two salient sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
+    $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the total cost of traversing the span of sectors  which are adjacent to just two other sectors and between two salient sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
 
     We will designate source vertex $s \in V$, the set of sink vertices $X \subseteq V$, and the set of prize vertices $S \subseteq V$, each representing the entry, exit, and supply unit-containing sectors respectively.
 
@@ -389,33 +404,8 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.1 Inputs & Outputs
-    The specificities of the inputs and outputs are above, and both concise lists are below:
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 2.1.1 Inputs
-    1. $G$
-    2. $s$
-    3. $X$
-    4. $S$
-    5. $A$
-    6. $M$
-    7. $F$
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 2.1.2 Outputs
-    1. $W$
-    2. $A_\text{new}$
+    ## 2.1 Signature specification:
+    $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Array}[\text{SupplyID}, 5] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \to \text{List}[\text{Vertex}] \times \text{Array}[\text{SupplyID}, 5]$
     """)
     return
 
@@ -424,9 +414,9 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 2.2 Output Constraints
-    The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many supply vertices as possible.
+    The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many supply vertices as possible, while reducing the total cost of this walk, $\displaystyle\sum_{i=0}^{n - 1} w(v_i, v_{i + 1})$.
 
-    $\forall i \leq \text{length}(A), A_\text{new}[i] \neq A[i] \implies A[i] = \varnothing$ and $A[i] \neq \varnothing \iff A_\text{new} = A[i]$
+    The algorithm should return CRUDY-1's new supply storage, updating it with each supply collected: $\forall i \leq |A|, A_\text{new}[i] \neq A[i] \implies A[i] = \text{NULL}$, $A[i] \neq \text{NULL} \iff A_\text{new} = A[i]$ and $\forall v \text{ in } W | v \in S, A_\text{new} \text{ contains } v$.
     """)
     return
 
@@ -475,7 +465,7 @@ def _(mo):
 
     Recall in Memo 1, the facility's singular wing was represented as a graph, with each vertex representing a salient sector and each edge a connecting walk between thoses salient sectors.
 
-    The **Hierarchical graph** representation uses a meta-graph, a graph where each vertex is a graph, to represent the wings of the facility. Each wing is an vertex in the meta-graph and the connecting coridoors between each wing will be the edges. These vertex-graphs will be represented the same way as in Memo 1.
+    The **Hierarchical graph** representation uses a meta-graph, a graph where each vertex is another graph, to represent the wings of the facility. Each wing is an vertex in the meta-graph and the connecting coridoors between each wing will be the edges. These vertex-graphs will be represented the same way as in Memo 1.
 
     The **Flat graph** representation uses a graph to representing the facility. The facility will be represented the same way as in Memo 1, except edges can now also represent inter-wing coridoors between junction sectors.
 
@@ -521,9 +511,11 @@ def _(np, pd, plt, stats):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    The figure above comparse the runtime of a hierarchical graph implementation and a flat graph one. It is shown that the algorithm leveraging the additional information provided by the hierarchical graph will run faster in the vast majority of cases than the one using the flat graph representation.
+def _(get_fig, mo):
+    mo.md(rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Comparing Hierarchical & Flat graph implementations")}</span>
+
+    Figure {get_fig("Comparing Hierarchical & Flat graph implementations")} shows a runtime comparison of algorithms solving this problem on btoh the flat and hierarchical graph, implemented in python. This shows the hierarhical graph is ~9% better median, 25% better 3rd quartile, and a smaller inter-quartile range. This means it is consistently more efficient than the flat graph over the test set of 10,000 facility blueprints
     """)
     return
 
@@ -665,7 +657,7 @@ def _(mo):
     & & x_{uv} &\in \{0, 1\} & &
     \end{array}$
 
-    where$x_{uv} = \begin{cases}
+    where $x_{uv} = \begin{cases}
     1 &  \text{path goes from u to v} \\
     x   &  \text{otherwise}
     \end{cases}$
@@ -695,11 +687,13 @@ def _(mo):
 
     The problem with all this is the $n$ is so small that constant and lower order costs of solving linear programming problems many times is greater than other more nieve algorithms.
 
-    #### 3.1.2.3 Backtracking & Greedy / Heuristic
+    Additionally, this linear program only works for the subset of problems where CRUDY-1 has exactly the same number of supplies it could collect in the facility to the number of supply storage slots it has. In the case it has fewer supply storage slots, a linear program for this problem will be much more difficult to create.
 
-    Instead of linear programming overhead, we will instead create a tree whose root node is the entry, and leaf nodes are the exits. The branch nodes will be supplies, and the tree will contain each possible ordering of supplies. Searching this tree exhaustively is too time consuming, but we will instead compute a lower bound for each branch and prune those that have a lower bound greater than an upper bound we find. We will prefer depth first search on this tree to hopefully reduce our upper bound.
+    #### 3.1.2.3 Branch and bound
 
-    To calculate the lower bounds, we first define $T_x = (V_S', E_S', w_S)$ to be a minimum spanning tree of a subset of $G_S = (V_S, E_S, w_S)$, where $V_S' = V_S \backslash \{x\}$. Then our lower bound will be $\displaystyle\min_{x \in X} \displaystyle\sum_{\{u, v\} \in E_S'} w_S(u, v)$.
+    Instead of linear programming overhead, we will instead create a tree whose root vertex is the entry, and leaf vertices are the exits. The branch vertices will be supplies, and the tree will contain each possible ordering of supplies. We can then find lower and upper bounds for a particular branch vertex and prune it if its lower bound is greater or equal to the lowest found upper bound
+
+    To calculate the lower bounds, we will add to the current branch's walk minimum cost edges until there are $k + 1$ edges, where $k$ is
 
     To calculate the upper bound, we can find one greedily using a greedy algorithm considered above. We will use a modification of the Lin-Kernighan Heuristic for this purpose. As shown below, we can expect ~12% solution gap for 5 supplies.
 
@@ -714,22 +708,30 @@ def _(mo):
 def _(pd, plt):
     _df = pd.read_csv("memo1a/data_stage_2.csv")
 
-    _dot_size = 8.
-    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6), sharey=True)
-    _ax1.scatter([i+2 for i in range(len(_df["brute force time"]))], _df["brute force time"], c='b', label="Brute force", marker='o', s=_dot_size)
-    _ax1.scatter([i+2 for i in range(len(_df["branch & bound time"]))], _df["branch & bound time"], c='r', label="Branch and bound", marker='o', s=_dot_size)
-    _ax1.scatter([i+2 for i in range(len(_df["nearest neighbour time"]))], _df["nearest neighbour time"], c='g', label="Nearest neighbour", marker='o', s=_dot_size)
-    _ax1.scatter([i+2 for i in range(len(_df["lin-kernighan time"]))], _df["lin-kernighan time"], c='orange', label="Lin-Kernighan", marker='o', s=_dot_size)
+    _dot_size = 2.
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
+
+    def _plot(ax, name, c, label):
+        ax.scatter([i+2 for i in range(len(_df[name]))], _df[name], c=c, label=label, s=_dot_size)
+
+
+    _plot(_ax1, "brute force time", 'b', "Brute force")
+    _plot(_ax1, "branch & bound time", 'r', "Branch and bound")
+    _plot(_ax1, "nearest neighbour time", 'g', "Nearest neighbour")
+    _plot(_ax1, "lin-kernighan time", 'orange', "Lin-Kernighan")
     _ax1.legend(loc="upper right")
     _ax1.set_yscale("log", base=10)
 
-    _local_range = range(2, 7)
-    _range_len = _local_range.stop-_local_range.start
+    _dot_size = 3.
+    _local_range = range(3, 8)
+    _range_len = _local_range.stop - _local_range.start
+    def _plot(ax, name, c, label):
+        ax.plot(list(_local_range), _df[name][_local_range.start - 2:_local_range.stop - 2], "-o", c=c, label=label, ms=_dot_size)
 
-    _ax2.scatter([i for i in _local_range], _df["brute force time"][:_range_len], c='b', label="Brute force", marker='o')
-    _ax2.scatter([i for i in _local_range], _df["branch & bound time"][:_range_len], c='r', label="Branch and bound", marker='o')
-    _ax2.scatter([i for i in _local_range], _df["nearest neighbour time"][:_range_len], c='g', label="Nearest neighbour", marker='o')
-    _ax2.scatter([i for i in _local_range], _df["lin-kernighan time"][:_range_len], c='orange', label="Lin-Kernighan", marker='o')
+    _plot(_ax2, "brute force time", 'b', "Brute force")
+    _plot(_ax2, "branch & bound time", 'r', "Branch and bound")
+    _plot(_ax2, "nearest neighbour time", 'g', "Nearest neighbour")
+    _plot(_ax2, "lin-kernighan time", 'orange', "Lin-Kernighan")
     _ax2.legend(loc="upper right")
     _ax2.set_yscale("log", base=10)
     _ax2.set_xticks(_local_range)
@@ -760,7 +762,7 @@ def _(mo):
 
 @app.cell
 def _(np, pd, plt):
-    _df = pd.read_csv("memo1a/data_stage_2.csv")
+    _df = pd.read_csv("memo1a/data_stage_2_100_trials.csv")
 
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
     _ax1.scatter([i+2 for i in range(len(_df["brute force length"]))], _df["brute force length"], c='b', label="Brute force", marker='.')
@@ -1676,47 +1678,13 @@ def _(mo):
     return
 
 
-@app.cell
-def _(mo):
-    mo.ui.code_editor(r"""def nearest_neighbour(source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
-        sinks = supplies.copy()
-        res: list[VertexT] = [source]
-        cost: int = 0
-        curr = source
-        while fuel >= 1:
-            min_found = list(sinks)[0]
-            min_cost = dist_matrix[curr][min_found]
-            for sink in sinks:
-                curr_cost = dist_matrix[curr][sink]
-                if curr_cost < min_cost:
-                    min_found = sink
-                    min_cost = curr_cost
-
-            sinks.remove(min_found)
-            res.append(min_found)
-            curr = min_found
-            cost += min_cost
-            fuel -= 1
-
-        min_found = list(exits)[0]
-        min_cost = dist_matrix[curr][min_found]
-        for sink in exits:
-            curr_cost = dist_matrix[curr][sink]
-            if curr_cost < min_cost:
-                min_found = sink
-                min_cost = curr_cost
-
-        res.append(min_found)
-        cost += min_cost
-        return res, cost""", disabled=True)
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ### 4.3.4 Simplex
     I was testing the runtime, and simplex was slower than Branch & Bound on all tested problem instances, which meant that Branch & Cut, the algorithm I was planning to use for this ammendment, would be slower than a easier to implement approach. This algorithm is not correct or complete, but for larger $n$, is part of the Branch & Cut algorithm which is considered the best exact TSP algorithm. With this problem being similar to TSP, that algorithm would perform well given many 'cuts'. Cuts are linear programs that if solved, reduce the possible solution space. The only necessary cut is the cycle elimination cut, which procedurally adds cycle elimination constraints to the linear program when a cycle is present in the solution returned by the simplex algorithm.
+
+    Additionally, due to CRUDY-1 needing to pick up fewer than 5 supplies if it is carrying some, there is not a simple linear program for this problem.
     """)
     return
 
@@ -1911,6 +1879,32 @@ def _(mo):
     The algorithm is robust to different numbers and sizes of wings, and differing numbers of junction sectors, however would fail to run if there are too many supplies. In the case that a new report notices increased numbers of supplies and adjusts CRUDY-1's supply storage to collect more supplies, brute force will be unusable and branch & bound will need to be further optimised, replaced with branch and cut, or may be not possible, in which case a heuristic approach will be used instead.
     """)
     return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 6 Appendix
+    # 6.1
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 6.2 Python Implementations
+    """)
+    return
+
+
+app._unparsable_cell(
+    r"""
+    with open("memo1a/memo1a_algorithm.py", "r", encoding="utf-8")
+    mo.ui.code_editor(, disabled=True)
+    """,
+    name="_"
+)
 
 
 if __name__ == "__main__":

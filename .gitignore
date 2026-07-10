@@ -5,3 +5,7 @@ __marimo__/
 /slides/
 
 /.venv/
+
+/.idea/
+
+/example_memos/

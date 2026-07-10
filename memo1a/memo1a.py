@@ -1546,6 +1546,36 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## 5.4 Correctness & Optimality
+    On a test set of 100,000 facilities of different seeds, all outputs of the algorithm were correct. This means the algorithm is likely to be correct.
+
+    The algorithm's stages also force correctness, with a solution always starting with the entry and ending with a vertex due to the fuel parameter of the recursive brute force procedure. It also stores a map that can be used to transform between each abstracted graph created by the algorithm. Brute force searches the entire solution space exhaustively, meaning it will find an optimal solution. These maps convert this solution back to a walk on $G$, which means the algorithm will be optimal
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Tractability
+    Since the size of $S$, $X$ and $A$ are constant for all problem instances, the algorithm only grows with the sizes of $V_w$, $E_w$, $V$, $E$, $M$ and $F$. The latter two are only used to remove already-collected supplies, which is done with a for-each loop, giving linear time complexity. The former four are related to the dijkstra's cost of finding the shortest paths between supplies, the intra-wing BFS step and creating the salient graph.
+
+    Tractability is defined as running in polynomial time for each non-constant parameter.
+
+    The dijkstra's cost is in order $O(n \log n + m)$, where $n$ is the number of supplies, exits, entrances and junctions combined and $m$ is the number of intra-wing edges between these, and the inter-wing edges between the junction. This gives a time complexity in order $O(|E_W| \log |E_W| + |E| + |E_W|), which is tractable.
+
+    The intra-wing BFS step is in order $O(|V_k| + |E_k|)$ for each wing, thus it is in $O(|V| + |E|)$, which is tractable.
+
+    The creation of the salient graph is a double nested for loop iterating on the entry, exit, supply and junction vertices, inside a loop on each wing. This gives a complexity in $O(|V_W||E_W|^2)$, which is tractable.
+
+    Since each cost that scales with the non-constant variables runs in polynomial time, the algorithm is tractable.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     # 6 Appendix
     # 6.1 References
     """)

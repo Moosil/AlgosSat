@@ -265,9 +265,9 @@ def _(mo):
     - the sectors in the facility connect in two directions
     - CRUDY-1 starts with 0 supplies in its storage
 
-    ## ADT Operations
+    # ADT Operations
 
-    ### Graph
+    ## Graph
     - $\text{add\_vertex}: \text{Graph} \times \text{Vertex} \to \text{Graph}$
     - $\text{add\_edge}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \times \mathbb{R}^+ \cup \{0\} \to \text{Graph}$
     - $\text{remove\_vertex}: \text{Graph} \times \text{Vertex} \to \text{Graph}$
@@ -278,7 +278,7 @@ def _(mo):
     - $\text{set\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \times \mathbb{R}^+ \cup \{0\} \to \text{Graph}$
     - $\text{get\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex}) \to \mathbb{R}^+ \cup \{0\}$
 
-    ### Set
+    ## Set
     - $\text{union}: \text{Set} \times \text{Set} \to \text{Set}$
     - $\text{difference}: \text{Set} \times \text{Set} \to \text{Set}$
     - $\text{intersection}: \text{Set} \times \text{Set} \to \text{Set}$
@@ -287,40 +287,40 @@ def _(mo):
     - $\text{subset\_of}: \text{Set} \times \text{Set} \to \text{boolean}$
     - $\text{are\_equal}: \text{Set} \times \text{Set} \to \text{boolean}$
 
-    ### Map
+    ## Map
     - $\text{size}: \text{Map} \to \mathbb{R}^+ \cup \{0\}$
     - $\text{has}: \text{Map} \times \text{Key} \to \text{boolean}$
     - $\text{at}: \text{Map} \times \text{Key} \to \text{Value}$
     - $\text{remove}: \text{Map} \times \text{Key} \to \text{Map}$
     - $\text{set}: \text{Map} \times \text{Key} \times \text{Value} \to \text{Map}$
 
-    ### List
+    ## List
     - $\text{push}: \text{List} \times \text{Item} \to \text{List}$
     - $\text{pop}: \text{List} \to \text{List}$
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
     - $\text{is\_empty}: \text{List} \to \text{Boolean}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
 
-    ### Array
+    ## Array
     - $\text{set}: \text{Array} \times \mathbb{Z}^+ \times \text{Item} \to \text{List}$
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
 
-    ## Algorithm
+    # Algorithm
 
-    ### Worded defintion
+    ## Worded defintion
     Given Graph $G = (V, E, w)$, vertex $v_e \in V$, Set of vertices $V_x \subseteq V$, Set of vertices $V_s \subseteq V$, Map $M_s: V \to \text{string or null}$, Set $S$ and Array $A$, return $W \times A_1$
 
-    ### Signature specification
+    ## Signature specification
     $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Map}[\text{Vertex}, \text{String or NULL}] \times \text{Set}[\text{String}] \times \text{Array}[\text{String}, 5] \to \text{List}[\text{Vertex}] \times \text{Array}[\text{String}, 5]$
 
-    ### Output Constraints
+    ## Output Constraints
 
     $W$ is a list of vertices, where the first element is $v_e$ and the last element $\in V_x$ and the elements inbetween form a path through the graph where an edge in $G$ exists between each element of $W$ and the one following it.
 
-    ### Parameter Justifications
+    ## Parameter Justifications
 
-    #### $G$
+    ### $G$
     $G$ represents the facility layout, encapsulating only the salient features of it.
 
     A graph allows a minimal abstraction, where other ADTs would introduce non-salient parts of the problem.
@@ -331,41 +331,41 @@ def _(mo):
 
     The weight function $w: V \times V \to \mathbb{R}^+ \cup \{0\}$ abstract long stretches of coridoor sectors. The weight function $w: \text{Vertex}
 
-    #### $v_e$
+    ### $v_e$
     $v_e$ represents the entry vertex, where the algorithm should start and the first element of $W$
 
-    #### $V_x$
+    ### $V_x$
     $V_x$ represents the exit vertices, where the algorithm can terminate and one vertex in $V_x$ must be the last element of $W$
 
     A set allows for checks against membership and other set operations compatible with the vertex set of $G$
 
-    #### $V_s$
+    ### $V_s$
 
     $V_x$ represents the supply vertices, where a supply exists in the sector represented by the vertex. The algorithm should pass through as many of these vertices as possible in walk $W$
 
     A set allows for checks against membership and other set operations compatible with the vertex set of $G$
 
-    #### $M_s$
+    ### $M_s$
 
     Map $M_s$ returns the uid of the supply at a vertex or null if no supply exists there.
 
     A map allows for key-value lookup, which allows mapping of each vertex to a string
 
-    #### $S$
+    ### $S$
 
     What does it model?
     Set $S$ models all previously collected supply units as they may only collected once
 
     A set allows for fast checking of containing, which is important because CRUDY-1 must quickly evaluate if a supply unit should be collected (or if it has already previously been collected).
 
-    #### $A$
+    ### $A$
 
     What does it model?
     Array $A$ models CRUDY-1's limited supply unit storage
 
     An array has fixed length, like CRUDY-1's supply unit storage.
 
-    #### $W$
+    ### $W$
 
     List $W$ abstracts valid movement on the facility, and is a walk on $G$
 
@@ -384,15 +384,15 @@ def _(mo):
     - As CRUDY-1 traverses the facility, its position is not stored as the algorithm is finding a path to an **exit**. Due to the connectedness of the facility, the algorithm will always terminate by finding a walk through the facility
     - Physical mass of each supply units are uniform, thus only the amount of these same-weight supply units must be considered.
 
-    ## Implementation
+    # Implementation
 
-    ### Uniqueness of paths
+    ## Uniqueness of paths
     We assume the facility is *acyclic* and *fully connected*. Since we also assume the it is also undirected, the graph $G$ is a tree and thus a minimum spanning tree. Therefore every path between two vertices in $G$ is a minimum-cost path.
 
-    ### Uniqueness of facilities
+    ## Uniqueness of facilities
     Two facilities may have the their $G$ isomorphic, even if they have completely different layouts.
 
-    ### Adjacency List vs Matrix
+    ## Adjacency List vs Matrix
     With the current facilities size:
     - $|E| = |V| - 1$ due to the tree representation
     - Adjacency list: $2|E| = 2|V| - 1$ entries
@@ -400,7 +400,7 @@ def _(mo):
 
     For this facility, an adjacency list would be more compact
 
-    ### Design patterns
+    ## Design patterns
 
     | Approach                  | Examples                       | Correctness | Completeness | Viability                     | Weaknesses                                    |
     | ------------------------- | ------------------------------ | ----------- | ------------ | ----------------------------- | --------------------------------------------- |
@@ -410,7 +410,7 @@ def _(mo):
     | Informed (Meta-heuristic) | Tabu-search, swarm algorhithms | No          | Yes          | Yes                           | Needs an algorithm to generate solutions (ok) |
     |                           |                                |             |              |                               |                                               |
 
-    #### Justification
+    ### Justification
     Due to small $|V|$ and $|E|$, meta-heuristic algorithms are overkill in complexity.
 
     The approach of finding pair-distances between supplies, entrances and exits, all of which there is a constant amount of, allows for otherwise too inefficient algorithms to be considered.
@@ -421,7 +421,7 @@ def _(mo):
 
     This path may be then collapsed to a path through $G$ by retriving the shortest pairwise paths found previously
 
-    ### Verbose Algorithm Explanation
+    ## Verbose Algorithm Explanation
     1. Use a modified Dijkstra's algorithm with an early return upon finding a set of sinks, to find shortest paths between each supply and entry, and each supply and exit
     2. Find the total cost of each of these shortest paths
     3. Use a recursive brute-force approach to select and order of supplies to an exit whose path has the least total cost
@@ -434,7 +434,7 @@ def _(mo):
     4. dequeue from the priority queue, visiting it and repeat until the priority queue is empty
     5. return the found, stored paths. If a sink has not been found, it is not connected to the connected component the source vertex is part of
 
-    ### Pseudocode
+    # Pseudocode
     ```
     FUNCTION swap(L: List, i: postive interger, j: positive interger) -> List
         res <- L
@@ -630,7 +630,7 @@ def _(mo):
     END FUNCTION
     ```
 
-    ### Python Implementation
+    # Python Implementation
     """)
     return
 
@@ -649,7 +649,7 @@ def python_impl(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Algorithm Explorer
+    ## Algorithm Explorer
     """)
     return
 
@@ -663,9 +663,9 @@ def algorithm_explorer(facility_drawer, seed_input):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Justification
+    # Justification
 
-    ### Suitability
+    ## Suitability
     - The number of supplies in the facility is low, and the number of verticies is much higher. This suits the time complexity scaling well with number of verticies and badly with number of supplies
     - The facilities size: 12x12 sectors means that max number of vertices in abstraction is 144 and this small size favours an algorithm that is easier to implement
     - Since the algorithm always finds the shortest route that collects all supplies to an exit, an edge case would be the seed that gives the worst facility for the algorithm
@@ -681,12 +681,12 @@ def _(mo):
       - Sectors that break when you go through them (CRUDY-1 cannot revisit)
       - Many other things
 
-    ### Coherance
+    ## Coherance
     - I use $\text{get\_neighbours}: \text{Graph} \times \text{Vertex} \to \text{Vertex}$ in the dijkstra's algorithm implementation in the algorithm to get the neighbours of the current visited vertex
     - I use $\text{has}: \text{Map} \times \text{Key} \to \text{Boolean}$ to reconstruct the shortest paths found by dijkstra's algorithm
     - When I was going to use branch and bound, I realised that Lin-Kernighan requires a set operation which was not an ADT function (symmetric difference $\Delta$), which I solved by creating a p
 
-    ### Operational Constraints
+    ## Operational Constraints
     - Load capacity: $A$ holds the supplies that CRUDY-1 currently holds
     - Extraction: The algorithm always terminates at an exit (proved below)
     - Energy budget: The algorithm always finds a minimum cost walk through the facility that collects all supplies and exits at an exit
@@ -703,15 +703,124 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Proofs (barely)
+    # Proofs (barely)
 
-    ### Tractablilibity
+    ## Tractablilibity
 
     The algorithm checked on a subset of 85000 facilities was correct for all such facilities
 
-    ### Optimality
+    ## Optimality
 
     Since the algorithm finds the shortest distance between each entry, supply and exit, and it the checks each ordering of entry to each supply to an exit, the walk found must be the shortest path
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Appendix
+    ## References
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Abhijit, S. (n.d.). Undirected Single Source Shortest Paths in Linear Time. Retrieved 10 July 2026, from https://blogs.asarkar.com/assets/docs/algorithms/Undirected%20Single%20Source%20Shortest%20Paths%20in%20Linear%20Time%20-%20Thorup.pdf
+
+    2-opt. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=2-opt&oldid=1360572175
+
+    Borůvka’s algorithm. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Bor%C5%AFvka%27s_algorithm&oldid=1344994202
+
+    Branch and bound. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Branch_and_bound&oldid=1362914799
+
+    Camilo, R. (n.d.). Travelling Salesman Problems. University of British Columbia. Retrieved  https://www.cs.ubc.ca/labs/algorithms/Courses/CPSC532D-05/Slides/tsp-camilo.pdf
+
+    Casper da Costa-Luis, Stephen Karl Larroque, Kyle Altendorf, Hadrien Mary, richardsheridan, Mikhail Korobov, Noam Raphael, Ivan Ivanov, Marcel Bargull, Nishant Rodrigues, Shawn, Mikhail Dektiarev, Michał Górny, mjstevens777, Matthew D. Pagel, Martin Zugnoni, CrazyPython, Charles Newey, Antony Lee, … Hugo van Kemenade. (2026). Tqdm: A fast, extensible progress bar for python and cli [Computer software]. Zenodo. https://doi.org/10.5281/ZENODO.20729793
+
+    Catppuccin. (2026). Catppuccin/palette [TypeScript]. https://github.com/catppuccin/palette (Original work published 2021)
+
+    Cutting-plane method. (2025). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Cutting-plane_method&oldid=1300359815
+
+    Dantzig, G., Fulkerson, R., & Johnson, S. (1954). Solution of a large-scale traveling-salesman problem. Journal of the Operations Research Society of America, 2(4), 393–410. https://doi.org/10.1287/opre.2.4.393
+
+    David P., W. (2014, October 2). ORIE 6300 Mathematical Programming I. Cornell University. https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
+
+    ​Gianni A., D. C. (n.d.). TSP formulations. Retrieved 10 July 2026, from  https://web2.qatar.cmu.edu/~gdicaro/15382/additional/tsp-formulations.pdf
+
+    gskinner. (n.d.). Regexr. Retrieved 10 July 2026, from https://regexr.com/
+
+    Guido, V. R. (n.d.). The python standard library. Python Documentation. Retrieved 10 July 2026, from https://docs.python.org/3/library/index.html
+
+    Hagberg, A. A., Schult, D. A., & Swart, P. J. (2008). Exploring network structure, dynamics, and function using networkx. Python in Science Conference. https://doi.org/10.25080/TCWV9851
+
+    Harris, C. R., Millman, K. J., Van Der Walt, S. J., Gommers, R., Virtanen, P., Cournapeau, D., Wieser, E., Taylor, J., Berg, S., Smith, N. J., Kern, R., Picus, M., Hoyer, S., Van Kerkwijk, M. H., Brett, M., Haldane, A., Del Río, J. F., Wiebe, M., Peterson, P., … Oliphant, T. E. (2020). Array programming with NumPy. Nature, 585(7825), 357–362. https://doi.org/10.1038/s41586-020-2649-2
+
+    Hunter, J. D. (2007). Matplotlib: A 2d graphics environment. Computing in Science & Engineering, 9(3), 90–95. https://doi.org/10.1109/MCSE.2007.55
+
+    Integer programming. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Integer_programming&oldid=1361224186
+
+    Introduction to disjoint set(Union-find data structure). (2012, October 28). GeeksforGeeks. https://www.geeksforgeeks.org/dsa/introduction-to-disjoint-set-data-structure-or-union-find-algorithm/
+
+    Jens, C. (n.d.). Branch-and-cut.Eng.dvi. Danmarks Tekniske Universitet. Retrieved 10 July 2026, from https://www2.imm.dtu.dk/courses/04232/Branch-and-Cut.Eng.pdf
+
+    Jesper, L. (n.d.). Branch & Cut for TSP. Università degli Studi di Milano. Retrieved https://homes.di.unimi.it/righini/Didattica/OttimizzazioneDiscreta/MaterialeOD/Larsen%20-%20B&C%20for%20TSP.pdf
+
+    Karczmarz, A., Nadara, W., & Sokołowski, M. (2023). Exact shortest paths with rational weights on the word ram. arXiv. https://doi.org/10.48550/ARXIV.2311.03321
+
+    Kevin, C. (n.d.). Revised simplex method. Carleton University. Retrieved 10 July 2026, from https://people.math.carleton.ca/~kcheung/math/notes/MATH5801/05/5_1_simplex.html
+
+    Kodie, N. (2026a). Marimo_memo01v15.py.
+
+    Kodie, N. (2026b). marimo_memoA01v01.py.
+
+    Kodie, N. (2026c). marimo_memoA02v01.py.
+
+    Let’s Learn, Nemo! (2022, June 9). (OP07) Duality Theory for Linear Programs. Youtube. https://www.youtube.com/watch?v=Qz7TSRGRUAc&feature=youtu.be
+
+    Lindsay, S., Peter, H., Chris, B., Jon, B., & Haris, S. (2020, December 21). Branch and cut. Cornell University. https://optimization.cbe.cornell.edu/index.php?title=Branch_and_cut
+
+    Linear programming relaxation. (2025). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Linear_programming_relaxation&oldid=1326322231
+
+    Lin–Kernighan heuristic. (2025). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Lin%E2%80%93Kernighan_heuristic&oldid=1307631980
+
+    Marimo team. (2026, January 13). Marimo Slides is plain awesome. Youtube. https://www.youtube.com/watch?v=ZZBkvfesKG0
+
+    McKinney, W. (2010). Data structures for statistical computing in python. 56–61. https://doi.org/10.25080/Majora-92bf1922-00a
+
+    mzspivey. (2021, April 1). Intuition for the dual in linear programming. A Narrow Margin. https://mikespivey.wordpress.com/2021/03/31/intuition-for-the-dual-in-linear-programming/
+
+    Nick, P. (2009, September 30). Implementation of Thorup’s Linear Time Algorithm for Undirected Single Source Shortest Paths with Positive Integer Weights. Slideshare. https://www.slideshare.net/slideshow/implementation-of-thorups-linear-time-algorithm-for-undirected-single-source-shortest-paths-with-positive-integer-weights/29906703#1
+
+    Omar, A. C. (n.d.-a). Degenerate pivots and cycling. Universidad Nacional Autónoma de México. Retrieved 10 July 2026, from https://www.matem.unam.mx/~omar/math340/degenerate.html
+
+    Omar, A. C. (n.d.-b). The dual simplex method. Universidad Nacional Autónoma de México. Retrieved 10 July 2026, from https://www.matem.unam.mx/~omar/math340/dual-simplex.html
+
+    Omar, A. C. (n.d.-c). The revised simplex method [Digital Course]. Universidad Nacional Autónoma de México. The Revised Simplex Method. Retrieved 10 July 2026, from https://www.matem.unam.mx/~omar/math340/revised-simplex.html
+
+    Robert B., I. (n.d.). Phase I: Artificial variable method. The University of British Columbia. Today. Retrieved https://personal.math.ubc.ca/~israel/m340/artif.pdf
+
+    Simplex algorithm. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Simplex_algorithm&oldid=1352960709
+
+    tanemaki & Stackoverflow community. (2014, April 21). Detect and exclude outliers in a pandas DataFrame. https://stackoverflow.com/a/23202269
+
+    The Manim Community Developers. (2026). Manim – mathematical animation framework (Version v0.20.1) [Computer software]. https://www.manim.community/
+
+    The pandas development team. (2026). Pandas-dev/pandas: Pandas [Computer software]. Zenodo. https://doi.org/10.5281/ZENODO.21003741
+
+    Thorup, M. (1999). Undirected single-source shortest paths with positive integer weights in linear time. Journal of the ACM, 46(3), 362–394. https://doi.org/10.1145/316542.316548
+
+    Travelling salesman problem. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Travelling_salesman_problem&oldid=1360558532
+
+    Virginia Vassilevska, W. (2016, October 6). CS 267 Lecture 3. Stanford University. https://theory.stanford.edu/~virgi/cs267/lecture4.pdf
+
+    Virtanen, P., Gommers, R., Oliphant, T. E., Haberland, M., Reddy, T., Cournapeau, D., Burovski, E., Peterson, P., Weckesser, W., Bright, J., Van Der Walt, S. J., Brett, M., Wilson, J., Millman, K. J., Mayorov, N., Nelson, A. R. J., Jones, E., Kern, R., Larson, E., … Vázquez-Baeza, Y. (2020). SciPy 1.0: Fundamental algorithms for scientific computing in Python. Nature Methods, 17(3), 261–272. https://doi.org/10.1038/s41592-019-0686-2
+
+    Wei, Y., & Tanaka, S. (2013). An improved Thorup shortest paths algorithm with a modified component tree. 2013 Ninth International Conference on Natural Computation (ICNC), 1160–1165. https://doi.org/10.1109/ICNC.2013.6818153
+
+    Zoterobib: Fast, free bibliography generator—Mla, apa, chicago, harvard citations. (n.d.). Retrieved 10 July 2026, from https://zbib.org/
     """)
     return
 

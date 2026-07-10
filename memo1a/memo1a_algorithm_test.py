@@ -307,7 +307,7 @@ def test_memo1():
     run_test(lambda: memo1_algorithm.ember_rescue(flat_graph, facility_drawer.entry, exits, supplies, supply_map, storage, set()), facility_drawer)
 
 
-def get_data():
+def get_facility_data():
     res: list[dict] = []
 
     for i in trange(100_000, desc="gathering data on different facilities"):
@@ -388,11 +388,60 @@ def get_memo_difference():
             writer.writerow(res[0].keys())
             writer.writerows([[res[i][k] if k in res[i] else "" for k in res[0]] for i in range(len(res))])
 
+def test_tractability():
+    correct_count: int = 0
+    LOOP_COUNT: int = 100_000
+    for i in trange(LOOP_COUNT, desc="Testing Tractability"):
+        facility_drawer = GraphDrawer(10000000 + i)
+        flat_graph = get_flat_graph(facility_drawer.get_abstracted_graph())
+
+        exits = {facility_drawer.exit_a, facility_drawer.exit_b}
+        supplies = set(facility_drawer.supplies)
+        storage = tuple([None] * 5)
+        supply_map = {i: hash(i) for i in facility_drawer.supplies}
+
+        res = memo1_algorithm.ember_rescue(flat_graph, facility_drawer.entry, exits, supplies, supply_map, storage, set()), facility_drawer
+
+        path = facility_drawer.get_path_from_super_path(res[0])
+
+        def has_edge(u, v) -> bool:
+            if u[0] == v[0]:
+                u = u[1:]
+                v = v[1:]
+                return any(wing.has_edge(u, v) for wing in facility_drawer.wings)
+            else:
+                return (u, v) in facility_drawer.junctions or (v, u) in facility_drawer.junctions
+
+        is_correct = path[0] == facility_drawer.entry
+        is_correct &= (path[-1] == facility_drawer.exit_a or path[-1] == facility_drawer.exit_b)
+        is_correct &= all(has_edge(path[i], path[i + 1]) for i in range(len(path) - 1))
+        if is_correct:
+            correct_count += 1
+
+    print(f"{correct_count}/{LOOP_COUNT} outputs are correct")
+
 
 if __name__ == "__main__":
-    # test_memo1()
-    # test_memo1a()
-    # get_data()
-    test_stage_2()
-    # get_memo_difference()
-    pass
+    while test_id := input("""Enter a number from 1-6 for a particular test:
+    [1] test memo1a's algorithm
+    [2] test memo1's algorithm
+    [3] get facility data
+    [4] test stage 2 of algorithm
+    [5] get difference between memo1 and memo1a
+    [6] test tractability
+    """) in {str(i) for i in range(1,7)}:
+        match test_id:
+            case "1":
+                test_memo1()
+            case "2":
+                test_memo1a()
+            case "3":
+                get_facility_data()
+            case "4":
+                test_stage_2()
+            case "5":
+                get_memo_difference()
+            case "6":
+                test_tractability()
+            case _:
+                print(f"{test_id} is not a value between 1 and 6")

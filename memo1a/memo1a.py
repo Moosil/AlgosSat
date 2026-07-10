@@ -5,7 +5,7 @@ app = marimo.App(width="medium", app_title="Memo1A1", css_file="../custom.css")
 
 
 @app.cell
-def _():
+def imports():
     import marimo as mo
     import random
     import networkx as nx
@@ -36,7 +36,7 @@ def _():
 
 
 @app.cell
-def _():
+def global_vars():
     # Globals
     _figure_names = []
 
@@ -51,7 +51,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(chain, copy, mpatches, nx, plt, random, seed_input):
+def graph_drawer_impl(chain, copy, mpatches, nx, plt, random, seed_input):
     class GraphDrawer:
         def __init__(self) -> None:
             self.WING_COLS, self.WING_ROWS = 10, 10
@@ -329,7 +329,7 @@ def _(chain, copy, mpatches, nx, plt, random, seed_input):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def settings(mo):
     mo.md(r"""
     # Settings
     """)
@@ -337,7 +337,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def facility_seed_picker(mo):
     seed_input = mo.ui.number(
         value=28122007,
         start=0,
@@ -350,7 +350,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def title(mo):
     mo.md(r"""
     # Memo 1 Amendment 1
     """)
@@ -358,7 +358,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def introduction(mo):
     mo.md(r"""
     # 1 Introduction
     We have been tasked to design a **decision architecture** for a robot. To do this, we will create a abstraction for this problem, and subsequently an algorithm to solve it.
@@ -371,7 +371,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def limitations_of_previous_model(mo):
     mo.md(r"""
     ## 1.1 Limitations of Previous Model
     - The previous model assumed the facility was just the one wing
@@ -381,25 +381,18 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def amendment_revisions(mo):
     mo.md(r"""
     ## 1.2 Amendment Revisions
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
     The previous algorithm assumed the facility was just one wing, and could be represented as a tree. While it could work on this graph with a flat graph abstraction, I chose to instead revise the abstaction to a heuristic one for the new problem.
 
-    I also discovered new ways of doing both stages of the algorithm, which were tested to determine that brute force is still the best way of doing this problem...
+    I also discovered new ways of doing both stages of the algorithm, which were tested to determine that **brute force** is still the best way of doing this problem...
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def abstraction(mo):
     mo.md(r"""
     # 2 Abstraction
     Let $G = (V_w, E_w, w)$ be a meta-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
@@ -416,7 +409,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def signature_specification(mo):
     mo.md(r"""
     ## 2.1 Signature specification:
     $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Array}[\text{SupplyID}, 5] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \to \text{List}[\text{Vertex}] \times \text{Array}[\text{SupplyID}, 5]$
@@ -425,7 +418,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def output_constraints(mo):
     mo.md(r"""
     ## 2.2 Output Constraints
     The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many supply vertices as possible, while reducing the total cost of this walk, $\displaystyle\sum_{i=0}^{n - 1} w(v_i, v_{i + 1})$.
@@ -436,7 +429,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def assumptions(mo):
     mo.md(r"""
     ## 2.3 Assumptions
     Assumptions about the problem allow use of more efficient or informed algorithms to be used. Outlined below are properties observed from all of a subset of facility maps examined:
@@ -455,7 +448,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def salient_features(mo):
     mo.md(r"""
     ## 2.4 Salient Features
     Decisions made for how much abstraction is done on certain properties of the problem are guided by maintaining correctness, completeness, and allowing for an appropriate run-time given the size of each variable in the current problem. In particular, finding an exact solution requires searching through a portion of the solution space, and thus we have an at most exponential growth in $O(b^d)$. Reducing $b$ and $d$ allow for further depth and will allow the algorithm to run faster, allow for exact algorithms/better heuristic upper-bounds, and allow for this algorithm to be considered on larger facilities.
@@ -472,7 +465,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def hierarchical_vs_flat_graph(mo):
     mo.md(r"""
     ## 2.5 Hierarchical vs Flat graph
     When adapting from a single-wing facility to a multi-wing one, there are two obvious ways to represent the multiple wings.
@@ -493,7 +486,7 @@ def _(mo):
 
 
 @app.cell
-def _(np, pd, plt, stats):
+def hierarchical_vs_flat_runtime(np, pd, plt, stats):
     _df = pd.read_csv("memo1a/data_memos.csv")
 
     _df = _df[(np.abs(stats.zscore(_df)) < 2).all(axis=1)]
@@ -525,7 +518,7 @@ def _(np, pd, plt, stats):
 
 
 @app.cell(hide_code=True)
-def _(get_fig, mo):
+def hierarchical_vs_flat_runtime_comment(get_fig, mo):
     mo.md(rf"""
     <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Comparing Hierarchical & Flat graph implementations")}</span>
 
@@ -535,7 +528,7 @@ def _(get_fig, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def hierachical_no_adt_justification(mo):
     mo.md(r"""
     ### 2.5.1
     No new ADT operations are _required_ to use the hierarchical graph. Finding the wing of a vertex $v$ is possible in $|W|$ time by checking for each $w = (V_w, E_w) \in W$, if $v \in V_w$. This is possible due to assumption that each wing's vertex sets are disjoint. There is a tradeoff between storage and efficiency here, with storing the wings allowing for quick retrieval at the cost of space and getting the wings being a time cost. I chose to the latter option as it seemed in implementation that finding the wings did not affect performance to any noticeable amount
@@ -546,12 +539,23 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### 2.5.2 Flat Graph Is Better
+    While it is certain for this algorithmic idea, a hierarhical graph abstraction is better, it could be argued for large $n$, **Thorup99**, a linear time undirected single source shortest path (SSSP) algorithm would be better to find the shortest paths between between supplies, as its component tree structure is close to the facility's structure, and a minimum spanning tree can be found quite quickly due to the flattened facility graph being _almost_ a tree.
+
+    This would remove the need for the creation of $F$, as the algorithm can be run on the original flattened facility. The reason why this is not applicable to this problem is due to the time constraint, with Thorup's SSSP algorithm being difficult to implement. It almost might suffer from the same problems as other efficient algorithms that will be considered: that $n$ isn't large enough to outweight lower order costs of an algorithm. This is less likely to be a problem, as in stage 1 of the algorithm, the input graph has much larger $n$.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def adts(mo):
+    mo.md(r"""
     ## 2.6 ADTs
     Since we are using a hierarchical graph representation, we will need to represent this as an ADT. To do this, we will require one new ADT, the tuple. The Hyper
 
     We do _not_ need each vertex to store its wing, because we can check that by checking if that vertex is each wing's vertex set.
 
-    `foo.bar(a, b)` syntax will be used in pseudocode, rather than `bar(foo, a, b)`, and mathematical operators will be preferred for size of ADTs and set operations. Indices of ordered data structures and keys of maps will be accessed with `foo[index]` syntax. Lists will be created with `[a, b, ...]` syntax, tuples will be created with `(a, b, ...)` syntax, and sets will be created with `{a, b, ...}` syntax, with empty set being denoted by $\varnothing$
+    Indices of ordered data structures and keys of maps will be accessed with `foo[index]` syntax. Lists will be created with `[a, b, ...]` syntax, tuples will be created with `(a, b, ...)` syntax, and sets will be created with `{a, b, ...}` syntax, with empty set being denoted by <span class="pseudocode-bracket">∅</span>.
 
     A recap of each ADT and its signature specifications are below:
 
@@ -609,14 +613,35 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def adt_justification(mo):
     mo.md(r"""
     ## 2.6 Justification of Each ADT
     Above, I justified the use of the graph in the hierarchical representation.
 
     By using a graph, we can encapsulate only the salient features of a wubg, where other structures would introduce non-salient features.
 
-    Each other parameter represents physical salient features of the facility, and without them, the problem would not be encapsulated in this abstraction.
+    Since a correct output must go from the entry sector to an entry sector, it is required to give the corresponding vertices of the graph as input to the algorithm. The same reasoning applies to the supplies set, as an optimal walk through the facility should collect all supplies. An alternate way of abstracting the problem, particularily supplies is discussed [below](## 2.7 An Alternate Problem Abstraction), so more justification of the supply set is there.
+
+    The last three parameters abstract CRUDY-1's supply storage. An array with fixed length is suitable for CRUDY-1's fixed-size supply stoage and due to the non-uniqueness of supply units, supply vertex to supply id lookup with a map allows non-collection of duplicate supplies. These collected supplies are stored in a set due to fast `contains` checks and the non-requirement of an ordered data structure.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def alternate_problem_abstraction(mo):
+    mo.md(r"""
+    ## 2.7 An Alternate Problem Abstraction
+    One problem with this abstraction is it only assigns reward to supplies. In the problem description, it says walk length should be minimised _and_ that maintaining structural integrity is important. This suggest that there might be some penalty with traversing large portions of the facility that may outweight collecting a distant supply. I will first propose an alternate abstraction to the problem that encapsulates this aim and then justify why that abstraction is not suitable for this problem.
+
+    The abstraction adds a new function $r: \text{Vertex} \times \text{Vertex} \to \mathbb{R}$, which gives reward or penalty of traversing from the first input vertex to the second one. We can assign each edge entering a supply vertex a positive reward and each other edge a negative one. We also must disallow traversing a supply vertex more than once.
+
+    This problem, however is more complex than the original problem, with the problem not being reducable to a travelling salesman like problem with $n = |S| = 5$ as each edge and therefore vertex must be considered in the walk. Due to the problem being a minimum cost walk, it is more complex than a travelling salesman problem, and due to its minimisation nature, a integer linear program formulation may seem possible, but will not be nearly as efficient as an algorithm run on the abstraction proposed above.
+
+    Additionally, solutions to the abstraction above will traverse a particular edge in the vast majority of cases two times, which often cannot be reduced due to each wing being a tree, therefore there is often only 1 path between two sectors. This means solutions to the abstraction above will often be optimal or close to optimal in this more complex problem.
+
+    The difficulty of this new abstraction also causes exact algorithms to be likely to inefficient, which means heuristic solutions may even be worse than solution found on the abstraction above. This is the reason this alternate abstraction is not the one used when solving this problem.
+
+    However, this abstraction does better encapsulate the problem's facets, and if more time was given, a more efficient algorithm could be found for this abstraction that gives better results. This time constraint due to the urgency of the situation does constrain the complexity of algorithms used, unfortunately.
     """)
     return
 
@@ -659,7 +684,7 @@ def _(mo):
 
     Greedy patterns are often efficient, but will be unlikely to find an optimal solution, unless the problem has the greedy property. Due to small $n$, and the facility not having the greedy property, we will avoid Greedy algorithms in finding an exact solution. Greedy algorithms will be used in the algorithm to provide a fast upper-bound on path length which is useful for other approaches.
 
-    Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. 2-opt and 3-opt are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than nearest neighbour. Lin-kernighan, which adapts the k-opt, runs in $O(n^{2.2})$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm tabu-search to prohibit found local minima and hopefully find a global minima.
+    Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. **2-opt** and **3-opt** are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than **nearest neighbour**. **Lin-kernighan**, which adapts the **k-opt**, runs in $O(n^{2.2})$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm **tabu-search** to prohibit found local minima and hopefully find a global minima.
 
     #### 3.1.2.2 Backtracking & Linear Programming
 
@@ -676,7 +701,7 @@ def _(mo):
     x   &  \text{otherwise}
     \end{cases}$
 
-    However, solving this problem nievely will be slower than brute force, as the final constrain is actually $|S|!$ constraints, leading to worse than factorial time. We instead relax this problem to a linear program and remove the subcycle elimination constraint with
+    However, solving this problem nievely will be slower than **brute force**, as the final constrain is actually $|S|!$ constraints, leading to worse than factorial time. We instead relax this problem to a linear program and remove the subcycle elimination constraint with
 
     $\begin{array}{lrrll}
     \text{min} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
@@ -685,7 +710,7 @@ def _(mo):
     & 0 \leq & x_{uv} &\leq 1 & &
     \end{array}$
 
-    We can then use branch and cut, a backtracking algorithm, to add only subcycle elimination constraints that are broken, allowing for "only" quadratic-in-$n$ constaints. Branch and cut is a variant of branch and bound, and we will calculate the lower bound of a branch by solving a linear relaxation of the problem by removing $x \in \{0, 1\}$ from the restrictions, but leaving other cuts. If this lower bound is higher than the lower bound we have found, we backtrack early.
+    We can then use **branch and cut**, a backtracking algorithm, to add only subcycle elimination constraints that are broken, allowing for "only" quadratic-in-$n$ constaints. **branch and cut** is a variant of **branch and bound**, and we will calculate the lower bound of a branch by solving a linear relaxation of the problem by removing $x \in \{0, 1\}$ from the restrictions, but leaving other cuts. If this lower bound is higher than the lower bound we have found, we backtrack early.
 
     Then we check if the solution breaks any of the subcycle elimination constraints, adding them and repeating until we have a solution that doesn't break any of these constraints. If $\forall u, v, x_{uv} \in \{0, 1\}$, we have a new lower bound and we backtrack as this is the lower bound of this branch, otherwise we branch from this node to two nodes, one where a non-integer $x_{uv} = 0$, and one where that $x_{uv} = 1$.
 
@@ -709,11 +734,11 @@ def _(mo):
 
     To calculate the lower bounds, we will add to the current branch's walk minimum cost edges until there are $k + 1$ edges, where $k$ is
 
-    To calculate the upper bound, we can find one greedily using a greedy algorithm considered above. We will use a modification of the Lin-Kernighan Heuristic for this purpose. As shown below, we can expect ~12% solution gap for 5 supplies.
+    To calculate the upper bound, we can find one greedily using a greedy algorithm considered above. We will use a modification of the **Lin-Kernighan Heuristic** for this purpose. As shown below, we can expect ~12% solution gap for 5 supplies.
 
-    #### 3.1.2.4 Brute-force
+    #### 3.1.2.4 Brute force
 
-    Unfortunately, this problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make nieve brute force more efficient than Branch and bound and Lin-Kernighan, beaten only by Nearest neighbour, which is not exact. Since the runtime of Brute-force in this problem is low, we will use the same algorithm as in Memo 1 for stage 2, recursive brute-force.
+    Unfortunately, this problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make nieve **brute force** more efficient than **branch and bound** and **Lin-Kernighan**, beaten only by **nearest neighbour**, which is not exact. Since the runtime of **brute force** in this problem is low, we will use the same algorithm as in Memo 1 for stage 2, recursive brute force.
     """)
     return
 
@@ -760,16 +785,16 @@ def _(pd, plt):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
+def _(get_fig, mo):
+    mo.md(rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Different approaches' runtime")}</span>
+
     ### 3.1.3 Evaluation of Runtimes
-    As expected, Brute force has the worst run-time, followed closely by Branch-and-bound. The heuristic algorithms then follow, with Lin-Kernighan running Nearest neighbour to get its first guess (which it finds a local solution of), it takes longer than Nearest neighbour does.
-    <br><span style='color: silver;'>(as seen in left figure)</span>
+    The left of figure {get_fig("Different approaches' runtime")} shows that for large $n$, **brute force** has the worst run-time, followed closely by branch and bound. The heuristic algorithms then follow, with **Lin-Kernighan** running **nearest neighbour** to get its first guess (which it finds a local solution of), it takes longer than **nearest neighbour** does.
 
-    At $n = 5 = |S|$, which is what $|S|$ is in the problem, we can notice that Brute force runs an order of magnitude faster than Branch and bound. While it is ~1.5 orders of magnitude slower than nearest neighbour, it is still very fast and is optimal. This is the reason why it will be used over those other more efficient approaches.
-    <br><span style='color: silver;'>(as seen in right figure)</span>
+    However, the right of figure {get_fig("Different approaches' runtime")} shows that at $n = |S| = 5$ as it is in the problem, **brute force** runs an order of magnitude faster than branch and bound. While it is ~1.5 orders of magnitude slower than **nearest neighbour**, it is still very fast and is optimal. This is the reason why it will be used over those other more efficient approaches.
 
-    If $n$ was to increase, it will become impossible to consider Brute-force, and Branch-and-bound will only be usable with significant optimisations (discussed later). This can be seen in the left figure, with both these algorithms not being graphed after $n = 12$
+    If $n$ was to increase, it will become impossible to consider **brute force**, and branch and bound will only be usable with significant optimisations (discussed later). This can be seen in the left figure, with **brute force** these algorithms not being graphed after $n = 12$
     """)
     return
 
@@ -809,10 +834,12 @@ def _(np, pd, plt):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
+def _(get_fig, mo):
+    mo.md(rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Different approaches' solution length")}</span>
+
     ### 3.1.4 Optimality & Solution Gap
-    Each algorithm poses a different gap from the optimal solution. An algorithm for a problem is optimal iff it has 0 solution gap on *all* problem instances. We calculate solution gap with $\displaystyle\frac{\text{Heuristic - Optimal}}{\text{Optimal}}$, and while Lin-Kernighan has a slighly better solution for large $n$ <span style='color: silver;'>(as seen in left figure)</span>, for small $n$, which what this problem is, the solution provided by Nearest neighbour is a local optimal, and thus Lin-Kernighan cannot further optimise it <span style='color: silver;'>(as seen in right figure)</span>.
+    As seen in figure {get_fig("Different approaches' solution length")}, each algorithm poses a different gap from the optimal solution. An algorithm for a problem is optimal iff it has 0 solution gap on *all* problem instances. We calculate solution gap with $\displaystyle\frac{{\text{{Heuristic - Optimal}}}}{{\text{{Optimal}}}}$, and while **Lin-Kernighan** has a slighly better solution for large $n$.
     """)
     return
 
@@ -831,7 +858,7 @@ def _(mo):
     ### 3.2.1 Branch and Bound
     Branch and bound solves an optimisation problem by searching through the solution tree using either depth or breath first search. It finds sub-problems of the original problem and eliminates ones that cannot contain the optimal solution by finding their lower and upper bounds, comparing against the best found upper bound. If a subproblem $P'$ has a lower bound greater than the best upper bound, it cannot contain the solution and therefore does not need to be explored. This can reduce the solution tree in the average and best cases depending on the problem and the 'tightness' of the bounds: how close they are to the true lower and upper bounds of $P'$. To maintain correctness, the lower bound must be inclusive of the true lower bound and the upper bound must be inclusive of the true upper bound such that $lb_\text{true} \leq lb_\text{heuristic} \leq ub_\text{heuristic} \leq ub_\text{true}$. Due to the algorithm requiring fast lower and upper bound calculation, this is done with heuristic methods.
 
-    While branch and bound and brute force share $O(n!)$ worst case, branch and bound will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm.
+    While **branch and bound** and **brute force** share $O(n!)$ worst case, the former will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm.
     """)
     return
 
@@ -840,9 +867,9 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ### 3.2.2 Lin-Kernighan
-    Lin-Kernighan is a heuristic algorithm for optimising a found solution to a shortest-path or cycle problem. It swaps different combinations of edges to find the local minimum of a solution. This will always produce a better or equal path than the one found, so it is a good step for finding a close-to-optimal solution for branch and bound algorithms or optimising a different heuristic algorithm.
+    Lin-Kernighan is a heuristic algorithm for optimising a found solution to a shortest-path or cycle problem. It swaps different combinations of edges to find the local minimum of a solution. This will always produce a better or equal path than the one found, so it is a good step for finding a close-to-optimal solution for **branch and bound** algorithms or optimising a different heuristic algorithm.
 
-    This algorithm runs in $O(n^{2.2})$ average case, but has significant constant and lower order costs, which make it less efficient than brute force for this problem, while giving non-optimal solutions
+    This algorithm runs in $O(n^{2.2})$ average case, but has significant constant and lower order costs, which make it less efficient than **brute force** for this problem, while giving non-optimal solutions
     """)
     return
 
@@ -860,7 +887,7 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ### 3.2.4 Linear programming
-    For large $n$ travelling salesman problems, branch and cut, a combination of branch and bound, and the cutting plane method, performs well. This is normally done by solving a relaxed version of the problem and adding cuts back when the original problem's cuts are broken. Solving these relaxed linear programs can be done with the simplex method, however for $n = 5$, just one run of the simplex method takes longer than any other approach considered.
+    For large $n$ travelling salesman problems, **branch and cut**, a combination of **branch and bound**, and **the cutting plane method**, performs well. This is normally done by solving a relaxed version of the problem and adding cuts back when the original problem's cuts are broken. Solving these relaxed linear programs can be done with the **simplex method**, however for $n = 5$, just one run of the algorithm takes longer than any other approach considered.
 
     Additionally, due to CRUDY-1 needing to pick up fewer than 5 supplies if it is carrying some, I was unable to create a tight enough linear program for this problem to be useful.
     """)
@@ -898,7 +925,7 @@ def _(mo):
 
     After that, Dijkstra's algorithm will be run on $F$ to find the shortest paths between each entry and supply, and each exit and supply. The creation of $F$ efficiently reduces the size of $n$ for the input to Dijkstra's algorithm. These shortest paths will form a complete graph $H$ where each vertex is an entry, supply or exit and each edge's weight is the total cost of the shortest path between two vertices in $H$. We will likewise store these shortest paths for the path reconstruction.
 
-    In the second stage, a brute force algorithm will find the shortest hamiltonian walk on $H$. After which we use all the stored paths to reconstruct the final returned walk by converting from a walk on $H$, to one on $F$, finally to one on $G$.
+    In the second stage, a **brute force** algorithm will find the shortest hamiltonian walk on $H$. After which we use all the stored paths to reconstruct the final returned walk by converting from a walk on $H$, to one on $F$, finally to one on $G$.
     """)
     return
 
@@ -1152,6 +1179,17 @@ def _(mo, re):
 
     mo.md(rf"""
     <div style="font-family: monospace; font-size: 14px; white-space: pre-wrap;">{_parse_pseudocode(open("memo1a/raw_pseudocode.txt", encoding="utf-8").read())}</div>
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 4.1.1 Pseudocode Procedure Justification
+    While many procedures can be justified due to duplication of use, encapsulating a well-known algorithm which improves the coherence of the pseudocode, or for labelling the goal or output of a block of code, some procedures need justification for why they weren't inlined.
+
+    `get_path_from_bfs` is an example of one such that is easily traceable, and could be instead labelled with a comment. The reason why these were turned into procedures were to allow for implementors of this algorithm to more easily find optimisations that I may be unaware of. For a particular implementation, a memoisation modification of this procedure may increase the algorithm's efficiency, and by extracting this code as a procedure, it is easier to notice blocks of code that may run often and could be further optimised.
     """)
     return
 
@@ -1465,8 +1503,8 @@ def _(mo):
 
     These assumptions are justified by checking a large quantity of facility blueprints, all of which satisfied the property:
     - Each wing being a tree graph allows for a more efficient algorithm used in stage 1.
-    - The facility having at most 4 wings, and each wing being a 12x12 grid of sectors guides our choice of a nieve algorithm: brute force for stage 2, as well as the approach of abstracting the graph into a path cost matrix.
-    - 5 supplies in the facility allows brute force and branch and bound for stage 2. Without significant optimisations, these exact approaches would not be possible if the supplies grows above 7 or 8.
+    - The facility having at most 4 wings, and each wing being a 12x12 grid of sectors guides our choice of a nieve algorithm: **brute force** for stage 2, as well as the approach of abstracting the graph into a path cost matrix.
+    - 5 supplies in the facility allows **brute force** and **branch and bound** for stage 2. Without significant optimisations, these exact approaches would not be possible if the supplies grows above 7 or 8.
     - Each wing is connected, allows only 1 depth first search to be run on each wing. Without this assumption, we would need to run it starting from each supply, entry, exit and junction in each wing, drastically reducing the time and space efficiency of the algorithm which would also need to store each `prev` Map.
     - Each sector is connected to its adjacent sectors bi-directionally, which may if the previous assumption is not satisfied disallow collection of some supplies that are reachable but cannot be walked through and then to an exit.
     """)
@@ -1479,7 +1517,8 @@ def _(mo):
     ## 5.2 Coherence
     - I use $\text{get\_neighbours}: \text{Graph} \times \text{Vertex} \to \text{Vertex}$ in the dijkstra's algorithm implementation in the algorithm to get the neighbours of the current visited vertex
     - I use $\text{has}: \text{Map} \times \text{Key} \to \text{Boolean}$ to reconstruct the shortest paths found by dijkstra's algorithm
-    - Originally, I was going to use Branch and bound, with the Lin-Kernighan heuristic, which requires the symmetric difference set operation, $\Delta$, which wasn't in the set ADT signature, which I resolved by adding a procedure for it
+    - Originally, I was going to use **branch and bound**, with the **Lin-Kernighan heuristic**, which requires the symmetric difference set operation, $\Delta$, which wasn't in the set ADT signature, which I resolved by adding a procedure for it
+    - A consistent pseudocode style was used to allow correct implementation
     """)
     return
 
@@ -1499,7 +1538,7 @@ def _(mo):
       - The algorithm does not priorities structural stability, as we have not information about how CRUDY-1 has any affect on the stability of sectors of the facility
       - The algorithm will always have a successful extraction if one exists.
 
-    The algorithm is robust to different numbers and sizes of wings, and differing numbers of junction sectors, however would fail to run if there are too many supplies. In the case that a new report notices increased numbers of supplies and adjusts CRUDY-1's supply storage to collect more supplies, brute force will be unusable and branch & bound will need to be further optimised, replaced with branch and cut, or may be not possible, in which case a heuristic approach will be used instead.
+    The algorithm is robust to different numbers and sizes of wings, and differing numbers of junction sectors, however would fail to run if there are too many supplies. In the case that a new report notices increased numbers of supplies and adjusts CRUDY-1's supply storage to collect more supplies, **brute force** will be unusable and **branch and bound** will need to be further optimised, replaced with **branch and cut**, or may be not possible, in which case a heuristic approach will be used instead.
     """)
     return
 
@@ -1508,7 +1547,107 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     # 6 Appendix
-    # 6.1
+    # 6.1 References
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Abhijit, S. (n.d.). Undirected Single Source Shortest Paths in Linear Time. Retrieved 10 July 2026, from https://blogs.asarkar.com/assets/docs/algorithms/Undirected%20Single%20Source%20Shortest%20Paths%20in%20Linear%20Time%20-%20Thorup.pdf
+
+    2-opt. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=2-opt&oldid=1360572175
+
+    Borůvka’s algorithm. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Bor%C5%AFvka%27s_algorithm&oldid=1344994202
+
+    Branch and bound. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Branch_and_bound&oldid=1362914799
+
+    Camilo, R. (n.d.). Travelling Salesman Problems. University of British Columbia. Retrieved  https://www.cs.ubc.ca/labs/algorithms/Courses/CPSC532D-05/Slides/tsp-camilo.pdf
+
+    Casper da Costa-Luis, Stephen Karl Larroque, Kyle Altendorf, Hadrien Mary, richardsheridan, Mikhail Korobov, Noam Raphael, Ivan Ivanov, Marcel Bargull, Nishant Rodrigues, Shawn, Mikhail Dektiarev, Michał Górny, mjstevens777, Matthew D. Pagel, Martin Zugnoni, CrazyPython, Charles Newey, Antony Lee, … Hugo van Kemenade. (2026). Tqdm: A fast, extensible progress bar for python and cli [Computer software]. Zenodo. https://doi.org/10.5281/ZENODO.20729793
+
+    Catppuccin. (2026). Catppuccin/palette [TypeScript]. https://github.com/catppuccin/palette (Original work published 2021)
+
+    Cutting-plane method. (2025). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Cutting-plane_method&oldid=1300359815
+
+    Dantzig, G., Fulkerson, R., & Johnson, S. (1954). Solution of a large-scale traveling-salesman problem. Journal of the Operations Research Society of America, 2(4), 393–410. https://doi.org/10.1287/opre.2.4.393
+
+    David P., W. (2014, October 2). ORIE 6300 Mathematical Programming I. Cornell University. https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
+
+    ​Gianni A., D. C. (n.d.). TSP formulations. Retrieved 10 July 2026, from  https://web2.qatar.cmu.edu/~gdicaro/15382/additional/tsp-formulations.pdf
+
+    gskinner. (n.d.). Regexr. Retrieved 10 July 2026, from https://regexr.com/
+
+    Guido, V. R. (n.d.). The python standard library. Python Documentation. Retrieved 10 July 2026, from https://docs.python.org/3/library/index.html
+
+    Hagberg, A. A., Schult, D. A., & Swart, P. J. (2008). Exploring network structure, dynamics, and function using networkx. Python in Science Conference. https://doi.org/10.25080/TCWV9851
+
+    Harris, C. R., Millman, K. J., Van Der Walt, S. J., Gommers, R., Virtanen, P., Cournapeau, D., Wieser, E., Taylor, J., Berg, S., Smith, N. J., Kern, R., Picus, M., Hoyer, S., Van Kerkwijk, M. H., Brett, M., Haldane, A., Del Río, J. F., Wiebe, M., Peterson, P., … Oliphant, T. E. (2020). Array programming with NumPy. Nature, 585(7825), 357–362. https://doi.org/10.1038/s41586-020-2649-2
+
+    Hunter, J. D. (2007). Matplotlib: A 2d graphics environment. Computing in Science & Engineering, 9(3), 90–95. https://doi.org/10.1109/MCSE.2007.55
+
+    Integer programming. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Integer_programming&oldid=1361224186
+
+    Introduction to disjoint set(Union-find data structure). (2012, October 28). GeeksforGeeks. https://www.geeksforgeeks.org/dsa/introduction-to-disjoint-set-data-structure-or-union-find-algorithm/
+
+    Jens, C. (n.d.). Branch-and-cut.Eng.dvi. Danmarks Tekniske Universitet. Retrieved 10 July 2026, from https://www2.imm.dtu.dk/courses/04232/Branch-and-Cut.Eng.pdf
+
+    Jesper, L. (n.d.). Branch & Cut for TSP. Università degli Studi di Milano. Retrieved https://homes.di.unimi.it/righini/Didattica/OttimizzazioneDiscreta/MaterialeOD/Larsen%20-%20B&C%20for%20TSP.pdf
+
+    Karczmarz, A., Nadara, W., & Sokołowski, M. (2023). Exact shortest paths with rational weights on the word ram. arXiv. https://doi.org/10.48550/ARXIV.2311.03321
+
+    Kevin, C. (n.d.). Revised simplex method. Carleton University. Retrieved 10 July 2026, from https://people.math.carleton.ca/~kcheung/math/notes/MATH5801/05/5_1_simplex.html
+
+    Kodie, N. (2026a). Marimo_memo01v15.py.
+
+    Kodie, N. (2026b). marimo_memoA01v01.py.
+
+    Kodie, N. (2026c). marimo_memoA02v01.py.
+
+    Let’s Learn, Nemo! (2022, June 9). (OP07) Duality Theory for Linear Programs. Youtube. https://www.youtube.com/watch?v=Qz7TSRGRUAc&feature=youtu.be
+
+    Lindsay, S., Peter, H., Chris, B., Jon, B., & Haris, S. (2020, December 21). Branch and cut. Cornell University. https://optimization.cbe.cornell.edu/index.php?title=Branch_and_cut
+
+    Linear programming relaxation. (2025). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Linear_programming_relaxation&oldid=1326322231
+
+    Lin–Kernighan heuristic. (2025). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Lin%E2%80%93Kernighan_heuristic&oldid=1307631980
+
+    Marimo team. (2026, January 13). Marimo Slides is plain awesome. Youtube. https://www.youtube.com/watch?v=ZZBkvfesKG0
+
+    McKinney, W. (2010). Data structures for statistical computing in python. 56–61. https://doi.org/10.25080/Majora-92bf1922-00a
+
+    mzspivey. (2021, April 1). Intuition for the dual in linear programming. A Narrow Margin. https://mikespivey.wordpress.com/2021/03/31/intuition-for-the-dual-in-linear-programming/
+
+    Nick, P. (2009, September 30). Implementation of Thorup’s Linear Time Algorithm for Undirected Single Source Shortest Paths with Positive Integer Weights. Slideshare. https://www.slideshare.net/slideshow/implementation-of-thorups-linear-time-algorithm-for-undirected-single-source-shortest-paths-with-positive-integer-weights/29906703#1
+
+    Omar, A. C. (n.d.-a). Degenerate pivots and cycling. Universidad Nacional Autónoma de México. Retrieved 10 July 2026, from https://www.matem.unam.mx/~omar/math340/degenerate.html
+
+    Omar, A. C. (n.d.-b). The dual simplex method. Universidad Nacional Autónoma de México. Retrieved 10 July 2026, from https://www.matem.unam.mx/~omar/math340/dual-simplex.html
+
+    Omar, A. C. (n.d.-c). The revised simplex method [Digital Course]. Universidad Nacional Autónoma de México. The Revised Simplex Method. Retrieved 10 July 2026, from https://www.matem.unam.mx/~omar/math340/revised-simplex.html
+
+    Robert B., I. (n.d.). Phase I: Artificial variable method. The University of British Columbia. Today. Retrieved https://personal.math.ubc.ca/~israel/m340/artif.pdf
+
+    Simplex algorithm. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Simplex_algorithm&oldid=1352960709
+
+    tanemaki & Stackoverflow community. (2014, April 21). Detect and exclude outliers in a pandas DataFrame. https://stackoverflow.com/a/23202269
+
+    The Manim Community Developers. (2026). Manim – mathematical animation framework (Version v0.20.1) [Computer software]. https://www.manim.community/
+
+    The pandas development team. (2026). Pandas-dev/pandas: Pandas [Computer software]. Zenodo. https://doi.org/10.5281/ZENODO.21003741
+
+    Thorup, M. (1999). Undirected single-source shortest paths with positive integer weights in linear time. Journal of the ACM, 46(3), 362–394. https://doi.org/10.1145/316542.316548
+
+    Travelling salesman problem. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Travelling_salesman_problem&oldid=1360558532
+
+    Virginia Vassilevska, W. (2016, October 6). CS 267 Lecture 3. Stanford University. https://theory.stanford.edu/~virgi/cs267/lecture4.pdf
+
+    Virtanen, P., Gommers, R., Oliphant, T. E., Haberland, M., Reddy, T., Cournapeau, D., Burovski, E., Peterson, P., Weckesser, W., Bright, J., Van Der Walt, S. J., Brett, M., Wilson, J., Millman, K. J., Mayorov, N., Nelson, A. R. J., Jones, E., Kern, R., Larson, E., … Vázquez-Baeza, Y. (2020). SciPy 1.0: Fundamental algorithms for scientific computing in Python. Nature Methods, 17(3), 261–272. https://doi.org/10.1038/s41592-019-0686-2
+
+    Wei, Y., & Tanaka, S. (2013). An improved Thorup shortest paths algorithm with a modified component tree. 2013 Ninth International Conference on Natural Computation (ICNC), 1160–1165. https://doi.org/10.1109/ICNC.2013.6818153
+
+    Zoterobib: Fast, free bibliography generator—Mla, apa, chicago, harvard citations. (n.d.). Retrieved 10 July 2026, from https://zbib.org/
     """)
     return
 

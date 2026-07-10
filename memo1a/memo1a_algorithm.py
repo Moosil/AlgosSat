@@ -341,8 +341,6 @@ def _lin_kernighan(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], 
 
 
 """https://www.geeksforgeeks.org/dsa/introduction-to-disjoint-set-data-structure-or-union-find-algorithm/"""
-
-
 class UnionFind:
     def __init__(self, entries):
         # Initialize the parent array with each
@@ -511,9 +509,6 @@ def _simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray, basis: np.ndarray, ini
     """
     Solves min cTx: Ax = b, x >= 0
     """
-    """https://www.matem.unam.mx/~omar/math340/revised-simplex.html"""
-    """https://people.math.carleton.ca/~kcheung/math/notes/MATH5801/05/5_1_simplex.html"""
-    """https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html"""
     non_basis = np.array([i for i in range(c.size) if i not in basis])
     a_non_basis = A[:, non_basis]
     select_k = c[non_basis].transpose() - c[basis].transpose() @ inv_a_basis @ a_non_basis

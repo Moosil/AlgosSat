@@ -608,6 +608,15 @@ def adts(mo):
     ### 2.6.5 Tuple
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
+
+    ### 2.6.6 ADT Non-extension Justification
+    It was suggested that an ADT operation was required that, given a sector, returns adjacent unvisited sectors that contain no previously collect supply units. This operation could be used in either the **depth first search** or **dijkstra's algorithm** procedures in the algorithm, but is not useful.
+
+    However my algorithm handles both parts of this operation as procedures of the algorithm. In stage 1, it removes previously collected supplies from the supplies set. In the **depth first search** step, while it would then be possible to traverse less of the tree, it could be possible for a uncollected supply to be on the path to a collected supply, and therefore adding this operation and using it could remove the possibility of collecting certain supplies in a facility.
+
+    While no such facility blueprint has been discovered, this small optimisation is not worth the risk of the algorithm not working on future facilities. We want to minimise assumptions not clearly defined in the mission directive as we do not know if all facilities have supplies at dead-ends.
+
+    Additionally, this addition would not assist in the dijkstra's algorithm step or the entirety of stage 2, which combined, account for the majority of the time cost of this algorithm.
     """)
     return
 

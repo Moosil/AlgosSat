@@ -1,7 +1,7 @@
-*/__marimo__
+__marimo__/
 
-/media
+/media/
 
-/slides
+/slides/
 
-/.venv
+/.venv/

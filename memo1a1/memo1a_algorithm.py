@@ -45,7 +45,7 @@ def bfs(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
     return prev
 
 
-def get_pair_shortest_path(source: VertexT, sink: VertexT, prev: dict[VertexT, VertexT | None]) -> list[VertexT]:
+def get_path_from_bfs(source: VertexT, sink: VertexT, prev: dict[VertexT, VertexT | None]) -> list[VertexT]:
     left_path = [source]
     right_path = [sink]
     left = source
@@ -67,7 +67,7 @@ def get_pair_shortest_path(source: VertexT, sink: VertexT, prev: dict[VertexT, V
             return left_path + list(reversed(right_path[:left_index]))
 
 
-def get_supplies_to_collect(
+def get_new_supply_storage(
     supplies: set[VertexT], vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID],
     supply_storage: SupplyStorage
 ) -> set[VertexT]:
@@ -89,15 +89,6 @@ def get_vertices_in_wing(wing: WingT, vertices: Iterable[VertexT]) -> Generator[
 
 def get_junctions_in_wing(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], wing: WingT) -> Generator[VertexT]:
     return get_vertices_in_wing(wing, chain(*G[1]))
-
-
-def get_junction_other(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], junction: VertexT) -> VertexT:
-    edge = tuple(next(filter(lambda e: junction in e, G[1])))
-    if edge[0] == junction:
-        return edge[1]
-    else:
-        return edge[0]
-
 
 def reconstruct_path(came_from: dict[VertexT, VertexT | None], e: VertexT) -> list[VertexT]:
     res = []
@@ -144,9 +135,9 @@ def dijkstra(g: nx.Graph, source: VertexT, sinks: set[VertexT]) -> dict[VertexT,
     return res
 
 
-def get_apsp(g: nx.Graph, entry: VertexT, exits: set[VertexT], supplies: set[VertexT]) -> dict[VertexT, dict[VertexT, list[VertexT]]]:
+def get_path_matrix(g: nx.Graph, entry: VertexT, exits: set[VertexT], supplies: set[VertexT]) -> dict[VertexT, dict[VertexT, list[VertexT]]]:
     res: dict[VertexT, dict[VertexT, list[VertexT]]] = defaultdict(dict)
-    for source in supplies.union((entry,)):
+    for source in supplies.union([entry]):
         res[source] = dijkstra(g, source, supplies.union(exits))
 
     return res
@@ -156,7 +147,7 @@ def get_path_length(g: nx.Graph, path: list[VertexT]) -> int:
     return sum(g.get_edge_data(path[i], path[i + 1])["weight"] for i in range(len(path) - 1))
 
 
-def get_apsp_dist(g: nx.Graph, pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> dict[VertexT, dict[VertexT, int]]:
+def get_path_cost_matrix(g: nx.Graph, pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> dict[VertexT, dict[VertexT, int]]:
     res: dict[VertexT, dict[VertexT, int]] = defaultdict(dict)
     for source, sink_dict in pair_path_map.items():
         for sink, path in sink_dict.items():
@@ -436,7 +427,7 @@ def branch_and_bound(source: VertexT, sinks: set[VertexT], exits: set[VertexT], 
     return best_found
 
 
-def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
+def brute_force_recursive(source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
     min_cost = float('infinity')
     min_cost_walk = None
 
@@ -447,12 +438,12 @@ def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[Verte
                 min_cost_walk = [sink]
                 min_cost = cost
     else:
-        for sink in sinks:
-            min_walk_through, cost = brute_force_recursive(sink, sinks.difference({sink}), exits, dist_matrix, fuel - 1)
-            cost += dist_matrix[source][sink]
+        for supply in supplies:
+            min_walk_through, cost = brute_force_recursive(supply, supplies.difference([supply]), exits, dist_matrix, fuel - 1)
+            cost += dist_matrix[source][supply]
             if cost < min_cost:
                 min_cost = cost
-                min_cost_walk = [sink] + min_walk_through
+                min_cost_walk = [supply] + min_walk_through
 
     return min_cost_walk, min_cost
 
@@ -460,6 +451,43 @@ def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[Verte
 def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
     return [entry] + brute_force_recursive(entry, supplies, exits, dist_matrix, max_supplies)[0]
 
+class DpImpl:
+    memo: dict[tuple[VertexT, frozenset[VertexT]], tuple[list[VertexT], int]]
+    def __init__(self):
+        self.__name__ = "dp"
+
+    def __call__(self, entry: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], max_supplies: int):
+        self.memo = {}
+        return [entry] + self.dp(entry, supplies, exits, dist_matrix, max_supplies)[0]
+
+    def dp(self, source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int):
+        key = (source, frozenset(supplies))
+        if key in self.memo:
+            return self.memo[key]
+
+        if fuel == 0:
+            random_sink = list(exits)[0]
+            min_cost = dist_matrix[source][random_sink]
+            min_cost_walk = [random_sink]
+            for sink in exits.difference([random_sink]):
+                cost = dist_matrix[source][sink]
+                if cost < min_cost:
+                    min_cost_walk = [sink]
+                    min_cost = cost
+        else:
+            random_sink = list(supplies)[0]
+            min_cost_walk, min_cost = self.dp(random_sink, supplies.difference([random_sink]), exits, dist_matrix, fuel - 1)
+            min_cost_walk = [random_sink] + min_cost_walk
+            min_cost += dist_matrix[source][random_sink]
+            for supply in supplies.difference([random_sink]):
+                min_walk_through, cost = self.dp(supply, supplies.difference([supply]), exits, dist_matrix, fuel - 1)
+                cost += dist_matrix[source][supply]
+                if cost < min_cost:
+                    min_cost = cost
+                    min_cost_walk = [supply] + min_walk_through
+
+        self.memo[key] = min_cost_walk, min_cost
+        return min_cost_walk, min_cost
 
 def simplex(A: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray | None:
     """
@@ -593,7 +621,7 @@ def solve_relaxed_lp(entry: VertexT, exits: set[VertexT], supplies: set[VertexT]
     return res
 
 
-def get_path_from_super_path(super_path: list[VertexT], apsp_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> list[VertexT]:
+def get_F_path_from_H_path(super_path: list[VertexT], apsp_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> list[VertexT]:
     res = []
     for i in range(len(super_path) - 1):
         pair_path = apsp_map[super_path[i]][super_path[i + 1]]
@@ -604,13 +632,13 @@ def get_path_from_super_path(super_path: list[VertexT], apsp_map: dict[VertexT, 
     return res
 
 
-def get_path_from_super_path_bfs(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], super_path: list[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> list[VertexT]:
+def get_G_path_from_F_path(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], super_path: list[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> list[VertexT]:
     res = []
     for i in range(len(super_path) - 1):
         u, v = super_path[i], super_path[i + 1]
         u_wing, v_wing = get_which_wing(G, u), get_which_wing(G, v)
         if u_wing == v_wing:
-            pair_path = get_pair_shortest_path(u, v, prevs[u_wing])
+            pair_path = get_path_from_bfs(u, v, prevs[u_wing])
             res += pair_path
             res.pop()
         else:
@@ -619,7 +647,7 @@ def get_path_from_super_path_bfs(G: tuple[set[WingT], set[tuple[VertexT, VertexT
     return res
 
 
-def get_salient_graph(G, entry, supplies, exits, prevs):
+def get_F(G, entry, supplies, exits, prevs):
     res = nx.Graph()
     res.add_node(entry)
 
@@ -637,7 +665,7 @@ def get_salient_graph(G, entry, supplies, exits, prevs):
         for i in range(len(salient_in_wing)):
             for j in range(i + 1, len(salient_in_wing)):
                 u, v = salient_in_wing[i], salient_in_wing[j]
-                path = get_pair_shortest_path(u, v, prevs[wing])
+                path = get_path_from_bfs(u, v, prevs[wing])
                 res.add_edge(u, v, weight=get_path_length(wing, path))
 
     return res
@@ -645,7 +673,7 @@ def get_salient_graph(G, entry, supplies, exits, prevs):
 
 def stage_1(G, entry, supplies, exits, supply_storage, vertex_to_supply_id, found_supply_ids):
     """Get supplies that could be collected in the graph"""
-    supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
+    supplies = get_new_supply_storage(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
 
     """Get number of supplies to find"""
     number_of_supplies_to_collect = min(len(supplies), len([None for i in supply_storage if i is None]))
@@ -653,11 +681,11 @@ def stage_1(G, entry, supplies, exits, supply_storage, vertex_to_supply_id, foun
     """Get entry/junction -> exit/junction pair paths"""
     prevs: dict[WingT, dict[VertexT, VertexT | None]] = {wing: bfs(wing, list(wing.nodes)[0]) for wing in G[0]}
 
-    salient_graph = get_salient_graph(G, entry, supplies, exits, prevs)
+    salient_graph = get_F(G, entry, supplies, exits, prevs)
 
     """supplies apsp"""
-    apsp_map = get_apsp(salient_graph, entry, exits, supplies)
-    apsp_dist_map = get_apsp_dist(salient_graph, apsp_map)
+    apsp_map = get_path_matrix(salient_graph, entry, exits, supplies)
+    apsp_dist_map = get_path_cost_matrix(salient_graph, apsp_map)
 
     return apsp_map, apsp_dist_map, prevs, supplies, number_of_supplies_to_collect
 
@@ -674,7 +702,7 @@ def ember_rescue(
     res: list[VertexT]
 
     """Get supplies that could be collected in the graph"""
-    supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
+    supplies = get_new_supply_storage(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
 
     """Get number of supplies to find"""
     number_of_supplies_to_collect = min(len(supplies), len([None for i in supply_storage if i is None]))
@@ -682,17 +710,17 @@ def ember_rescue(
     """Get entry/junction -> exit/junction pair paths"""
     prevs: dict[WingT, dict[VertexT, VertexT | None]] = {wing: bfs(wing, list(wing.nodes)[0]) for wing in G[0]}
 
-    salient_graph = get_salient_graph(G, entry, supplies, exits, prevs)
+    salient_graph = get_F(G, entry, supplies, exits, prevs)
 
     """supplies apsp"""
-    apsp_map = get_apsp(salient_graph, entry, exits, supplies)
-    apsp_dist_map = get_apsp_dist(salient_graph, apsp_map)
+    apsp_map = get_path_matrix(salient_graph, entry, exits, supplies)
+    apsp_dist_map = get_path_cost_matrix(salient_graph, apsp_map)
 
     """stage 2"""
-    super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
+    super_path = DpImpl()(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
 
-    res = get_path_from_super_path(super_path, apsp_map)
-    res = get_path_from_super_path_bfs(G, res, prevs)
+    res = get_F_path_from_H_path(super_path, apsp_map)
+    res = get_G_path_from_F_path(G, res, prevs)
 
     j: int = 0
     collected_supplies = [v for v in res if v in supplies]

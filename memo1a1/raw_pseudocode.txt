@@ -169,7 +169,12 @@ PROCEDURE get_path_cost_matrix(g: Graph, path_matrix: Map[Vertex, Map[Vertex, Li
     RETURN res
 END PROCEDURE
 
-PROCEDURE brute_force_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0) -> Tuple[List[Vertex], Positive Integer or 0]
+PROCEDURE dynamic_programming_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0, memo: Map[Tuple[Vertex, Set[Vertex]], Tuple[List[Vertex], Positive Integer or 0]) -> Tuple[List[Vertex], Positive Integer or 0]
+    key <- (entry, supplies)
+    IF has(memo, key) THEN
+        RETURN memo[key]
+    END IF
+
     min_cost <- ∞
     min_cost_path <- []
 
@@ -197,11 +202,12 @@ PROCEDURE brute_force_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set
             END IF
         END FOR
     END IF
+    memo[key] = (min_cost_walk, min_cost)
     RETURN (min_cost_walk, min_cost)
 END PROCEDURE
 
-PROCEDURE brute_force(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0) -> List[Vertex]
-    path <- brute_force_recursive(entry, supplies, exits, path_cost_matrix, fuel)[0]
+PROCEDURE dynamic_programming(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0) -> List[Vertex]
+    path <- dynamic_programming_recursive(entry, supplies, exits, path_cost_matrix, fuel, empty Map)[0]
 
     res <- [entry]
     FOR EACH vertex IN path DO

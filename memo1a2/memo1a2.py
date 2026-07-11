@@ -1,11 +1,11 @@
 import marimo
 
-__generated_with = "0.23.13"
+__generated_with = "0.23.14"
 app = marimo.App(width="medium", app_title="Memo1A2", css_file="../custom.css")
 
 
 @app.cell
-def _():
+def imports():
     import marimo as mo
     import random
     import networkx as nx
@@ -18,12 +18,43 @@ def _():
     import copy
     from itertools import chain
     import re
+    import inspect
+    import sys
 
-    return chain, mcolors, mo, mpatches, np, nx, pd, plt, random, re, stats
+    return (
+        chain,
+        inspect,
+        mcolors,
+        mo,
+        mpatches,
+        np,
+        nx,
+        pd,
+        plt,
+        random,
+        re,
+        stats,
+        sys,
+    )
+
+
+@app.cell
+def global_vars():
+    # Globals
+    _figure_names = []
+
+    def get_fig(figure_name: str) -> int:
+        if figure_name in _figure_names:
+            return _figure_names.index(figure_name) + 1
+        else:
+            _figure_names.append(figure_name)
+            return len(_figure_names)
+
+    return (get_fig,)
 
 
 @app.cell(hide_code=True)
-def _(chain, mcolors, mpatches, nx, plt, random, seed_input):
+def graph_drawer_impl(chain, mcolors, mpatches, nx, plt, random, seed_input):
     class GraphDrawer:
         def __init__(self) -> None:
             self.seed = seed_input.value
@@ -335,6 +366,9 @@ def _(chain, mcolors, mpatches, nx, plt, random, seed_input):
 
             # Highlight path
             if highlight_path and len(highlight_path) > 1:
+                cost_total = 0
+                plt.rc('text', usetex=True)
+                plt.rc('text.latex', preamble=r'\usepackage{amsmath}')
                 for i in range(len(highlight_path) - 1):
                     w1, c1, r1 = highlight_path[i]
                     w2, c2, r2 = highlight_path[i + 1]
@@ -343,6 +377,17 @@ def _(chain, mcolors, mpatches, nx, plt, random, seed_input):
                         [r1 + 0.5, r2 + 0.5],
                         color=COL_PATH, lw=1.8, linestyle='--',
                         alpha=0.75, zorder=4)
+
+                    if w1 != w2:
+                        cost_total += 1
+                        mid_c = (xoff(w1) + c1 + xoff(w2) + c2) // 2
+                        row = r1 + 1 if w1 < w2 else r1 - .5
+
+                        ax.text(mid_c + .25, row + .25, fr"$\underrightarrow{{{str(cost_total)}}}$" if w1 < w2 else fr"$\underleftarrow{{{str(cost_total)}}}$", fontsize=12, color=COL_WALL, zorder=6)
+                    else:
+                        cost_total += self.weighted_wings[w1].get_edge_data((c1, r1), (c2, r2))["weight"]
+            
+                plt.rc('text', usetex=False)
 
             # Legend
             legend_items = [
@@ -374,7 +419,7 @@ def _(chain, mcolors, mpatches, nx, plt, random, seed_input):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def settings(mo):
     mo.md(r"""
     # Settings
     """)
@@ -382,7 +427,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo):
+def facility_seed_picker(mo):
     seed_input = mo.ui.number(
         value=28122007,
         start=0,
@@ -395,15 +440,15 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def title(mo):
     mo.md(r"""
-    # Memo 1 Amendment 2
+    # Memo 1 Amendment 1
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def introduction(mo):
     mo.md(r"""
     # 1 Introduction
     We have been tasked to design a **decision architecture** for a robot. To do this, we will create a abstraction for this problem, and subsequently an algorithm to solve it.
@@ -416,24 +461,27 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def limitations_of_previous_model(mo):
     mo.md(r"""
     ## 1.1 Limitations of Previous Model
-    - The previous models handles the new information well, only requiring the new properties to be minimally abstracted into $G$ as the total cost of traversing coridoors between salient sectors rather than just the number of them.
+    - The previous model assumed the facility's sectors had equal traversal costs.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def amendment_revisions(mo):
     mo.md(r"""
     ## 1.2 Amendment Revisions
+    The previous abstraction assumed the facility's sectors had equal traversal costs. This required that edges in each wing of $G$ were given cost based on traversal cost instead of number of sectors.
+
+    Otherwise, the algorithm still works on this facility, as the weight changes don't change the tree structure or introduce more supplies.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def abstraction(mo):
     mo.md(r"""
     # 2 Abstraction
     Let $G = (V_w, E_w, w)$ be a meta-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
@@ -450,7 +498,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def signature_specification(mo):
     mo.md(r"""
     ## 2.1 Signature specification:
     $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Array}[\text{SupplyID}, 5] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \to \text{List}[\text{Vertex}] \times \text{Array}[\text{SupplyID}, 5]$
@@ -459,7 +507,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def output_constraints(mo):
     mo.md(r"""
     ## 2.2 Output Constraints
     The algorithm should output an ordered sequence of vertices $(v_1, v_2, \dots, v_n)$, with $\forall m < n, v_m \in V \cup V_w$, $v_1 = s$, and $v_n \in X$. It should aim to collect as many supply vertices as possible, while reducing the total cost of this walk, $\displaystyle\sum_{i=0}^{n - 1} w(v_i, v_{i + 1})$.
@@ -470,7 +518,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def assumptions(mo):
     mo.md(r"""
     ## 2.3 Assumptions
     Assumptions about the problem allow use of more efficient or informed algorithms to be used. Outlined below are properties observed from all of a subset of facility maps examined:
@@ -489,12 +537,12 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def salient_features(mo):
     mo.md(r"""
     ## 2.4 Salient Features
     Decisions made for how much abstraction is done on certain properties of the problem are guided by maintaining correctness, completeness, and allowing for an appropriate run-time given the size of each variable in the current problem. In particular, finding an exact solution requires searching through a portion of the solution space, and thus we have an at most exponential growth in $O(b^d)$. Reducing $b$ and $d$ allow for further depth and will allow the algorithm to run faster, allow for exact algorithms/better heuristic upper-bounds, and allow for this algorithm to be considered on larger facilities.
 
-    By representing the facility as a hierarchical graph, we can use strategies to reduce the depth of the combinatorial explosion of algorithms that can be used to assist with the objective. Instead of $O(b^d)$ exploding with $d = |E|$, we can instead have it increase with $d = |V_w|$ instead. We have each wing be a vertex on $G$, and each junction and inter-wing corridor an edge.
+    By representing the facility as a hierarchical graph, we can use strategies to reduce the depth of the combinatorial explosion of algorithms that can be used to assist with the objective. Instead of $O(b^d)$ exploding with $d = |E|$, we can instead have it increase with $d = |V_w|$ instead. We have each wing be a vertex on $G$, and each junction and inter-wing corridor.
 
     We choose to abstract individual sectors of the facility, opting to instead represent a subset of salient sectors to be on any wing graph $W_n$, abstracting the sectors on the paths between these salient sectors as edge weight through the function $w$.
 
@@ -506,20 +554,20 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def hierarchical_vs_flat_graph(mo):
     mo.md(r"""
     ## 2.5 Hierarchical vs Flat graph
     When adapting from a single-wing facility to a multi-wing one, there are two obvious ways to represent the multiple wings.
 
-    Recall in Memo 1, the facility's singular wing was represented as a graph, with each vertex representing a salient sector and each edge a connecting walk between thoses salient sectors.
+    Recall in Memo 1, the facility's singular wing was represented as a graph, with each vertex representing a salient sector and each edge a connecting walk between those salient sectors.
 
-    The **Hierarchical graph** representation uses a meta-graph, a graph where each vertex is a graph, to represent the wings of the facility. Each wing is an vertex in the meta-graph and the connecting coridoors between each wing will be the edges. These vertex-graphs will be represented the same way as in Memo 1.
+    The **Hierarchical graph** representation uses a meta-graph, a graph where each vertex is another graph, to represent the wings of the facility. Each wing is an vertex in the meta-graph and the connecting corridors between each wing will be the edges. These vertex-graphs will be represented the same way as in Memo 1.
 
-    The **Flat graph** representation uses a graph to representing the facility. The facility will be represented the same way as in Memo 1, except edges can now also represent inter-wing coridoors between junction sectors.
+    The **Flat graph** representation uses a graph to representing the facility. The facility will be represented the same way as in Memo 1, except edges can now also represent inter-wing corridors between junction sectors.
 
     First we can notice that, with an algorithmic process, it is possible to flatten the hierarchical graph into the flat graph by adding each vertex and edge in each vertex of the meta-graph to a empty graph and then adding each edge from the meta-graph as an edge in this graph. Therefore we can conclude that the hierarchical graph has more information than the flat graph, and the flat graph _loses_ information.
 
-    If we were to adopt the flat representation and continue to use the previous algorithm, we would notice a performance penalty, as our dijkstra's algorithm cost scales with the number of vertices in the full flat representation. With 4 wings, this is barely noticable, but if new information was to reveal a larger facility, the cost would quickly become enough to make the algorithm not feasable.
+    If we were to adopt the flat representation and continue to use the previous algorithm, we would notice a performance penalty, as our dijkstra's algorithm cost scales with the number of vertices in the full flat representation. With 4 wings, this is barely noticeable, but if new information was to reveal a larger facility, the cost would quickly become enough to make the algorithm not feasible.
 
     This hierarchical graph represents the physical properties of the facility more closely, and this additional information can be used to inform a more efficient algorithm. There is only a small, linear-time cost associated with converting the hierarchical graph to the flat graph representation, and therefore it is worth using the hierarchical representation to allow a better algorithm to be used.
     """)
@@ -527,13 +575,13 @@ def _(mo):
 
 
 @app.cell
-def _(np, pd, plt, stats):
-    _df = pd.read_csv("memo1a/data_memos.csv")
+def hierarchical_vs_flat_runtime(np, pd, plt, stats):
+    _df = pd.read_csv("memo1a1/data_memos.csv")
 
     _df = _df[(np.abs(stats.zscore(_df)) < 2).all(axis=1)]
 
     _fig, ((_ax1, _ax2), (_ax3, _ax4)) = plt.subplots(2, 2, figsize=(6, 6), height_ratios=[14, 1], width_ratios=[1, 14])
-    _ax2.scatter(_df["Memo1 time"], _df["Memo1A1 time"], c='b', label="Brute force", marker='o', s=10, alpha=.01)
+    _ax2.scatter(_df["Memo1 time"], _df["Memo1A1 time"], c='b', marker='o', s=10, alpha=.01)
     _ax2.set_xlim(0, 10)
     _ax2.set_ylim(0, 10)
 
@@ -549,7 +597,7 @@ def _(np, pd, plt, stats):
 
     _ax3.set_axis_off()
 
-    _fig.suptitle("Comparing Hierarchical and Flat graph implementations")
+    _fig.suptitle("Comparing Hierarchical & Flat graph implementations")
     _fig.supxlabel("Flat graph time (ms)")
     _fig.supylabel("Hierarchical graph time (ms)")
 
@@ -559,15 +607,17 @@ def _(np, pd, plt, stats):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    The figure above comparse the runtime of a hierarchical graph implementation and a flat graph one. It is shown that the algorithm leveraging the additional information provided by the hierarchical graph will run faster in the vast majority of cases than the one using the flat graph representation.
+def hierarchical_vs_flat_runtime_comment(get_fig, mo):
+    mo.md(rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Comparing Hierarchical & Flat graph implementations")}</span>
+
+    Figure {get_fig("Comparing Hierarchical & Flat graph implementations")} shows a runtime comparison of algorithms solving this problem on both the flat and hierarchical graph, implemented in python. This shows the hierarchical graph is ~9% better median, 25% better 3rd quartile, and a smaller inter-quartile range. This means it is consistently more efficient than the flat graph over the test set of 10,000 facility blueprints
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def hierarchical_no_adt_justification(mo):
     mo.md(r"""
     ### 2.5.1
     No new ADT operations are _required_ to use the hierarchical graph. Finding the wing of a vertex $v$ is possible in $|W|$ time by checking for each $w = (V_w, E_w) \in W$, if $v \in V_w$. This is possible due to assumption that each wing's vertex sets are disjoint. There is a tradeoff between storage and efficiency here, with storing the wings allowing for quick retrieval at the cost of space and getting the wings being a time cost. I chose to the latter option as it seemed in implementation that finding the wings did not affect performance to any noticeable amount
@@ -578,21 +628,32 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.6 Sector traversal costs
-    In this ammendment, there are 2 main ways you could represent the non-uniform sector traversal cost: seperate weight functions for each wing, or one weight function overall. Due to the current abstraction
+    ### 2.5.2 Flat Graph Is Better
+    While it is certain for this algorithmic idea, a hierarchical graph abstraction is better, it could be argued for large $n$, [**Thorup99**](https://doi.org/10.1145/316542.316548), a linear time undirected single source shortest path (SSSP) algorithm would be better to find the shortest paths between between supplies, as its component tree structure is close to the facility's structure, and a minimum spanning tree can be found quite quickly due to the flattened facility graph being _almost_ a tree.
+
+    This would remove the need for the creation of $F$, as the algorithm can be run on the original flattened facility. The reason why this is not applicable to this problem is due to the time constraint, with Thorup's SSSP algorithm being difficult to implement. It almost might suffer from the same problems as other efficient algorithms that will be considered: that $n$ isn't large enough to outweigh lower order costs of an algorithm. This is less likely to be a problem, as in stage 1 of the algorithm, the input graph has much larger $n$.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def sector_traversal_costs(mo):
+    mo.md(r"""
+    ## 2.6 Sector traversal costs
+    In this amendment, weighted sector traversal costs were added, but due to my abstraction already having a weight mapping $w$, which abstracts the costs of traversing between two sectors in the facility graph $G$. Wings are not treated differently, as weights are given as part of the abstraction precomputed. This allows for further abstraction of unnecessary features and avoid creating algorithms to address specific cost profiles of wings, which allows the algorithm to address new wings without revisions.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def adts(mo):
     mo.md(r"""
     ## 2.7 ADTs
     Since we are using a hierarchical graph representation, we will need to represent this as an ADT. To do this, we will require one new ADT, the tuple. The Hyper
 
     We do _not_ need each vertex to store its wing, because we can check that by checking if that vertex is each wing's vertex set.
 
-    `foo.bar(a, b)` syntax will be used in pseudocode, rather than `bar(foo, a, b)`, and mathematical operators will be preferred for size of ADTs and set operations. Indices of ordered data structures and keys of maps will be accessed with `foo[index]` syntax. Lists will be created with `[a, b, ...]` syntax, tuples will be created with `(a, b, ...)` syntax, and sets will be created with `{a, b, ...}` syntax, with empty set being denoted by $\varnothing$
+    Indices of ordered data structures and keys of maps will be accessed with `foo[index]` syntax. Lists will be created with `[a, b, ...]` syntax, tuples will be created with `(a, b, ...)` syntax, and sets will be created with `{a, b, ...}` syntax, with empty set being denoted by <span class="pseudocode-bracket">∅</span>.
 
     A recap of each ADT and its signature specifications are below:
 
@@ -645,25 +706,55 @@ def _(mo):
     ### 2.7.5 Tuple
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
+
+    ### 2.6.6 ADT Non-extension Justification
+    It was suggested that an ADT operation was required that, given a sector, returns adjacent unvisited sectors that contain no previously collect supply units. This operation could be used in either the **depth first search** or **dijkstra's algorithm** procedures in the algorithm, but is not useful.
+
+    However my algorithm handles both parts of this operation as procedures of the algorithm. In stage 1, it removes previously collected supplies from the supplies set. In the **depth first search** step, while it would then be possible to traverse less of the tree, it could be possible for a uncollected supply to be on the path to a collected supply, and therefore adding this operation and using it could remove the possibility of collecting certain supplies in a facility.
+
+    While no such facility blueprint has been discovered, this small optimisation is not worth the risk of the algorithm not working on future facilities. We want to minimise assumptions not clearly defined in the mission directive as we do not know if all facilities have supplies at dead-ends.
+
+    Additionally, this addition would not assist in the dijkstra's algorithm step or the entirety of stage 2, which combined, account for the majority of the time cost of this algorithm.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def adt_justification(mo):
     mo.md(r"""
-    ## 2.7 Justification of Each ADT
+    ## 2.6 Justification of Each ADT
     Above, I justified the use of the graph in the hierarchical representation.
 
-    By using a graph, we can encapsulate only the salient features of a wubg, where other structures would introduce non-salient features.
+    By using a graph, we can encapsulate only the salient features of the facility, where other structures would introduce non-salient features.
 
-    Each other parameter represents physical salient features of the facility, and without them, the problem would not be encapsulated in this abstraction.
+    Since a correct output must go from the entry sector to an entry sector, it is required to give the corresponding vertices of the graph as input to the algorithm. The same reasoning applies to the supplies set, as an optimal walk through the facility should collect all supplies. An alternate way of abstracting the problem, particularly supplies is discussed [below](## 2.7 An Alternate Problem Abstraction), so more justification of the supply set is there.
+
+    The last three parameters abstract CRUDY-1's supply storage. An array with fixed length is suitable for CRUDY-1's fixed-size supply storage and due to the non-uniqueness of supply units, supply vertex to supply id lookup with a map allows non-collection of duplicate supplies. These collected supplies are stored in a set due to fast `contains` checks and the non-requirement of an ordered data structure.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def alternate_problem_abstraction(mo):
+    mo.md(r"""
+    ## 2.7 An Alternate Problem Abstraction
+    One problem with this abstraction is it only assigns reward to supplies. In the problem description, it says walk length should be minimised _and_ that maintaining structural integrity is important. This suggest that there might be some penalty with traversing large portions of the facility that may outweigh collecting a distant supply. I will first propose an alternate abstraction to the problem that encapsulates this aim and then justify why that abstraction is not suitable for this problem.
+
+    The abstraction adds a new function $r: \text{Vertex} \times \text{Vertex} \to \mathbb{R}$, which gives reward or penalty of traversing from the first input vertex to the second one. We can assign each edge entering a supply vertex a positive reward and each other edge a negative one. We also must disallow traversing a supply vertex more than once.
+
+    This problem, however is more complex than the original problem, with the problem not being reducible to a travelling salesman like problem with $n = |S| = 5$ as each edge and therefore vertex must be considered in the walk. Due to the problem being a minimum cost walk, it is more complex than a travelling salesman problem, and due to its minimisation nature, a integer linear program formulation may seem possible, but will not be nearly as efficient as an algorithm run on the abstraction proposed above.
+
+    Additionally, solutions to the abstraction above will traverse a particular edge in the vast majority of cases two times, which often cannot be reduced due to each wing being a tree, therefore there is often only 1 path between two sectors. This means solutions to the abstraction above will often be optimal or close to optimal in this more complex problem.
+
+    The difficulty of this new abstraction also causes exact algorithms to be likely to inefficient, which means heuristic solutions may even be worse than solution found on the abstraction above. This is the reason this alternate abstraction is not the one used when solving this problem.
+
+    However, this abstraction does better encapsulate the problem's facets, and if more time was given, a more efficient algorithm could be found for this abstraction that gives better results. This time constraint due to the urgency of the situation does constrain the complexity of algorithms used, unfortunately.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def algorithm_design_header(mo):
     mo.md(r"""
     # 3 Algorithm Design
     """)
@@ -671,16 +762,16 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def algorithmic_approaches(mo):
     mo.md(r"""
     ## 3.1 Algorithmic Approaches
     We will first consider multiple algorithmic approaches to this problem, before choosing a subset of them to be used in the final algorithm. This will include both design patterns and methods of formulating the problem.
 
-    ### 3.1.1 All Pairs Shortest Paths
+    ### 3.1.1 Stage 1
 
     The first stage of the algorithm will be to find the shortest paths between each supply, entrance and exit vertex in $G$. We then turn this into super graph $G_S$
 
-    Since we are using a hierachical abstraction of the facility, there are two shortest path cases: intra-wing and inter-wing.
+    Since we are using a hierarchical abstraction of the facility, there are two shortest path cases: intra-wing and inter-wing.
 
     For shortest paths that are inter-wing, due to the tree structure of each wing, there is only 1 path between each vertex, and thus it will be the shortest path. We can use BFS or DFS to find this shortest path in linear time.
 
@@ -690,19 +781,19 @@ def _(mo):
 
     This sub-problem is best solved by Dijkstra's algorithm. Due to small $n$, more efficient alternatives like Duan et al. 2025 and Thorup 1999, which solve the problem in sub quasi-linear time and linear time respectively, will not be considered due to high constant costs and difficulty of implementation.
 
-    ### 3.1.2 Supply Order Selection
+    ### 3.1.2 Stage 2
 
     The second stage of the algorithm is to find the ordering of supplies that produces the shortest walk on $G$ from the entrance vertex, through each supply and ending at an exit vertex. The first stage allows a smaller $n$ for algorithms used here, as it allows $n$ to be $|S|$ instead of $|V|$.
 
     Since this problem is similar to the Travelling Salesman Problem (TSP), we will primarily consider design approaches that are used to solve this problem.
 
-    #### 3.1.2.1 Greedy and Heuristic
+    #### 3.1.2.1 Greedy & Heuristic
 
     Greedy patterns are often efficient, but will be unlikely to find an optimal solution, unless the problem has the greedy property. Due to small $n$, and the facility not having the greedy property, we will avoid Greedy algorithms in finding an exact solution. Greedy algorithms will be used in the algorithm to provide a fast upper-bound on path length which is useful for other approaches.
 
-    Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. 2-opt and 3-opt are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than nearest neighbour. Lin-kernighan, which adapts the k-opt, runs in $O(n^{2.2})$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm tabu-search to prohibit found local minima and hopefully find a global minima.
+    Heuristic algorithms are more efficient ways of searching a small subset of the solution space that is likely to hold the optimal solution. They will also used to provide a fast upper-bound. **2-opt** and **3-opt** are powerful heuristics running in $O(n^2)$ and $O(n^3)$ respectively and get much closer than **nearest neighbour**. **Lin-kernighan**, which adapts the **k-opt**, runs in $O(n^{2.2})$ time and is much close than both 2 and 3-opt. This can be chained, combined with a meta-heuristic algorithm **tabu-search** to prohibit found local minima and hopefully find a global minima.
 
-    #### 3.1.2.2 Backtracking and Linear Programming
+    #### 3.1.2.2 Backtracking & Linear Programming
 
     The problem can be expressed as a integer linear program (ILP) that if solved, will give the optimal solution to any problem instance as shown below. $\begin{array}{lrrll}
     \text{min} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
@@ -712,12 +803,12 @@ def _(mo):
     & & x_{uv} &\in \{0, 1\} & &
     \end{array}$
 
-    where$x_{uv} = \begin{cases}
+    where $x_{uv} = \begin{cases}
     1 &  \text{path goes from u to v} \\
     x   &  \text{otherwise}
     \end{cases}$
 
-    However, solving this problem nievely will be slower than brute force, as the final constrain is actually $|S|!$ constraints, leading to worse than factorial time. We instead relax this problem to a linear program and remove the subcycle elimination constraint with
+    However, solving this problem naively will be slower than even **brute force**, as the final constrain is actually $|S|!$ constraints, leading to worse than factorial time. We instead relax this problem to a linear program and remove the subcycle elimination constraint with
 
     $\begin{array}{lrrll}
     \text{min} & \displaystyle\sum_{u \in S \cup \{e\}} \displaystyle\sum_{v \in S \cup X} c_{uv} x_{uv} & & & \\
@@ -726,7 +817,7 @@ def _(mo):
     & 0 \leq & x_{uv} &\leq 1 & &
     \end{array}$
 
-    We can then use branch and cut, a backtracking algorithm, to add only subcycle elimination constraints that are broken, allowing for "only" quadratic-in-$n$ constaints. Branch and cut is a variant of branch and bound, and we will calculate the lower bound of a branch by solving a linear relaxation of the problem by removing $x \in \{0, 1\}$ from the restrictions, but leaving other cuts. If this lower bound is higher than the lower bound we have found, we backtrack early.
+    We can then use **branch and cut**, a backtracking algorithm, to add only subcycle elimination constraints that are broken, allowing for "only" quadratic-in-$n$ constraints. **Branch and cut** is a variant of **branch and bound**, and we will calculate the lower bound of a branch by solving a linear relaxation of the problem by removing $x \in \{0, 1\}$ from the restrictions, but leaving other cuts. If this lower bound is higher than the lower bound we have found, we backtrack early.
 
     Then we check if the solution breaks any of the subcycle elimination constraints, adding them and repeating until we have a solution that doesn't break any of these constraints. If $\forall u, v, x_{uv} \in \{0, 1\}$, we have a new lower bound and we backtrack as this is the lower bound of this branch, otherwise we branch from this node to two nodes, one where a non-integer $x_{uv} = 0$, and one where that $x_{uv} = 1$.
 
@@ -740,46 +831,63 @@ def _(mo):
     & & y_u, z_v &\in \mathbb{R} & &
     \end{array}$$
 
-    The problem with all this is the $n$ is so small that constant and lower order costs of solving linear programming problems many times is greater than other more nieve algorithms.
+    The problem with all this is the $n$ is so small that constant and lower order costs of solving linear programming problems many times is greater than other more naive algorithms.
 
-    #### 3.1.2.3 Backtracking and Greedy / Heuristic
+    Additionally, this linear program only works for the subset of problems where CRUDY-1 has exactly the same number of supplies it could collect in the facility to the number of supply storage slots it has. In the case it has fewer supply storage slots, a linear program for this problem will be much more difficult to create.
 
-    Instead of linear programming overhead, we will instead create a tree whose root node is the entry, and leaf nodes are the exits. The branch nodes will be supplies, and the tree will contain each possible ordering of supplies. Searching this tree exhaustively is too time consuming, but we will instead compute a lower bound for each branch and prune those that have a lower bound greater than an upper bound we find. We will prefer depth first search on this tree to hopefully reduce our upper bound.
+    #### 3.1.2.3 Branch and bound
 
-    To calculate the lower bounds, we first define $T_x = (V_S', E_S', w_S)$ to be a minimum spanning tree of a subset of $G_S = (V_S, E_S, w_S)$, where $V_S' = V_S \backslash \{x\}$. Then our lower bound will be $\displaystyle\min_{x \in X} \displaystyle\sum_{\{u, v\} \in E_S'} w_S(u, v)$.
+    Instead of linear programming overhead, we will instead create a tree whose root vertex is the entry, and leaf vertices are the exits. The branch vertices will be supplies, and the tree will contain each possible ordering of supplies. We can then find lower and upper bounds for a particular branch vertex and prune it if its lower bound is greater or equal to the lowest found upper bound
 
-    To calculate the upper bound, we can find one greedily using a greedy algorithm considered above. We will use a modification of the Lin-Kernighan Heuristic for this purpose. As shown below, we can expect ~12% solution gap for 5 supplies.
+    To calculate the lower bounds, we will add to the current branch's walk minimum cost edges until there are $k + 1$ edges, where $k$ is
 
-    #### 3.1.2.4 Brute-force
+    To calculate the upper bound, we can find one greedily using a greedy algorithm considered above. We will use a modification of the **Lin-Kernighan Heuristic** for this purpose. As shown below, we can expect ~12% solution gap for 5 supplies.
 
-    Unfortunately, this problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make nieve brute force more efficient than Branch and bound and Lin-Kernighan, beaten only by Nearest neighbour, which is not exact. Since the runtime of Brute-force in this problem is low, we will use the same algorithm as in Memo 1 for stage 2, recursive brute-force.
+    #### 3.1.2.4 Brute Force
+
+    Unfortunately, this problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make naive **brute force** more efficient than **branch and bound** and **Lin-Kernighan**, beaten only by **nearest neighbour** and one other algorithm, the former of which is not exact. Since the runtime of **brute force** in this problem is low.
+
+    #### 3.1.2.5 Dynamic Programming
+
+    Top-down **dynamic programming** uses memoisation to store solutions of recursive sub-problems and when the sub-problem is called again, it can recall the solution. This is particularily effective in this problem due to often finding sub-problem solutions.
     """)
     return
 
 
 @app.cell
-def _(pd, plt):
-    _df = pd.read_csv("memo1a/data_stage_2.csv")
+def runtime_fig(pd, plt):
+    _df = pd.read_csv("memo1a1/data_stage_2.csv")
 
-    _dot_size = 8.
-    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6), sharey=True)
-    _ax1.scatter([i+2 for i in range(len(_df["brute force time"]))], _df["brute force time"], c='b', label="Brute force", marker='o', s=_dot_size)
-    _ax1.scatter([i+2 for i in range(len(_df["branch & bound time"]))], _df["branch & bound time"], c='r', label="Branch and bound", marker='o', s=_dot_size)
-    _ax1.scatter([i+2 for i in range(len(_df["nearest neighbour time"]))], _df["nearest neighbour time"], c='g', label="Nearest neighbour", marker='o', s=_dot_size)
-    _ax1.scatter([i+2 for i in range(len(_df["lin-kernighan time"]))], _df["lin-kernighan time"], c='orange', label="Lin-Kernighan", marker='o', s=_dot_size)
+    _dot_size = 2.
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
+
+    def _plot(ax, name, c, label):
+        ax.scatter([i+2 for i in range(len(_df[name]))], _df[name], c=c, label=label, s=_dot_size)
+
+
+    _plot(_ax1, "brute force time", "b", "Brute force")
+    _plot(_ax1, "branch & bound time", "r", "Branch and bound")
+    _plot(_ax1, "dynamic programming time", "purple", "Dynamic programming")
+    _plot(_ax1, "nearest neighbour time", "g", "Nearest neighbour")
+    _plot(_ax1, "lin-kernighan time", "orange", "Lin-Kernighan")
     _ax1.legend(loc="upper right")
+    _ax1.set_yscale("log", base=10)
 
-    _local_range = range(2, 7)
-    _range_len = _local_range.stop-_local_range.start
+    _dot_size = 3.
+    _local_range = range(3, 8)
+    _range_len = _local_range.stop - _local_range.start
+    def _plot(ax, name, c, label):
+        ax.plot(list(_local_range), _df[name][_local_range.start - 2:_local_range.stop - 2], "-o", c=c, label=label, ms=_dot_size)
 
-    _ax2.scatter([i for i in _local_range], _df["brute force time"][:_range_len], c='b', label="Brute force", marker='o')
-    _ax2.scatter([i for i in _local_range], _df["branch & bound time"][:_range_len], c='r', label="Branch and bound", marker='o')
-    _ax2.scatter([i for i in _local_range], _df["nearest neighbour time"][:_range_len], c='g', label="Nearest neighbour", marker='o')
-    _ax2.scatter([i for i in _local_range], _df["lin-kernighan time"][:_range_len], c='orange', label="Lin-Kernighan", marker='o')
+    _plot(_ax2, "brute force time", "b", "Brute force")
+    _plot(_ax2, "branch & bound time", "r", "Branch and bound")
+    _plot(_ax2, "dynamic programming time", "purple", "Dynamic programming")
+    _plot(_ax2, "nearest neighbour time", "g", "Nearest neighbour")
+    _plot(_ax2, "lin-kernighan time", "orange", "Lin-Kernighan")
     _ax2.legend(loc="upper right")
+    _ax2.set_yscale("log", base=10)
     _ax2.set_xticks(_local_range)
 
-    _ax2.set_yscale("log", base=10)
     _fig.suptitle("Different approaches' runtime")
     _fig.supxlabel("Supply Unit (# of)")
     _fig.supylabel("Runtime (s)")
@@ -790,10 +898,145 @@ def _(pd, plt):
 
 
 @app.cell(hide_code=True)
+def runtime_explanation(get_fig, mo):
+    mo.md(rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Different approaches' runtime")}</span><br>
+    <span style="color: var(--ctp-mocha-overlay1); font-size: 10px">Note the logarithmic scale</span>
+
+    ### 3.1.3 Evaluation of Runtimes
+    The left of figure {get_fig("Different approaches' runtime")} shows that for large $n$, **brute force** has the worst run-time, followed closely by **branch and bound**, and dynamic programming . The heuristic algorithms then follow, with **Lin-Kernighan** running **nearest neighbour** to get its first guess (which it finds a local solution of), it takes longer than **nearest neighbour** does.
+
+    However, the right of figure {get_fig("Different approaches' runtime")} shows that at $n = |S| = 5$ as it is in the problem, **dynamic programming** runs an order of magnitude faster than **brute force** and **branch and bound**. While it is ~1.5 orders of magnitude slower than **nearest neighbour**, it is still very fast and is optimal. This is the reason why it will be used over those other more efficient approaches.
+
+    If $n$ was to increase, it will become impossible to consider **brute force** and **dynamic programming**, and **branch and bound** will only be usable with significant optimisations (discussed later). This can be seen in the left figure, with **brute force** and **dynamic programming** these algorithms not being graphed after $n = 20$
+    """)
+    return
+
+
+@app.cell
+def optimality_sol_gap_fig(np, pd, plt):
+    _df = pd.read_csv("memo1a1/data_stage_2_100_trials.csv")
+
+    _dot_size = 2.
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
+
+    def _plot(ax, name, c, label):
+        ax.scatter([i+2 for i in range(len(_df[name]))], _df[name], c=c, label=label, s=_dot_size)
+
+    _plot(_ax1, "brute force length", "b", "Brute force")
+    _plot(_ax1, "branch & bound length", "r", "Branch and bound")
+    _plot(_ax1, "dynamic programming length", "purple", "Dynamic programming")
+    _plot(_ax1, "nearest neighbour length", "g", "Nearest neighbour")
+    _plot(_ax1, "lin-kernighan length", "orange", "Lin-Kernighan")
+    _ax1.set_title("Different approaches' solution length")
+    _ax1.legend(loc="upper right")
+    _ax1.set_ylabel("Average Solution Length (units)")
+
+
+    _dot_size = 3.
+    _local_range = range(3, 8)
+    _range_len = _local_range.stop - _local_range.start
+
+    _solution_gap_len = len([None for i in np.isnan(_df["branch & bound length"]) if not i])
+    def _solution_gap(data) -> list[float]:
+        return [100 * (data[i] - _df["branch & bound length"][i]) / _df["branch & bound length"][i] for i in range(min(_solution_gap_len, len([None for i in data if i])))]
+
+    def _plot(ax, name, c, label):
+        ax.plot([i for i in range(_solution_gap_len)], _solution_gap(_df[name]), "-o", c=c, label=label, ms=_dot_size)
+
+    _plot(_ax2, "brute force length", "b", "Brute force")
+    _plot(_ax2, "branch & bound length", "r", "Branch and bound")
+    _plot(_ax2, "dynamic programming length", "purple", "Dynamic programming")
+    _plot(_ax2, "nearest neighbour length", "g", "Nearest neighbour")
+    _plot(_ax2, "lin-kernighan length", "orange", "Lin-Kernighan")
+    _ax2.set_title("Different approaches' optimality gap")
+    _ax2.legend(loc="upper right")
+    _ax2.set_ylabel("Average Solution Gap (%)")
+
+    _fig.supxlabel("Supply Unit (# of)")
+    _fig.tight_layout()
+
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def optimality_sol_gap_explanation(get_fig, mo):
+    mo.md(rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Different approaches' solution length")}</span><br>
+    <span style="color: var(--ctp-mocha-overlay1); font-size: 10px">Note the logarithmic scale</span>
+
+    ### 3.1.4 Optimality & Solution Gap
+    As seen in figure {get_fig("Different approaches' solution length")}, each algorithm poses a different gap from the optimal solution. An algorithm for a problem is optimal iff it has 0 solution gap on *all* problem instances. We calculate solution gap with $\displaystyle\frac{{\text{{Heuristic - Optimal}}}}{{\text{{Optimal}}}}$, and while **Lin-Kernighan** has a slightly better solution for large $n$. If the supply count were to reach a level where it is not possible to use an exact algorithm, **Lin-Kernighan** would be one of the best algorithms to use.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def other_stage_2_opts_header(mo):
+    mo.md(r"""
+    ## 3.2 Other Stage 2 Options
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def branch_and_bound_explanation(mo):
+    mo.md(r"""
+    ### 3.2.1 Branch and Bound
+    Branch and bound solves an optimisation problem by searching through the solution tree using either depth or breath first search. It finds sub-problems of the original problem and eliminates ones that cannot contain the optimal solution by finding their lower and upper bounds, comparing against the best found upper bound. If a subproblem $P'$ has a lower bound greater than the best upper bound, it cannot contain the solution and therefore does not need to be explored. This can reduce the solution tree in the average and best cases depending on the problem and the 'tightness' of the bounds: how close they are to the true lower and upper bounds of $P'$. To maintain correctness, the lower bound must be inclusive of the true lower bound and the upper bound must be inclusive of the true upper bound such that $lb_\text{true} \leq lb_\text{heuristic} \leq ub_\text{heuristic} \leq ub_\text{true}$. Due to the algorithm requiring fast lower and upper bound calculation, this is done with heuristic methods.
+
+    While **branch and bound** and **brute force** share $O(n!)$ worst case, the former will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm. Dynamic programming caches previous results and therefore has $O(n + n(n - 1) + n(n - 1)(n - 2) + \dots + \frac{n!}{\lfloor \frac{n}{2} \rfloor!} + \frac{n!}{\lceil \frac{n+1}{2} \rceil!} + \dots + n + 1) = O(\displaystyle\sum_{k=1}^n \frac{n!}{\max((n-k)!,k!)})$. Because this sum is less than $2e$ (using the sum definition of $e$), the dynamic programming approach is still bounded in $O(2e \times n!) = O(n!)$.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### 3.2.2 Brute force
+
+    Brute force searches the entire solution space of the problem exhaustively, finding the best solution and returning it. It excels in testing optimality and correctness of other algorithms and in cases where $n$ is small.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def lin_kernighan_explanation(mo):
+    mo.md(r"""
+    ### 3.2.3 Lin-Kernighan
+    Lin-Kernighan is a heuristic algorithm for optimising a found solution to a shortest-path or cycle problem. It swaps different combinations of edges to find the local minimum of a solution. This will always produce a better or equal path than the one found, so it is a good step for finding a close-to-optimal solution for **branch and bound** algorithms or optimising a different heuristic algorithm.
+
+    This algorithm runs in $O(n^{2.2})$ average case, but has significant constant and lower order costs, which make it less efficient than **dynamic programming** for this problem, while giving non-optimal solutions
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def nearest_neighbour_explanation(mo):
+    mo.md(r"""
+    ### 3.2.4 Nearest Neighbour
+    Nearest neighbour is a greedy algorithm, which due to the physical representation of this problem being _almost_ a tree, performs quite well on this problem. It runs in $O(n^2)$ worst case, but with $n$ being small, **dyanmic programming** can find an optimal solution in an adequate amount of time
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def linear_programming_explanation(mo):
+    mo.md(r"""
+    ### 3.2.5 Linear programming
+    For large $n$ travelling salesman problems, **branch and cut**, a combination of **branch and bound**, and **the cutting plane method**, performs well. This is normally done by solving a relaxed version of the problem and adding cuts back when the original problem's cuts are broken. Solving these relaxed linear programs can be done with the **simplex method**, however for $n = 5$, just one run of the algorithm takes longer than any other approach considered.
+
+    Additionally, due to CRUDY-1 needing to pick up fewer than 5 supplies if it is carrying some, I was unable to create a tight enough linear program for this problem to be useful.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def wing_traversal_strategy(mo):
+    mo.md(r"""
     ## 3.2 Wing traversal strategy
-    The algorithm will traverse between wings based on the best walk, not necessarily collecting each supply in a wing before moving to the next wing and often coming back to a wing previously traversed through. This was done to use a common path optimisation where directly travelling between two junctions in a wing, $j_1$ and $j_2$, may be slower than a path through $j_1$, $j_1'$, $j_2'$ and $j_2$, where $j_n'$ is the vertex a junction connects to via an interwing coridoor.
+    The algorithm will traverse between wings based on the best walk, not necessarily collecting each supply in a wing before moving to the next wing and often coming back to a wing previously traversed through. This was done to use a common path optimisation where directly travelling between two junctions in a wing, $j_1$ and $j_2$, may be slower than a path through $j_1$, $j_1'$, $j_2'$ and $j_2$, where $j_n'$ is the vertex a junction connects to via an interwing corridor.
 
     Since we are still aiming for an exact algorithm that always outputs the optimal solution, we must allow for revisiting wings and partial collection of supplies.
     """)
@@ -801,7 +1044,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def revised_algorithm_header(mo):
     mo.md(r"""
     ## 3.3 Revised Algorithm
     """)
@@ -809,7 +1052,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def algorithm_explanation(mo):
     mo.md(r"""
     ### 3.3.1 Explanation
     We split the algorithm into two stages, with the first stage creating a flat graph, $F$, where each vertex is a supply, junction, entry or exit, and edges between vertices exist if they are in the same wing, after which we will find the shortest path on $F$ between each entry and supply, and each exit and supply, creating a complete graph $H$ using these minimum cost paths as edge weights.
@@ -820,7 +1063,7 @@ def _(mo):
 
     After that, Dijkstra's algorithm will be run on $F$ to find the shortest paths between each entry and supply, and each exit and supply. The creation of $F$ efficiently reduces the size of $n$ for the input to Dijkstra's algorithm. These shortest paths will form a complete graph $H$ where each vertex is an entry, supply or exit and each edge's weight is the total cost of the shortest path between two vertices in $H$. We will likewise store these shortest paths for the path reconstruction.
 
-    In the second stage, a brute force algorithm will find the shortest hamiltonian walk on $H$. After which we use all the stored paths to reconstruct the final returned walk by converting from a walk on $H$, to one on $F$, finally to one on $G$.
+    In the second stage, a **dynamic programming** algorithm will find the shortest hamiltonian walk on $H$. After which we use all the stored paths to reconstruct the final returned walk by converting from a walk on $H$, to one on $F$, finally to one on $G$.
     """)
     return
 
@@ -828,13 +1071,33 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### 3.3.2 Algorithm Explorer
+    ### 3.3.2 Comparison with previous solutions
+    While comparing this solution to the one from the previous amendment would be pointless (they're the same), comparing with Memo1 shows differences. That memo's solution does not use the tree structure of each wing, and skips the itermediatary $F$ graph. This causes it to run sub-optimally on the current facility given the flat abstraction.
+
+    The need to abstract this property causes no limitations or downsides compared with the previous abstraction (from amendment 1), but if I was to have had each wing be an unweighted graph and using a flat graph abstraction, this would've removed the possibility of using depth or breath first search on the entire facility to get the shortest path between each supply.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### 3.3.3 Comparison with previous facility
+    With the addition of non-uniform cost sector traversal, CRUDY-1 avoids backtracking through the right of wing Beta. This is apparent in my facility with seed `28122007`, where in the previous facility, it collects $s_2$ when it passes by the upper junction between wings Alpha and Beta, whereas in the new facility, the cost of this traversal and backtrack causes this to be not done. This new solution walk is longer in terms of sectors traversed through but shorter in terms of total cost than the walk that collects $s_2$ earlier.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def algorithm_explorer_header(mo):
+    mo.md(r"""
+    ### 3.3.4 Algorithm Explorer
     """)
     return
 
 
 @app.cell
-def _(facility_drawer, memo1b_algorithm, mo):
+def algorithm_resource(facility_drawer, memo1a_algorithm, mo):
     _abs_graph = facility_drawer.get_abstracted_graph()
     _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
     _supplies = set(facility_drawer.supplies)
@@ -854,7 +1117,7 @@ def _(facility_drawer, memo1b_algorithm, mo):
         pr = cProfile.Profile()
         pr.enable()
         for i in range(trials):
-            memo1b_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
+            memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
         return ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3] / trials
@@ -867,14 +1130,14 @@ def _(facility_drawer, memo1b_algorithm, mo):
 
         tracemalloc.start()
 
-        memo1b_algorithm.ember_rescue(
+        memo1a_algorithm.ember_rescue(
             _abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set()
         )
 
         snapshot = tracemalloc.take_snapshot()
         tracemalloc.stop()
         top_stats = snapshot.statistics('filename')
-        return sum(stat.size for stat in top_stats if "memo1b_algorithm.py" in stat.traceback._frames[0][0])
+        return sum(stat.size for stat in top_stats if "memo1a_algorithm.py" in stat.traceback._frames[0][0])
 
     _ave_mem = round(sum([_get_mem() for _ in range(_trials)]) / _trials)
 
@@ -886,16 +1149,17 @@ def _(facility_drawer, memo1b_algorithm, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def algorithm_resource_note(mo):
     mo.md(r"""
-    These value **HIGHLY** depend on the marimo virtual machine, and can vary by up to 5 orders of magnitude. On my machine, I get Runtime: 2.72ms, Memory: 336 B
+    These value **HIGHLY** depend on the marimo virtual machine, and can vary by orders of magnitude. On my machine, I get Runtime: 2.72ms, Memory: 336 B
     """)
     return
 
 
 @app.cell
-def _(facility_drawer, mo):
-    import memo1b_algorithm
+def algorithm_explorer_controls(facility_drawer, mo, sys):
+    sys.path.append('../AlgosSat')
+    from memo1a1 import memo1a_algorithm
 
     _abs_graph = facility_drawer.get_abstracted_graph()
     _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
@@ -905,7 +1169,7 @@ def _(facility_drawer, mo):
 
     @mo.cache
     def ember_rescue_cached():
-        return memo1b_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
+        return memo1a_algorithm.ember_rescue(_abs_graph, facility_drawer.entry, _exits, _supplies, _storage, _supply_map, set())
 
     _res = ember_rescue_cached()
 
@@ -920,11 +1184,16 @@ def _(facility_drawer, mo):
         full_width=True,
         include_input=True
     )
-    return ember_rescue_cached, memo1b_algorithm, path_len
+    return ember_rescue_cached, memo1a_algorithm, path_len
 
 
 @app.cell
-def _(ember_rescue_cached, facility_drawer, mo, path_len):
+def algorithm_explorer_controls_and_info(
+    ember_rescue_cached,
+    facility_drawer,
+    mo,
+    path_len,
+):
     _abs_graph = facility_drawer.get_abstracted_graph()
     _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
     _supplies = set(facility_drawer.supplies)
@@ -946,10 +1215,8 @@ def _(ember_rescue_cached, facility_drawer, mo, path_len):
     _path_cost = sum(_flat_graph.get_edge_data(_res[0][i], _res[0][i + 1])["weight"] for i in range(len(_res[0]) - 1))
     mo.vstack([
         mo.hstack([
-                mo.stat(label="Total Path length",
+                mo.stat(label="Complete Path length",
                         value=f"{len(_path) - 1} steps"),
-                mo.stat(label="Total Path Cost",
-                        value=f"{_path_cost}"),
                 mo.stat(label="Supplies collected",
                         value=f"{len([None for u in _path[:path_len.value] if u in _supplies])}/{len(_supplies)}"),
                 mo.stat(label="Ends at exit",
@@ -957,9 +1224,7 @@ def _(ember_rescue_cached, facility_drawer, mo, path_len):
                 mo.stat(label="All moves valid",
                         value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value)) else "❌ No")
             ], gap=1, wrap=True),
-        path_len,
-        mo.md("Path in form (Wing name, x, y), ... where x and y are 0, 0 in bottom right: " + ", ".join("(" + facility_drawer.wing_names[w] + f", {u}, {v})" for w, u, v in _path)),
-        mo.md("Cumulative cost at wing transitions: " + ", ".join(f"Transition from {facility_drawer.wing_names[_res[0][j][0]]} to {facility_drawer.wing_names[_res[0][j + 1][0]]}: " + str(sum(_flat_graph.get_edge_data(_res[0][i], _res[0][i + 1])["weight"] for i in range(j))) for j in range(len(_res[0]) - 1) if (_res[0][j], _res[0][j + 1]) in facility_drawer.junctions or (_res[0][j + 1], _res[0][j]) in facility_drawer.junctions))
+        path_len
     ])
     return
 
@@ -977,15 +1242,15 @@ def algorithm_explorer(ember_rescue_cached, facility_drawer, mo, path_len):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def pseudocode_and_impl_header(mo):
     mo.md(r"""
-    # 4 Pseudocode and Implementation
+    # 4 Pseudocode & Implementation
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def pseudocode_header(mo):
     mo.md(r"""
     ## 4.1 Pseudocode
     Notes for Pseudocode:
@@ -996,7 +1261,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, re):
+def pseudocode(mo, re):
     def _parse_pseudocode(code: str) -> str:
         procedures = []
         i: int = 0
@@ -1079,13 +1344,24 @@ def _(mo, re):
         return res
 
     mo.md(rf"""
-    <div style="font-family: monospace; font-size: 14px; white-space: pre-wrap;">{_parse_pseudocode(open("memo1a/raw_pseudocode.txt", encoding="utf-8").read())}</div>
+    <div style="font-family: monospace; font-size: 14px; white-space: pre-wrap;">{_parse_pseudocode(open("memo1a1/raw_pseudocode.txt", encoding="utf-8").read())}</div>
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def pseudocode_procedure_justification(mo):
+    mo.md(r"""
+    ### 4.1.1 Pseudocode Procedure Justification
+    While many procedures can be justified due to duplication of use, encapsulating a well-known algorithm which improves the coherence of the pseudocode, or for labelling the goal or output of a block of code, some procedures need justification for why they weren't inlined.
+
+    `get_path_from_bfs` is an example of one such that is easily traceable, and could be instead labelled with a comment. The reason why these were turned into procedures were to allow for implementors of this algorithm to more easily find optimisations that I may be unaware of. For a particular implementation, a memoisation modification of this procedure may increase the algorithm's efficiency, and by extracting this code as a procedure, it is easier to notice blocks of code that may run often and could be further optimised.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def python_impl_header(mo):
     mo.md(r"""
     ## 4.2 Python Implementation
     """)
@@ -1093,374 +1369,13 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.ui.code_editor(r"""import heapq
-    from collections import defaultdict
-    from itertools import chain
-    from typing import Generator, Iterable
-
-    import networkx as nx
-    import numpy as np
-
-
-    class VertexT:
-        pass
-
-
-    WingT = nx.Graph
-
-    SupplyID = int
-
-    SupplyStorage = tuple[SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None, SupplyID | None]
-
-
-    def bfs(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
-        dist = {s: float('infinity') for s in g}
-
-        dist[source] = 0
-
-        visited = set()
-
-        prev: dict[VertexT, VertexT | None] = dict({source: None})
-        stack: list[VertexT] = [source]
-        while len(stack) > 0:
-            u = stack.pop()
-
-            if u in visited:
-                continue
-
-            visited.add(u)
-
-            for v in g.neighbors(u):
-                w = g.get_edge_data(u, v)["weight"]
-                if dist[u] + w < dist[v]:
-                    prev[v] = u
-                    dist[v] = dist[u] + w
-                    stack.append(v)
-
-        return prev
-
-
-    def get_pair_shortest_path(source: VertexT, sink: VertexT, prev: dict[VertexT, VertexT | None]) -> list[VertexT]:
-        left_path = [source]
-        right_path = [sink]
-        left = source
-        right = sink
-        while True:
-            if prev[left] is not None:
-                left = prev[left]
-                left_path.append(left)
-            if prev[right] is not None:
-                right = prev[right]
-                right_path.append(right)
-
-            if right in left_path:
-                right_index = left_path.index(right)
-                return left_path[:right_index] + list(reversed(right_path))
-
-            if left in right_path:
-                left_index = right_path.index(left)
-                return left_path + list(reversed(right_path[:left_index]))
-
-
-    def get_supplies_to_collect(
-        supplies: set[VertexT], vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID],
-        supply_storage: SupplyStorage
-    ) -> set[VertexT]:
-        return supplies.difference(
-            (s for s in supplies if vertex_to_supply_id[s] in found_supply_ids or vertex_to_supply_id[s] in supply_storage)
-        )
-
-
-    def get_which_wing(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], vertex: VertexT) -> WingT:
-        for g in G[0]:
-            if vertex in g.nodes:
-                return g
-        raise ValueError(f"vertex {vertex} is not in any graph in G")
-
-
-    def get_vertices_in_wing(wing: WingT, vertices: Iterable[VertexT]) -> Generator[VertexT]:
-        return (v for v in vertices if v in wing.nodes)
-
-
-    def get_junctions_in_wing(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], wing: WingT) -> Generator[VertexT]:
-        return get_vertices_in_wing(wing, chain(*G[1]))
-
-
-    def get_junction_other(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], junction: VertexT) -> VertexT:
-        edge = tuple(next(filter(lambda e: junction in e, G[1])))
-        if edge[0] == junction:
-            return edge[1]
-        else:
-            return edge[0]
-
-
-    def reconstruct_path(came_from: dict[VertexT, VertexT | None], e: VertexT) -> list[VertexT]:
-        res = []
-        curr = e
-        while curr in came_from:
-            res.append(curr)
-            curr = came_from[curr]
-        res.reverse()
-        return res
-
-
-    def dijkstra(g: nx.Graph, source: VertexT, sinks: set[VertexT]) -> dict[VertexT, list[VertexT]]:
-        res = {}
-        dist = {s: float('infinity') for s in g}
-
-        dist[source] = 0
-
-        # visited set replaced update(PQ, v)
-        visited = set()
-
-        prev: dict[VertexT, VertexT | None] = {source: None}
-        pq = [(0., source)]
-        heapq.heapify(pq)
-        while len(pq) > 0:
-            _, u = heapq.heappop(pq)
-
-            # required for the python heapq that doesn't allow changing priority
-            if u in visited:
-                continue
-            visited.add(u)
-
-            if u in sinks:
-                res[u] = reconstruct_path(prev, u)
-                if len(res) == len(sinks):
-                    return res
-
-            for v in g.neighbors(u):
-                w = g.get_edge_data(u, v)["weight"]
-                if dist[u] + w < dist[v]:
-                    prev[v] = u
-                    dist[v] = dist[u] + w
-                    heapq.heappush(pq, (dist[v], v))
-
-        return res
-
-
-    def get_apsp(g: nx.Graph, entry: VertexT, exits: set[VertexT], supplies: set[VertexT]) -> dict[VertexT, dict[VertexT, list[VertexT]]]:
-        res: dict[VertexT, dict[VertexT, list[VertexT]]] = defaultdict(dict)
-        for source in supplies.union((entry,)):
-            res[source] = dijkstra(g, source, supplies.union(exits))
-
-        return res
-
-
-    def get_path_length(g: nx.Graph, path: list[VertexT]) -> int:
-        return sum(g.get_edge_data(path[i], path[i + 1])["weight"] for i in range(len(path) - 1))
-
-
-    def get_apsp_dist(g: nx.Graph, pair_path_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> dict[VertexT, dict[VertexT, int]]:
-        res: dict[VertexT, dict[VertexT, int]] = defaultdict(dict)
-        for source, sink_dict in pair_path_map.items():
-            for sink, path in sink_dict.items():
-                res[source][sink] = get_path_length(g, path)
-
-        return res
-
-
-    def brute_force_recursive(source: VertexT, sinks: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int) -> tuple[list[VertexT], int]:
-        min_cost = float('infinity')
-        min_cost_walk = None
-
-        if fuel == 0:
-            for sink in exits:
-                cost = dist_matrix[source][sink]
-                if cost < min_cost:
-                    min_cost_walk = [sink]
-                    min_cost = cost
-        else:
-            for sink in sinks:
-                min_walk_through, cost = brute_force_recursive(sink, sinks.difference({sink}), exits, dist_matrix, fuel - 1)
-                cost += dist_matrix[source][sink]
-                if cost < min_cost:
-                    min_cost = cost
-                    min_cost_walk = [sink] + min_walk_through
-
-        return min_cost_walk, min_cost
-
-
-    def brute_force(entry: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], max_supplies: int) -> list[VertexT]:
-        return [entry] + brute_force_recursive(entry, supplies, exits, dist_matrix, max_supplies)[0]
-
-        def get_path_from_super_path(super_path: list[VertexT], apsp_map: dict[VertexT, dict[VertexT, list[VertexT]]]) -> list[VertexT]:
-        res = []
-        for i in range(len(super_path) - 1):
-            pair_path = apsp_map[super_path[i]][super_path[i + 1]]
-            res += pair_path
-            if i != len(super_path) - 2:
-                res.pop()
-
-        return res
-
-
-    def get_path_from_super_path_bfs(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], super_path: list[VertexT], prevs: dict[WingT, dict[VertexT, VertexT | None]]) -> list[VertexT]:
-        res = []
-        for i in range(len(super_path) - 1):
-            u, v = super_path[i], super_path[i + 1]
-            u_wing, v_wing = get_which_wing(G, u), get_which_wing(G, v)
-            if u_wing == v_wing:
-                pair_path = get_pair_shortest_path(u, v, prevs[u_wing])
-                res += pair_path
-                res.pop()
-            else:
-                res.append(u)
-        res.append(super_path[-1])
-        return res
-
-
-    def get_salient_graph(G, entry, supplies, exits, prevs):
-        res = nx.Graph()
-        res.add_node(entry)
-
-        res.add_nodes_from(supplies)
-
-        res.add_nodes_from(exits)
-
-        for u, v in G[1]:
-            res.add_node(u)
-            res.add_node(v)
-            res.add_edge(u, v, weight=1)
-
-        for wing in G[0]:
-            salient_in_wing = list(get_vertices_in_wing(wing, (entry,))) + list(get_vertices_in_wing(wing, exits)) + list(get_vertices_in_wing(wing, supplies)) + list(get_vertices_in_wing(wing, [u for u, _ in G[1]] + [v for _, v in G[1]]))
-            for i in range(len(salient_in_wing)):
-                for j in range(i + 1, len(salient_in_wing)):
-                    u, v = salient_in_wing[i], salient_in_wing[j]
-                    path = get_pair_shortest_path(u, v, prevs[wing])
-                    res.add_edge(u, v, weight=get_path_length(wing, path))
-
-        return res
-
-        def ember_rescue(
-        G: tuple[set[WingT], set[tuple[VertexT, VertexT]]],
-        entry: VertexT,
-        exits: set[VertexT],
-        supplies: set[VertexT],
-        supply_storage: SupplyStorage,
-        vertex_to_supply_id: dict[VertexT, SupplyID],
-        found_supply_ids: set[SupplyID]
-    ) -> tuple[list[VertexT], SupplyStorage]:
-        res: list[VertexT]
-
-        supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids, supply_storage)
-
-        number_of_supplies_to_collect = min(len(supplies), len([None for i in supply_storage if i is None]))
-
-        prevs: dict[WingT, dict[VertexT, VertexT | None]] = {wing: bfs(wing, list(wing.nodes)[0]) for wing in G[0]}
-
-        salient_graph = get_salient_graph(G, entry, supplies, exits, prevs)
-
-        apsp_map = get_apsp(salient_graph, entry, exits, supplies)
-        apsp_dist_map = get_apsp_dist(salient_graph, apsp_map)
-
-        super_path = brute_force(entry, supplies, exits, apsp_dist_map, number_of_supplies_to_collect)
-
-        res = get_path_from_super_path(super_path, apsp_map)
-        res = get_path_from_super_path_bfs(G, res, prevs)
-
-        j: int = 0
-        collected_supplies = [v for v in res if v in supplies]
-        supply_storage = list(supply_storage)
-        for i in range(len(supply_storage)):
-            if j >= number_of_supplies_to_collect:
-                break
-            if supply_storage[i] is None:
-                supply_storage[i] = vertex_to_supply_id[collected_supplies[j]]
-                j += 1
-
-        supply_storage = tuple(supply_storage)
-
-        return res, supply_storage""", disabled=True)
+def python_impl(mo):
+    mo.ui.code_editor(open("memo1a1/raw_python.txt", encoding="utf-8").read(), disabled=True)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 4.3 Other Stage 2 Implementations
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 4.3.1 Branch and Bound
-    Branch and bound solves an optimisation problem by searching through the solution tree using either depth or breath first search. It finds sub-problems of the original problem and eliminates ones that cannot contain the optimal solution by finding their lower and upper bounds, comparing against the best found upper bound. If a subproblem $P'$ has a lower bound greater than the best upper bound, it cannot contain the solution and therefore does not need to be explored. This can reduce the solution tree in the average and best cases depending on the problem and the 'tightness' of the bounds: how close they are to the true lower and upper bounds of $P'$. To maintain correctness, the lower bound must be inclusive of the true lower bound and the upper bound must be inclusive of the true upper bound such that $lb_\text{true} \leq lb_\text{heuristic} \leq ub_\text{heuristic} \leq ub_\text{true}$. Due to the algorithm requiring fast lower and upper bound calculation, this is done with heuristic methods.
-
-    While branch and bound and brute force share $O(n!)$ worst case, branch and bound will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 4.3.2 Lin-Kernighan
-    Lin-Kernighan is a heuristic algorithm for optimising a found solution to a shortest-path or cycle problem. It swaps different combinations of edges to find the local minimum of a solution. This will always produce a better or equal path than the one found, so it is a good step for finding a close-to-optimal solution for branch and bound algorithms or optimising a different heuristic algorithm.
-
-    This algorithm runs in $O(n^{2.2})$ average case, but has significant constant and lower order costs, which make it less efficient than brute force for this problem, while giving non-optimal solutions
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 3.1.4 Optimality and Solution Gap
-    Each algorithm poses a different gap from the optimal solution. An algorithm for a problem is optimal iff it has 0 solution gap on *all* problem instances. We calculate solution gap with $\displaystyle\frac{\text{Heuristic - Optimal}}{\text{Optimal}}$, and while Lin-Kernighan has a slighly better solution for large $n$ <span style='color: silver;'>(as seen in left figure)</span>, for small $n$, which what this problem is, the solution provided by Nearest neighbour is a local optimal, and thus Lin-Kernighan cannot further optimise it <span style='color: silver;'>(as seen in right figure)</span>.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(np, pd, plt):
-    _df = pd.read_csv("memo1a/data_stage_2.csv")
-
-    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
-    _ax1.scatter([i+2 for i in range(len(_df["brute force length"]))], _df["brute force length"], c='b', label="Brute force", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_df["branch & bound length"]))], _df["branch & bound length"], c='r', label="Branch and bound", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_df["nearest neighbour length"]))], _df["nearest neighbour length"], c='g', label="Nearest neighbour", marker='.')
-    _ax1.scatter([i+2 for i in range(len(_df["lin-kernighan length"]))], _df["lin-kernighan length"], c='orange', label="Lin-Kernighan", marker='.')
-    _ax1.set_title("Different approaches' solution length")
-    _ax1.legend(loc="upper right")
-    _ax1.set_ylabel("Average Solution Length (units)")
-
-    _solution_gap_len = len([None for i in np.isnan(_df["branch & bound length"]) if not i])
-
-    def _solution_gap(data) -> list[float]:
-        return [100 * (data[i] - _df["branch & bound length"][i]) / _df["branch & bound length"][i] for i in range(min(_solution_gap_len, len([None for i in data if i])))]
-
-    _dot_size = 8
-    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["brute force length"]), c='b', label="Brute force", marker='o', s=_dot_size, alpha=.7)
-    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["branch & bound length"]), c='r', label="Branch and bound", marker='o', s=_dot_size, alpha=.7)
-    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["nearest neighbour length"]), c='g', label="Nearest neighbour", marker='o', s=_dot_size, alpha=.7)
-    _ax2.scatter([i+2 for i in range(_solution_gap_len)], _solution_gap(_df["lin-kernighan length"]), c='orange', label="Lin-Kernighan", marker='o', s=_dot_size, alpha=.7)
-    _ax2.set_title("Different approaches' optimality gap")
-    _ax2.legend(loc="upper right")
-    _ax2.set_ylabel("Average Solution Gap (%)")
-
-    _fig.supxlabel("Supply Unit (# of)")
-    _fig.tight_layout()
-
-    _fig
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### 4.3.3 Nearest Neighbour
-    Nearest neighbour is a simple greedy algorithm, which due to the physical representation of this problem being _almost_ a tree, performs quite well on this problem. It runs in $O(n^2)$ worst case, but with $n$ being small, brute force can find an optimal solution in an adequate amount of time
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
+def justification(mo):
     mo.md(r"""
     # 5 Justification
     """)
@@ -1468,7 +1383,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def suitability(mo):
     mo.md(r"""
     ## 5.1 Suitability
     ### 5.1.1 Assumptions
@@ -1476,8 +1391,8 @@ def _(mo):
 
     These assumptions are justified by checking a large quantity of facility blueprints, all of which satisfied the property:
     - Each wing being a tree graph allows for a more efficient algorithm used in stage 1.
-    - The facility having at most 4 wings, and each wing being a 12x12 grid of sectors guides our choice of a nieve algorithm: brute force for stage 2, as well as the approach of abstracting the graph into a path cost matrix.
-    - 5 supplies in the facility allows brute force and branch and bound for stage 2. Without significant optimisations, these exact approaches would not be possible if the supplies grows above 7 or 8.
+    - The facility having at most 4 wings, and each wing being a 12x12 grid of sectors guides our choice of a exact algorithm: **dynamic programming** for stage 2, as well as the approach of abstracting the graph into a path cost matrix.
+    - 5 supplies in the facility allows **dynamic programming**, **branch and bound** or **branch and bound** for stage 2. Without significant optimisations, these exact approaches would not be possible if the supplies grows above 7 or 8.
     - Each wing is connected, allows only 1 depth first search to be run on each wing. Without this assumption, we would need to run it starting from each supply, entry, exit and junction in each wing, drastically reducing the time and space efficiency of the algorithm which would also need to store each `prev` Map.
     - Each sector is connected to its adjacent sectors bi-directionally, which may if the previous assumption is not satisfied disallow collection of some supplies that are reachable but cannot be walked through and then to an exit.
 
@@ -1488,18 +1403,19 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def coherence(mo):
     mo.md(r"""
     ## 5.2 Coherence
     - I use $\text{get\_neighbours}: \text{Graph} \times \text{Vertex} \to \text{Vertex}$ in the dijkstra's algorithm implementation in the algorithm to get the neighbours of the current visited vertex
     - I use $\text{has}: \text{Map} \times \text{Key} \to \text{Boolean}$ to reconstruct the shortest paths found by dijkstra's algorithm
-    - Originally, I was going to use Branch and bound, with the Lin-Kernighan heuristic, which requires the symmetric difference set operation, $\Delta$, which wasn't in the set ADT signature, which I resolved by adding a procedure for it
+    - Originally, I was going to use **branch and bound**, with the **Lin-Kernighan heuristic**, which requires the symmetric difference set operation, $\Delta$, which wasn't in the set ADT signature, which I resolved by adding a procedure for it
+    - A consistent pseudocode style was used to allow correct implementation
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def fit_for_purpose(mo):
     mo.md(r"""
     ## 5.3 Fit for Purpose
     The algorithm considers each operational constraint:
@@ -1507,14 +1423,107 @@ def _(mo):
     - Extraction: The algorithm always terminates at an exit
     - Energy budget: The algorithm always finds a minimum cost walk through the facility that collects all supplies and exits at an exit
     - Revisiting sectors: Is allowed and is used to find the shortest path
-    - Supply collection: $\text{get\_unfound\_supplies}: \text{Set}[\text{Vertex}] \times \{\text{Vertex} \to \text{String or NULL}\} \times Set[String] \to \text{Set}[\text{Vertex}]$ makes sure CRUDY-1 ignores already collected supplies
+    - Supply collection: $\text{get\_unfound\_supplies}: \text{Set}[\text{Vertex}] \times \text{Map}[\text{Vertex}, \text{String or NULL}] \times Set[String] \to \text{Set}[\text{Vertex}]$ makes sure CRUDY-1 ignores already collected supplies
     - Objective: All supplies will be collected and there are no energy constraints
     - Mission Directive:
       - The algorithm does not priorities structural stability, as we have not information about how CRUDY-1 has any affect on the stability of sectors of the facility
       - The algorithm will always have a successful extraction if one exists.
 
-    The algorithm is robust to different numbers and sizes of wings, and differing numbers of junction sectors, however would fail to run if there are too many supplies. In the case that a new report notices increased numbers of supplies and adjusts CRUDY-1's supply storage to collect more supplies, brute force will be unusable and branch and bound will need to be further optimised, replaced with branch and cut, or may be not possible, in which case a heuristic approach will be used instead.
+    The algorithm is robust to different numbers and sizes of wings, and differing numbers of junction sectors, however would fail to run if there are too many supplies. In the case that a new report notices increased numbers of supplies and adjusts CRUDY-1's supply storage to collect more supplies, **brute force** and **dynamic programming** will be unusable and **branch and bound** will need to be further optimised, replaced with **branch and cut**, or may be not possible, in which case a heuristic approach will be used instead.
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def correctness_and_optimality(mo):
+    mo.md(r"""
+    ## 5.4 Correctness & Optimality
+    On a test set of 100,000 facilities of different seeds, all outputs of the algorithm were correct. This means the algorithm is likely to be correct.
+
+    The algorithm's stages also force correctness, with a solution always starting with the entry and ending with a vertex due to the fuel parameter of the recursive **dynamic programming** procedure. It also stores a map that can be used to transform between each abstracted graph created by the algorithm.
+
+    **Dynamic programming** searches the entire solution space exhaustively, caching previously solved sub-problems, meaning it will find a global optimal solution. These maps convert this solution back to a walk on $G$, which means the algorithm will be optimal.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def tractability(mo):
+    mo.md(r"""
+    ## 5.5 Tractability
+    Since the size of $S$, $X$ and $A$ are constant for all problem instances, the algorithm only grows with the sizes of $V_w$, $E_w$, $V$, $E$, $M$ and $F$. The latter two are only used to remove already-collected supplies, which is done with a for-each loop, giving linear time complexity. The former four are related to the dijkstra's cost of finding the shortest paths between supplies, the intra-wing BFS step and creating the salient graph.
+
+    Tractability is defined as running in polynomial time for each non-constant parameter.
+
+    The dijkstra's cost is in order $O(n \log n + m)$, where $n$ is the number of supplies, exits, entrances and junctions combined and $m$ is the number of intra-wing edges between these, and the inter-wing edges between the junction. This gives a time complexity in order $O(|E_W| \log |E_W| + |E| + |E_W|), which is tractable.
+
+    The intra-wing BFS step is in order $O(|V_k| + |E_k|)$ for each wing, thus it is in $O(|V| + |E|)$, which is tractable.
+
+    The creation of the salient graph is a double nested for loop iterating on the entry, exit, supply and junction vertices, inside a loop on each wing. This gives a complexity in $O(|V_W||E_W|^2)$, which is tractable.
+
+    Since each cost that scales with the non-constant variables runs in polynomial time, the algorithm is tractable.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def appendix(mo):
+    mo.md(r"""
+    # 6 Appendix
+    """)
+    return
+
+
+@app.cell
+def references(mo):
+    mo.md(f"""
+    ## 6.1 References\n{open("references.txt", "r", encoding="utf-8").read()}
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def other_algorithm_impl_header(mo):
+    mo.md(r"""
+    # 6.2 Python Implementations
+    """)
+    return
+
+
+@app.cell
+def get_impl_index_cell(inspect, mo):
+    _impl_names = []
+
+    def get_impl_idx(impl_name: str) -> int:
+        if impl_name in _impl_names:
+            return _impl_names.index(impl_name) + 1
+        else:
+            _impl_names.append(impl_name)
+            return len(_impl_names)
+
+    def get_impl_appendix(name: str, functions):
+        if not isinstance(functions, list):
+            functions = [functions]
+        # Source - https://stackoverflow.com/a/427533
+        # Posted by Rafał Dowgird, modified by community. See post 'Timeline' for change history
+        # Retrieved 2026-07-09, License - CC BY-SA 3.0
+        return mo.vstack([
+            mo.md(f"### 6.2.{get_impl_idx(name)} {name}"),
+            mo.ui.code_editor('\n\n'.join(inspect.getsource(f) for f in functions), disabled=True)
+        ])
+
+    return (get_impl_appendix,)
+
+
+@app.cell
+def other_algorithm_impls(get_impl_appendix, memo1a_algorithm, mo):
+    _impl_names = []
+    mo.vstack([
+        get_impl_appendix("Nearest Neighbour", memo1a_algorithm.nearest_neighbour),
+        get_impl_appendix("Lin-Kernighan", [memo1a_algorithm.lin_kernighan, memo1a_algorithm._lin_kernighan]),
+        get_impl_appendix("Branch and Bound", memo1a_algorithm.branch_and_bound),
+        get_impl_appendix("Simplex (not working)", [memo1a_algorithm.simplex, memo1a_algorithm._simplex, memo1a_algorithm.solve_relaxed_lp])
+    ])
     return
 
 

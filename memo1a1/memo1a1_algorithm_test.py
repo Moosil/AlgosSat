@@ -236,15 +236,15 @@ def test_stage_2():
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
 
-        pathlen = [len(facility_drawer[i].get_path_from_super_path(memo1a_algorithm.get_path_from_super_path_bfs(abs_graph[i], memo1a_algorithm.get_path_from_super_path(pathlen[i], stage_1_res[i][0]), stage_1_res[i][2]))) for i in range(trials)]
+        pathlen = [len(facility_drawer[i].get_path_from_super_path(memo1a_algorithm.get_G_path_from_F_path(abs_graph[i], memo1a_algorithm.get_F_path_from_H_path(pathlen[i], stage_1_res[i][0]), stage_1_res[i][2]))) for i in range(trials)]
         pathlen = sum(pathlen) / len(pathlen)
 
         return [v for k, v in ps.stats.items() if technique.__name__ in k[2]][0][3] / trials * 1000, pathlen
 
     res: list[dict] = []
 
-    TRIALS = 100
-    for n in trange(2, 40, desc="Heuristic Algorithms"):
+    TRIALS = 5
+    for n in trange(2, 100, desc="Heuristic Algorithms"):
         data = pregen(n, TRIALS)
         nn_time, nn_len = get_runtime_trials_with_n(data, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0])
         lk_time, lk_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.lin_kernighan)
@@ -257,17 +257,23 @@ def test_stage_2():
             }
         )
 
-    for n in trange(2, 10, desc="Brute force"):
+    for n in trange(2, 20, desc="Brute force"):
         data = pregen(n, TRIALS)
         bf_time, bf_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.brute_force)
         res[n - 2]["brute force time"] = bf_time
         res[n - 2]["brute force length"] = bf_len
 
-    for n in trange(2, 10, desc="Branch & bound"):
+    for n in trange(2, 20, desc="Branch & bound"):
         data = pregen(n, TRIALS)
         bb_time, bb_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.branch_and_bound)
         res[n - 2]["branch & bound time"] = bb_time
         res[n - 2]["branch & bound length"] = bb_len
+
+    for n in trange(2, 25, desc="Dynamic Programming"):
+        data = pregen(n, TRIALS)
+        dp_time, dp_len = get_runtime_trials_with_n(data, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.DpImpl()(x,y,z,w,q))
+        res[n - 2]["dynamic programming time"] = dp_time
+        res[n - 2]["dynamic programming length"] = dp_len
 
     if len(res) > 0:
         with open("data_stage_2.csv", "w", encoding="utf-8", newline='') as f:
@@ -422,26 +428,35 @@ def test_tractability():
 
 
 if __name__ == "__main__":
-    while test_id := input("""Enter a number from 1-6 for a particular test:
-    [1] test memo1a's algorithm
-    [2] test memo1's algorithm
-    [3] get facility data
-    [4] test stage 2 of algorithm
-    [5] get difference between memo1 and memo1a
-    [6] test tractability
-    """) in {str(i) for i in range(1,7)}:
+    while True:
+        test_id = input(
+            """Enter a number from 1-6 for a particular test:
+            [1] test memo1a's algorithm
+            [2] test memo1's algorithm
+            [3] get facility data
+            [4] test stage 2 of algorithm
+            [5] get difference between memo1 and memo1a
+            [6] test tractability
+            """
+        )
         match test_id:
             case "1":
                 test_memo1()
+                break
             case "2":
                 test_memo1a()
+                break
             case "3":
                 get_facility_data()
+                break
             case "4":
                 test_stage_2()
+                break
             case "5":
                 get_memo_difference()
+                break
             case "6":
                 test_tractability()
+                break
             case _:
                 print(f"{test_id} is not a value between 1 and 6")

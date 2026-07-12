@@ -18,12 +18,11 @@ from memo1a1 import memo1a_algorithm
 
 
 class GraphDrawer:
-    def __init__(self, seed, supply_count: int | None = None) -> None:
+    def __init__(self, seed, supply_count=5) -> None:
+        self.seed = seed
         self.WING_COLS, self.WING_ROWS = 10, 10
 
-        self.n_wings, self.wings, self.entry, self.exit_a, self.exit_b, self.supplies, self.junctions = self._get_multi_wing_facility(
-            seed, supply_count
-        )
+        self._setup_multi_wing_facility(self.seed, supply_count)
 
     @staticmethod
     def _neighbours(cols, rows, c, r):
@@ -53,18 +52,13 @@ class GraphDrawer:
         carve(0, 0)
         return g
 
-    def get_abstracted_graph(self) -> tuple[set[nx.Graph], set[tuple]]:
+    def get_abstracted_graph(self, weighted=True) -> tuple[set[nx.Graph], set[tuple]]:
         wings = set()
         for i in range(self.n_wings):
-            wing: nx.Graph = copy.deepcopy(self.wings[i])
+            wing: nx.Graph = self.weighted_wings[i].copy() if weighted else self.wings[i].copy()
             for u, d in self.wings[i].degree:
                 w_u = tuple([i] + list(u))
-                if d == 2 and w_u not in self.supplies and w_u not in {
-                    self.exit_a, self.exit_b,
-                    self.entry
-                } and w_u not in set(
-                    chain(*self.junctions)
-                ):
+                if d == 2 and w_u not in self.supplies and w_u not in {self.exit_a, self.exit_b, self.entry} and w_u not in set(chain(*self.junctions)):
                     n0 = list(wing.neighbors(u))[0]
                     n1 = list(wing.neighbors(u))[1]
                     w = wing.get_edge_data(u, n0)["weight"] + wing.get_edge_data(u, n1)["weight"]
@@ -74,6 +68,14 @@ class GraphDrawer:
             wings.add(wing)
 
         return wings, set(self.junctions)
+
+    def get_flat_graph(self, abs_graph: tuple[set[nx.Graph], set[tuple]] = None) -> nx.Graph:
+        if abs_graph is None:
+            abs_graph = self.get_abstracted_graph()
+        res: nx.Graph = nx.compose_all(abs_graph[0])
+        for u, v in abs_graph[1]:
+            res.add_edge(u, v, weight=self.junction_costs[(u, v)])
+        return res
 
     def get_path_from_super_path(self, path: list) -> list:
         res = []
@@ -89,67 +91,108 @@ class GraphDrawer:
         res.append(path[-1])
         return res
 
-    def _get_multi_wing_facility(self, seed, supply_count=None):
+    def _setup_cost_models(self):
+        int_seed = self.seed
+
+        self.weighted_wings = [g.copy() for g in self.wings]
+
+        def _alpha_cost(c1, r1, c2, r2):
+            return 1
+
+        def _beta_cost(c1, r1, c2, r2):
+            return 1 + max(c1, c2) // 3
+
+        def _seeded_rng(wing_idx):
+            return random.Random(int_seed * 41 + wing_idx * 3331)
+
+        cost_models = []
+        for w, wg in enumerate(self.weighted_wings):
+            if w == 0:
+                cost_fn = _alpha_cost
+                model_name = "Uniform (cost = 1)"
+                rng = None
+            elif w == 1:
+                cost_fn = _beta_cost
+                model_name = "Depth-based (cost = 1 + floor(col / 3))"
+                rng = None
+            else:
+                rng = _seeded_rng(w)
+                edge_list = list(wg.edges())
+                edge_costs = {tuple(sorted(e)): rng.randint(1, 5) for e in edge_list}
+                cost_fn = None
+                model_name = f"Seed-randomised (cost ∈ {{1..5}})"
+
+            cost_models.append(model_name)
+
+            for (c1, r1), (c2, r2) in wg.edges():
+                if cost_fn is not None:
+                    w_cost = cost_fn(c1, r1, c2, r2)
+                else:
+                    key = tuple(sorted([(c1, r1), (c2, r2)]))
+                    w_cost = edge_costs[key]
+                wg[(c1, r1)][(c2, r2)]['weight'] = w_cost
+
+        # Junction costs = 1
+        junction_costs = {(n1, n2): 1 for n1, n2 in self.junctions}
+
+        self.junction_costs = junction_costs
+
+    def _setup_multi_wing_facility(self, seed, supply_count=5):
         int_seed = int(seed)
-        if supply_count is None:
-            n_wings = 2 + (int_seed % 3)  # 2, 3, or 4 wings from seed
-            supply_count = 5
-        else:
-            n_wings = math.ceil(supply_count / 2)
+        self.n_wings = supply_count // 2 + (int_seed % 3) # 2, 3, or 4 wings from seed
 
         # Build each wing from a deterministic derived seed
-        wings = []
-        for w in range(n_wings):
+        self.wings = []
+        for w in range(self.n_wings):
             wrng = random.Random(int_seed * 31 + w * 7919)
-            wings.append(self._build_wing(self.WING_COLS, self.WING_ROWS, wrng))
+            self.wings.append(self._build_wing(self.WING_COLS, self.WING_ROWS, wrng))
 
         # Inter-wing junctions: 2 corridors per adjacent wing pair
         # Each junction connects (w, WING_COLS-1, r) to (w+1, 0, r)
-        junctions = []
-        for w in range(n_wings - 1):
+        self.junctions = []
+        for w in range(self.n_wings - 1):
             jrng = random.Random(int_seed * 17 + w * 5003)
             rows_avail = list(range(2, self.WING_ROWS - 2))
             jrng.shuffle(rows_avail)
             r1, r2 = sorted(rows_avail[:2])
-            junctions.append(((w, self.WING_COLS - 1, r1), (w + 1, 0, r1)))
-            junctions.append(((w, self.WING_COLS - 1, r2), (w + 1, 0, r2)))
+            self.junctions.append(((w, self.WING_COLS - 1, r1), (w + 1, 0, r1)))
+            self.junctions.append(((w, self.WING_COLS - 1, r2), (w + 1, 0, r2)))
 
         # Fixed entry and exits
-        entry = (0, 0, 0)
-        exit_a = (n_wings - 1, self.WING_COLS - 1, self.WING_ROWS - 1)
-        exit_b = (n_wings - 1, self.WING_COLS - 1, 0)
+        self.entry = (0, 0, 0)
+        self.exit_a = (self.n_wings - 1, self.WING_COLS - 1, self.WING_ROWS - 1)
+        self.exit_b = (self.n_wings - 1, self.WING_COLS - 1, 0)
 
         # Supply placement: spread across wings, prefer dead-end nodes
         srng = random.Random(int_seed * 13 + 42)
-        reserved = {entry, exit_a, exit_b}
-        for n1, n2 in junctions:
+        reserved = {self.entry, self.exit_a, self.exit_b}
+        for n1, n2 in self.junctions:
             reserved.add(n1)
             reserved.add(n2)
 
         # Collect dead-end candidates per wing
         per_wing_cands = []
-        for w, wg in enumerate(wings):
-            de = [
-                (w, c, r) for (c, r) in wg.nodes()
-                if wg.degree((c, r)) == 1 and (w, c, r) not in reserved
-            ]
+        for w, wg in enumerate(self.wings):
+            de = [(w, c, r) for (c, r) in wg.nodes()
+                  if wg.degree((c, r)) == 1 and (w, c, r) not in reserved]
             srng.shuffle(de)
             per_wing_cands.append(de)
 
         # Round-robin: up to 2 supplies per wing, 5 total
-        supplies = []
+        self.supplies = []
         for _ in range(2):
             for wl in per_wing_cands:
-                if len(supplies) >= supply_count:
+                if len(self.supplies) >= supply_count:
                     break
                 for n in wl:
-                    if n not in supplies:
-                        supplies.append(n)
+                    if n not in self.supplies:
+                        self.supplies.append(n)
                         break
-            if len(supplies) >= supply_count:
+            if len(self.supplies) >= supply_count:
                 break
 
-        return n_wings, wings, entry, exit_a, exit_b, supplies[:supply_count], junctions
+        self.supplies = self.supplies[:supply_count]
+        self._setup_cost_models()
 
 
 def get_runtime(test_func):
@@ -233,15 +276,15 @@ def test_stage_2():
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
 
-        pathlen = [len(facility_drawer[i].get_path_from_super_path(memo1a_algorithm.get_path_from_super_path_bfs(abs_graph[i], memo1a_algorithm.get_path_from_super_path(pathlen[i], stage_1_res[i][0]), stage_1_res[i][2]))) for i in range(trials)]
+        pathlen = [len(facility_drawer[i].get_path_from_super_path(memo1a_algorithm.get_G_path_from_F_path(abs_graph[i], memo1a_algorithm.get_F_path_from_H_path(pathlen[i], stage_1_res[i][0]), stage_1_res[i][2]))) for i in range(trials)]
         pathlen = sum(pathlen) / len(pathlen)
 
         return [v for k, v in ps.stats.items() if technique.__name__ in k[2]][0][3] / trials * 1000, pathlen
 
     res: list[dict] = []
 
-    TRIALS = 100
-    for n in trange(2, 40, desc="Heuristic Algorithms"):
+    TRIALS = 5
+    for n in trange(2, 100, desc="Heuristic Algorithms"):
         data = pregen(n, TRIALS)
         nn_time, nn_len = get_runtime_trials_with_n(data, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0])
         lk_time, lk_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.lin_kernighan)
@@ -254,17 +297,23 @@ def test_stage_2():
             }
         )
 
-    for n in trange(2, 10, desc="Brute force"):
+    for n in trange(2, 20, desc="Brute force"):
         data = pregen(n, TRIALS)
         bf_time, bf_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.brute_force)
         res[n - 2]["brute force time"] = bf_time
         res[n - 2]["brute force length"] = bf_len
 
-    for n in trange(2, 10, desc="Branch & bound"):
+    for n in trange(2, 20, desc="Branch & bound"):
         data = pregen(n, TRIALS)
         bb_time, bb_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.branch_and_bound)
         res[n - 2]["branch & bound time"] = bb_time
         res[n - 2]["branch & bound length"] = bb_len
+
+    for n in trange(2, 23, desc="Dynamic Programming"):
+        data = pregen(n, TRIALS)
+        dp_time, dp_len = get_runtime_trials_with_n(data, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.DpImpl()(x,y,z,w,q))
+        res[n - 2]["dynamic programming time"] = dp_time
+        res[n - 2]["dynamic programming length"] = dp_len
 
     if len(res) > 0:
         with open("data_stage_2.csv", "w", encoding="utf-8", newline='') as f:
@@ -305,10 +354,10 @@ def test_memo1():
 def get_facility_data():
     res: list[dict] = []
 
-    for i in trange(100_000, desc="gathering data on different facilities"):
-        i += 10102000
-        facility_drawer = GraphDrawer(i)
+    for i in trange(10_000, desc="gathering data on different facilities"):
+        facility_drawer = GraphDrawer(i + 10102000)
         abs_graph = facility_drawer.get_abstracted_graph()
+        abs_graph_unweighted = facility_drawer.get_abstracted_graph(False)
 
         exits = {facility_drawer.exit_a, facility_drawer.exit_b}
         supplies = set(facility_drawer.supplies)
@@ -317,7 +366,10 @@ def get_facility_data():
 
         runtime, super_path = get_runtime(lambda: memo1a_algorithm.ember_rescue(abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set()))
 
+        super_path_unweighted = memo1a_algorithm.ember_rescue(abs_graph_unweighted, facility_drawer.entry, exits, supplies, storage, supply_map, set())
+
         path = facility_drawer.get_path_from_super_path(super_path[0])
+        path_unweighted = facility_drawer.get_path_from_super_path(super_path_unweighted[0])
 
         def has_edge(u, v) -> bool:
             if u[0] == v[0]:
@@ -333,23 +385,27 @@ def get_facility_data():
 
         abstraction_vertices = sum(len(g) for g in abs_graph[0])
         n_wings = facility_drawer.n_wings
-        n_supplies = len(supplies)
         salient_vertices = len(list(chain(*facility_drawer.junctions))) + len(exits) + len(supplies) + 1
-        solution_len = len(path) - 1
+        def get_sol_cost(sol: list) -> int:
+            return sum([facility_drawer.weighted_wings[sol[j][0]].get_edge_data(sol[j][1:], sol[j + 1][1:])["weight"] if sol[j][0] == sol[j + 1][0] else 1 for j in range(len(sol) - 1)])
+
         res.append(
             {
                 "seed": i,
                 "abstraction_vertices_count": abstraction_vertices,
                 "n_wings": n_wings,
-                "n_supplies": n_supplies,
+                "n_supplies": len(supplies),
                 "salient_vertices": salient_vertices,
-                "solution_len": solution_len,
+                "solution_len": len(path) - 1,
+                "solution_cost": get_sol_cost(path),
+                "solution_len_unweighted": len(path_unweighted) - 1,
+                "solution_cost_unweighted": get_sol_cost(path_unweighted),
                 "runtime": runtime * 1000
             }
         )
 
     if len(res) > 0:
-        with open("data_algorithm.csv", "w", encoding="utf-8", newline='') as f:
+        with open("data_facility.csv", "w", encoding="utf-8", newline='') as f:
             writer = csv.writer(f)
             writer.writerow(res[0].keys())
             writer.writerows([d.values() for d in res])
@@ -416,28 +472,35 @@ def test_tractability():
     print(f"{correct_count}/{LOOP_COUNT} outputs are correct")
 
 if __name__ == "__main__":
-    while test_id := input(
+    while True:
+        test_id = input(
             """Enter a number from 1-6 for a particular test:
-    [1] test memo1a's algorithm
-    [2] test memo1's algorithm
-    [3] get facility data
-    [4] test stage 2 of algorithm
-    [5] get difference between memo1 and memo1a
-    [6] test tractability
-    """
-            ) in {str(i) for i in range(1, 7)}:
+            [1] test memo1a's algorithm
+            [2] test memo1's algorithm
+            [3] get facility data
+            [4] test stage 2 of algorithm
+            [5] get difference between memo1 and memo1a
+            [6] test tractability
+            """
+        )
         match test_id:
             case "1":
                 test_memo1()
+                break
             case "2":
                 test_memo1a()
+                break
             case "3":
                 get_facility_data()
+                break
             case "4":
                 test_stage_2()
+                break
             case "5":
                 get_memo_difference()
+                break
             case "6":
                 test_tractability()
+                break
             case _:
                 print(f"{test_id} is not a value between 1 and 6")

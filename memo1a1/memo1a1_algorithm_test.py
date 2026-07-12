@@ -18,7 +18,7 @@ import memo1a_algorithm
 
 
 class GraphDrawer:
-    def __init__(self, seed, supply_count: int | None = None) -> None:
+    def __init__(self, seed, supply_count: int=5) -> None:
         self.WING_COLS, self.WING_ROWS = 10, 10
 
         self.n_wings, self.wings, self.entry, self.exit_a, self.exit_b, self.supplies, self.junctions = self._get_multi_wing_facility(
@@ -89,13 +89,9 @@ class GraphDrawer:
         res.append(path[-1])
         return res
 
-    def _get_multi_wing_facility(self, seed, supply_count=None):
+    def _get_multi_wing_facility(self, seed, supply_count=5):
         int_seed = int(seed)
-        if supply_count is None:
-            n_wings = 2 + (int_seed % 3)  # 2, 3, or 4 wings from seed
-            supply_count = 5
-        else:
-            n_wings = math.ceil(supply_count / 2)
+        n_wings = supply_count // 2 + (int_seed % 3)
 
         # Build each wing from a deterministic derived seed
         wings = []
@@ -243,8 +239,8 @@ def test_stage_2():
 
     res: list[dict] = []
 
-    TRIALS = 5
-    for n in trange(2, 100, desc="Heuristic Algorithms"):
+    TRIALS = 100
+    for n in trange(2, 40, desc="Heuristic Algorithms"):
         data = pregen(n, TRIALS)
         nn_time, nn_len = get_runtime_trials_with_n(data, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.nearest_neighbour(x, y, z, w, q)[0])
         lk_time, lk_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.lin_kernighan)
@@ -257,26 +253,26 @@ def test_stage_2():
             }
         )
 
-    for n in trange(2, 20, desc="Brute force"):
+    for n in trange(2, 10, desc="Brute force"):
         data = pregen(n, TRIALS)
         bf_time, bf_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.brute_force)
         res[n - 2]["brute force time"] = bf_time
         res[n - 2]["brute force length"] = bf_len
 
-    for n in trange(2, 20, desc="Branch & bound"):
+    for n in trange(2, 10, desc="Branch & bound"):
         data = pregen(n, TRIALS)
         bb_time, bb_len = get_runtime_trials_with_n(data, TRIALS, memo1a_algorithm.branch_and_bound)
         res[n - 2]["branch & bound time"] = bb_time
         res[n - 2]["branch & bound length"] = bb_len
 
-    for n in trange(2, 25, desc="Dynamic Programming"):
+    for n in trange(2, 13, desc="Dynamic Programming"):
         data = pregen(n, TRIALS)
         dp_time, dp_len = get_runtime_trials_with_n(data, TRIALS, lambda x, y, z, w, q: memo1a_algorithm.DpImpl()(x,y,z,w,q))
         res[n - 2]["dynamic programming time"] = dp_time
         res[n - 2]["dynamic programming length"] = dp_len
 
     if len(res) > 0:
-        with open("data_stage_2.csv", "w", encoding="utf-8", newline='') as f:
+        with open("data_stage_2_100_trials.csv", "w", encoding="utf-8", newline='') as f:
             writer = csv.writer(f)
             writer.writerow(res[0].keys())
             writer.writerows([[res[i][k] if k in res[i] else "" for k in res[0]] for i in range(len(res))])
@@ -316,7 +312,7 @@ def test_memo1():
 def get_facility_data():
     res: list[dict] = []
 
-    for i in trange(100_000, desc="gathering data on different facilities"):
+    for i in trange(10_000, desc="gathering data on different facilities"):
         i += 10102000
         facility_drawer = GraphDrawer(i)
         abs_graph = facility_drawer.get_abstracted_graph()
@@ -360,7 +356,7 @@ def get_facility_data():
             )
 
     if len(res) > 0:
-        with open("data_algorithm.csv", "w", encoding="utf-8", newline='') as f:
+        with open("data_facility.csv", "w", encoding="utf-8", newline='') as f:
             writer = csv.writer(f)
             writer.writerow(res[0].keys())
             writer.writerows([d.values() for d in res])

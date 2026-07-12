@@ -391,12 +391,7 @@ def branch_and_bound(source: VertexT, sinks: set[VertexT], exits: set[VertexT], 
     def get_upper_bound(partial_sol: list[VertexT], sol_length: int) -> int:
         _entry = partial_sol[-1]
         _supplies = sinks.difference(curr)
-        _ub, _ub_cost = nearest_neighbour(_entry, _supplies, exits, dist_matrix, fuel - len(partial_sol) + 1)
-        _supplies = {s for s in _supplies if s in _ub}
-        _exits = {x for x in exits if x in _ub}
-        _dist_matrix = {k0: {k1: v1 for k1, v1 in v0.items() if k1 in _ub} for k0, v0 in dist_matrix.items() if
-                        k0 in _ub}
-        _, _ub_cost = _lin_kernighan(_entry, _supplies, _exits, _dist_matrix, (_ub, _ub_cost))
+        _, _ub_cost = nearest_neighbour(_entry, _supplies, exits, dist_matrix, fuel - len(partial_sol) + 1)
         return sol_length + _ub_cost
 
     tree = [(0, [source])]

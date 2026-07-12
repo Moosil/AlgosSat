@@ -19,20 +19,7 @@ def imports():
     import re
     import inspect
 
-    return (
-        chain,
-        copy,
-        inspect,
-        mo,
-        mpatches,
-        np,
-        nx,
-        pd,
-        plt,
-        random,
-        re,
-        stats,
-    )
+    return chain, copy, inspect, mo, mpatches, np, nx, pd, plt, random, re
 
 
 @app.cell
@@ -486,10 +473,8 @@ def hierarchical_vs_flat_graph(mo):
 
 
 @app.cell
-def hierarchical_vs_flat_runtime(np, pd, plt, stats):
+def hierarchical_vs_flat_runtime(pd, plt):
     _df = pd.read_csv("memo1a1/data_memos.csv")
-
-    _df = _df[(np.abs(stats.zscore(_df)) < 2).all(axis=1)]
 
     _fig, ((_ax1, _ax2), (_ax3, _ax4)) = plt.subplots(2, 2, figsize=(6, 6), height_ratios=[14, 1], width_ratios=[1, 14])
     _ax2.scatter(_df["Memo1 time"], _df["Memo1A1 time"], c='b', marker='o', s=10, alpha=.01)
@@ -522,7 +507,7 @@ def hierarchical_vs_flat_runtime_comment(get_fig, mo):
     mo.md(rf"""
     <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Comparing Hierarchical & Flat graph implementations")}</span>
 
-    Figure {get_fig("Comparing Hierarchical & Flat graph implementations")} shows a runtime comparison of algorithms solving this problem on both the flat and hierarchical graph, implemented in python. This shows the hierarchical graph is ~9% better median, 25% better 3rd quartile, and a smaller inter-quartile range. This means it is consistently more efficient than the flat graph over the test set of 10,000 facility blueprints
+    Figure {get_fig("Comparing Hierarchical & Flat graph implementations")} shows a runtime comparison of algorithms solving this problem on both the flat and hierarchical graph, implemented in python. This shows the hierarchical graph is ~10% better median, 12% better 3rd quartile, and a smaller inter-quartile range. This means it is consistently more efficient than the flat graph over the test set of 10,000 facility blueprints
     """)
     return
 
@@ -616,7 +601,7 @@ def adts(mo):
 
     While no such facility blueprint has been discovered, this small optimisation is not worth the risk of the algorithm not working on future facilities. We want to minimise assumptions not clearly defined in the mission directive as we do not know if all facilities have supplies at dead-ends.
 
-    Additionally, this addition would not assist in the dijkstra's algorithm step or the entirety of stage 2, which combined, account for the majority of the time cost of this algorithm.
+    Additionally, this addition would not assist in the **dijkstra's algorithm** step or the entirety of stage 2, which combined, account for the majority of the time cost of this algorithm.
     """)
     return
 
@@ -747,11 +732,11 @@ def algorithmic_approaches(mo):
 
     #### 3.1.2.4 Brute Force
 
-    Unfortunately, this problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make naive **brute force** more efficient than **branch and bound** and **Lin-Kernighan**, beaten only by **nearest neighbour** and one other algorithm, the former of which is not exact. Since the runtime of **brute force** in this problem is low.
+    This problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make naive **brute force** more efficient than **branch and bound** and **Lin-Kernighan**, beaten only by **nearest neighbour** and one other algorithm, the former of which is not exact.
 
     #### 3.1.2.5 Dynamic Programming
 
-    Top-down **dynamic programming** uses memoisation to store solutions of recursive sub-problems and when the sub-problem is called again, it can recall the solution. This is particularily effective in this problem due to often finding sub-problem solutions.
+    Top-down **dynamic programming** uses memoisation to store solutions of recursive sub-problems and when the sub-problem is called again, it can recall the solution. This is particularily effective in this problem due to often finding sub-problem solutions. This approach is faster than brute force with the downside of requiring more space.
     """)
     return
 
@@ -1316,7 +1301,7 @@ def correctness_and_optimality(mo):
     On a test set of 100,000 facilities of different seeds, all outputs of the algorithm were correct. This means the algorithm is likely to be correct.
 
     The algorithm's stages also force correctness, with a solution always starting with the entry and ending with a vertex due to the fuel parameter of the recursive **dynamic programming** procedure. It also stores a map that can be used to transform between each abstracted graph created by the algorithm.
-    
+
     **Dynamic programming** searches the entire solution space exhaustively, caching previously solved sub-problems, meaning it will find a global optimal solution. These maps convert this solution back to a walk on $G$, which means the algorithm will be optimal
     """)
     return
@@ -1351,7 +1336,9 @@ def appendix(mo):
 
 @app.cell
 def references(mo):
-    mo.md(f"""## 6.1 References\n{open("references.txt", "r", encoding="utf-8").read()}""")
+    mo.md(f"""
+    ## 6.1 References\n{open("references.txt", "r", encoding="utf-8").read()}
+    """)
     return
 
 

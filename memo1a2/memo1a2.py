@@ -33,7 +33,6 @@ def imports():
         plt,
         random,
         re,
-        stats,
         sys,
     )
 
@@ -381,12 +380,12 @@ def graph_drawer_impl(chain, mcolors, mpatches, nx, plt, random, seed_input):
                     if w1 != w2:
                         cost_total += 1
                         mid_c = (xoff(w1) + c1 + xoff(w2) + c2) // 2
-                        row = r1 + 1 if w1 < w2 else r1 - .5
+                        row = r1 + .5 if w1 < w2 else r1 - .5
 
-                        ax.text(mid_c + .25, row + .25, fr"$\underrightarrow{{{str(cost_total)}}}$" if w1 < w2 else fr"$\underleftarrow{{{str(cost_total)}}}$", fontsize=12, color=COL_WALL, zorder=6)
+                        ax.text(mid_c + .53, row + .4, fr"$\underrightarrow{{{str(cost_total)}}}$" if w1 < w2 else fr"$\underleftarrow{{{str(cost_total)}}}$", fontsize=12, color=COL_WALL, zorder=6, horizontalalignment="center")
                     else:
                         cost_total += self.weighted_wings[w1].get_edge_data((c1, r1), (c2, r2))["weight"]
-            
+
                 plt.rc('text', usetex=False)
 
             # Legend
@@ -575,34 +574,35 @@ def hierarchical_vs_flat_graph(mo):
 
 
 @app.cell
-def hierarchical_vs_flat_runtime(np, pd, plt, stats):
-    _df = pd.read_csv("memo1a1/data_memos.csv")
+def hierarchical_vs_flat_runtime(pd, plt):
+    _df = pd.read_csv("memo1a2/data_memos.csv")
 
-    _df = _df[(np.abs(stats.zscore(_df)) < 2).all(axis=1)]
+    def box_scatter(x, y):
+        _fig, ((_ax1, _ax2), (_ax3, _ax4)) = plt.subplots(2, 2, figsize=(6, 6), height_ratios=[14, 1], width_ratios=[1, 14])
+        _ax2.scatter(x, y, c='b', marker='o', s=10, alpha=.01)
+        _ax2.set_xlim(0, 10)
+        _ax2.set_ylim(0, 10)
 
-    _fig, ((_ax1, _ax2), (_ax3, _ax4)) = plt.subplots(2, 2, figsize=(6, 6), height_ratios=[14, 1], width_ratios=[1, 14])
-    _ax2.scatter(_df["Memo1 time"], _df["Memo1A1 time"], c='b', marker='o', s=10, alpha=.01)
-    _ax2.set_xlim(0, 10)
-    _ax2.set_ylim(0, 10)
+        _ax1.boxplot(y, orientation="vertical", widths=[.9])
+        _ax1.set_ylim(0, 10)
+        _ax1.margins(x=0)
+        _ax1.set_axis_off()
 
-    _ax1.boxplot(_df["Memo1A1 time"], orientation="vertical", widths=[.9])
-    _ax1.set_ylim(0, 10)
-    _ax1.margins(x=0)
-    _ax1.set_axis_off()
+        _ax4.boxplot(x, orientation="horizontal", widths=[.9])
+        _ax4.set_xlim(0, 10)
+        _ax4.margins(y=0)
+        _ax4.set_axis_off()
 
-    _ax4.boxplot(_df["Memo1 time"], orientation="horizontal", widths=[.9])
-    _ax4.set_xlim(0, 10)
-    _ax4.margins(y=0)
-    _ax4.set_axis_off()
+        _ax3.set_axis_off()
 
-    _ax3.set_axis_off()
+        _fig.suptitle("Comparing Hierarchical & Flat graph implementations")
+        _fig.supxlabel("Flat graph time (ms)")
+        _fig.supylabel("Hierarchical graph time (ms)")
 
-    _fig.suptitle("Comparing Hierarchical & Flat graph implementations")
-    _fig.supxlabel("Flat graph time (ms)")
-    _fig.supylabel("Hierarchical graph time (ms)")
+        _fig.tight_layout()
+        return _fig
 
-    _fig.tight_layout()
-    _fig
+    box_scatter(_df["Memo1 time"], _df["Memo1A1 time"])
     return
 
 
@@ -611,7 +611,7 @@ def hierarchical_vs_flat_runtime_comment(get_fig, mo):
     mo.md(rf"""
     <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Comparing Hierarchical & Flat graph implementations")}</span>
 
-    Figure {get_fig("Comparing Hierarchical & Flat graph implementations")} shows a runtime comparison of algorithms solving this problem on both the flat and hierarchical graph, implemented in python. This shows the hierarchical graph is ~9% better median, 25% better 3rd quartile, and a smaller inter-quartile range. This means it is consistently more efficient than the flat graph over the test set of 10,000 facility blueprints
+    Figure {get_fig("Comparing Hierarchical & Flat graph implementations")} shows a runtime comparison of algorithms solving this problem on both the flat and hierarchical graph, implemented in python. This shows the hierarchical graph is ~10% better median, 12% better 3rd quartile, and a smaller inter-quartile range. This means it is consistently more efficient than the flat graph over the test set of 10,000 facility blueprints
     """)
     return
 
@@ -714,7 +714,7 @@ def adts(mo):
 
     While no such facility blueprint has been discovered, this small optimisation is not worth the risk of the algorithm not working on future facilities. We want to minimise assumptions not clearly defined in the mission directive as we do not know if all facilities have supplies at dead-ends.
 
-    Additionally, this addition would not assist in the dijkstra's algorithm step or the entirety of stage 2, which combined, account for the majority of the time cost of this algorithm.
+    Additionally, this addition would not assist in the **dijkstra's algorithm** step or the entirety of stage 2, which combined, account for the majority of the time cost of this algorithm.
     """)
     return
 
@@ -845,18 +845,18 @@ def algorithmic_approaches(mo):
 
     #### 3.1.2.4 Brute Force
 
-    Unfortunately, this problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make naive **brute force** more efficient than **branch and bound** and **Lin-Kernighan**, beaten only by **nearest neighbour** and one other algorithm, the former of which is not exact. Since the runtime of **brute force** in this problem is low.
+    This problem has small enough $n$ that even the cost of repeatedly finding lower bounds is enough to make naive **brute force** more efficient than **branch and bound** and **Lin-Kernighan**, beaten only by **nearest neighbour** and one other algorithm, the former of which is not exact.
 
     #### 3.1.2.5 Dynamic Programming
 
-    Top-down **dynamic programming** uses memoisation to store solutions of recursive sub-problems and when the sub-problem is called again, it can recall the solution. This is particularily effective in this problem due to often finding sub-problem solutions.
+    Top-down **dynamic programming** uses memoisation to store solutions of recursive sub-problems and when the sub-problem is called again, it can recall the solution. This is particularily effective in this problem due to often finding sub-problem solutions. This approach is faster than brute force with the downside of requiring more space.
     """)
     return
 
 
 @app.cell
 def runtime_fig(pd, plt):
-    _df = pd.read_csv("memo1a1/data_stage_2.csv")
+    _df = pd.read_csv("memo1a2/data_stage_2.csv")
 
     _dot_size = 2.
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
@@ -915,7 +915,7 @@ def runtime_explanation(get_fig, mo):
 
 @app.cell
 def optimality_sol_gap_fig(np, pd, plt):
-    _df = pd.read_csv("memo1a1/data_stage_2_100_trials.csv")
+    _df = pd.read_csv("memo1a2/data_stage_2_100_trials.csv")
 
     _dot_size = 2.
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 6))
@@ -937,12 +937,12 @@ def optimality_sol_gap_fig(np, pd, plt):
     _local_range = range(3, 8)
     _range_len = _local_range.stop - _local_range.start
 
-    _solution_gap_len = len([None for i in np.isnan(_df["branch & bound length"]) if not i])
+    _solution_gap_len = len([None for i in np.isnan(_df["brute force length"]) if not i])
     def _solution_gap(data) -> list[float]:
-        return [100 * (data[i] - _df["branch & bound length"][i]) / _df["branch & bound length"][i] for i in range(min(_solution_gap_len, len([None for i in data if i])))]
+        return [100 * (data[i] - _df["brute force length"][i]) / _df["brute force length"][i] for i in range(min(_solution_gap_len, len([None for i in data if i])))]
 
     def _plot(ax, name, c, label):
-        ax.plot([i for i in range(_solution_gap_len)], _solution_gap(_df[name]), "-o", c=c, label=label, ms=_dot_size)
+        ax.plot([i+2 for i in range(_solution_gap_len)], _solution_gap(_df[name]), "-o", c=c, label=label, ms=_dot_size)
 
     _plot(_ax2, "brute force length", "b", "Brute force")
     _plot(_ax2, "branch & bound length", "r", "Branch and bound")
@@ -986,7 +986,7 @@ def branch_and_bound_explanation(mo):
     ### 3.2.1 Branch and Bound
     Branch and bound solves an optimisation problem by searching through the solution tree using either depth or breath first search. It finds sub-problems of the original problem and eliminates ones that cannot contain the optimal solution by finding their lower and upper bounds, comparing against the best found upper bound. If a subproblem $P'$ has a lower bound greater than the best upper bound, it cannot contain the solution and therefore does not need to be explored. This can reduce the solution tree in the average and best cases depending on the problem and the 'tightness' of the bounds: how close they are to the true lower and upper bounds of $P'$. To maintain correctness, the lower bound must be inclusive of the true lower bound and the upper bound must be inclusive of the true upper bound such that $lb_\text{true} \leq lb_\text{heuristic} \leq ub_\text{heuristic} \leq ub_\text{true}$. Due to the algorithm requiring fast lower and upper bound calculation, this is done with heuristic methods.
 
-    While **branch and bound** and **brute force** share $O(n!)$ worst case, the former will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm. Dynamic programming caches previous results and therefore has $O(n + n(n - 1) + n(n - 1)(n - 2) + \dots + \frac{n!}{\lfloor \frac{n}{2} \rfloor!} + \frac{n!}{\lceil \frac{n+1}{2} \rceil!} + \dots + n + 1) = O(\displaystyle\sum_{k=1}^n \frac{n!}{\max((n-k)!,k!)})$. Because this sum is less than $2e$ (using the sum definition of $e$), the dynamic programming approach is still bounded in $O(2e \times n!) = O(n!)$.
+    While **branch and bound** and **brute force** share $O(n!)$ worst case, the former will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm. Dynamic programming caches previous results and therefore has $O(n + n(n - 1) + n(n - 1)(n - 2) + \dots + \frac{n!}{\lfloor \frac{n}{2} \rfloor!} + \frac{n!}{\lceil \frac{n+1}{2} \rceil!} + \dots + n + 1)$. Since we are using $O$ notation, this time complexity is bound in $O(2n^{\lfloor \frac{n}{2} \rfloor}) = O(n^{\lfloor \frac{n}{2} \rfloor})$. This final time complexity is grows slower than $O(n!)$, which makes this algorithm better for most $n$.
     """)
     return
 
@@ -1084,6 +1084,41 @@ def _(mo):
     mo.md(r"""
     ### 3.3.3 Comparison with previous facility
     With the addition of non-uniform cost sector traversal, CRUDY-1 avoids backtracking through the right of wing Beta. This is apparent in my facility with seed `28122007`, where in the previous facility, it collects $s_2$ when it passes by the upper junction between wings Alpha and Beta, whereas in the new facility, the cost of this traversal and backtrack causes this to be not done. This new solution walk is longer in terms of sectors traversed through but shorter in terms of total cost than the walk that collects $s_2$ earlier.
+    """)
+    return
+
+
+@app.cell
+def _(pd, plt):
+    _df = pd.read_csv("memo1a2/data_facility.csv")
+
+    _dot_size = 2.
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(12, 6))
+
+    small_number = 1e-4
+    _ax1.hist((_df["solution_len"] - _df["solution_len_unweighted"]) / _df["solution_len"], [-small_number, small_number, .01, .02, .03, .04, .05])
+    _ax1.set_title("Solution hops on Weighted vs Unweighted Facilities")
+    _ax1.set_ylabel("Difference between weighted and unweighted facility path lengths %")
+    _ax1.set_ylim(0, 10000)
+
+    _ax2.hist((_df["solution_cost_unweighted"] - _df["solution_cost"]) / _df["solution_len"], [-small_number, small_number, .01, .02, .03, .04, .05, .06, .07, .08, .09, .1])
+    _ax2.set_title("Solution cost on Weighted vs Unweighted Facilities")
+    _ax2.set_ylabel("Difference between weighted and unweighted facility path costs %")
+    _ax2.set_ylim(0, 10000)
+
+    _fig.tight_layout()
+
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo):
+    mo.md(rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Weighted vs Unweighted Facilities")}</span><br>
+
+    ### 3.1.4 Optimality & Solution Gap
+    As seen in figure {get_fig("Weighted vs Unweighted Facilities")}, compared with the abstraction of uniform facility traversal cost, only ~2.5% of facilities had a longer optimal path and with the algorithm and abstraction from amendment 1, only ~7% of paths had greater cost on the new abstraction's $G$. The '0' bucket was decreased in width to highlight this fact.
     """)
     return
 

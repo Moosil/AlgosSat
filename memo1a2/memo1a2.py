@@ -14,8 +14,6 @@ def imports():
     import matplotlib.colors as mcolors
     import pandas as pd
     import numpy as np
-    from scipy import stats
-    import copy
     from itertools import chain
     import re
     import inspect
@@ -849,7 +847,7 @@ def algorithmic_approaches(mo):
 
     #### 3.1.2.5 Dynamic Programming
 
-    Top-down **dynamic programming** uses memoisation to store solutions of recursive sub-problems and when the sub-problem is called again, it can recall the solution. This is particularily effective in this problem due to often finding sub-problem solutions. This approach is faster than brute force with the downside of requiring more space.
+    Top-down **dynamic programming** uses memoisation to store solutions of recursive sub-problems and when the sub-problem is called again, it can recall the solution. This is particularily effective in this problem due to often finding sub-problem solutions. Memoisation in the problem results in $T(n) = n + n(n - 1) + n(n - 1)(n - 2) + \dots + \frac{n!}{\lfloor \frac{n}{2} \rfloor!} + \frac{n!}{\lceil \frac{n+1}{2} \rceil!} + \dots + n + 1 = O(n^{\lfloor \frac{n}{2} \rfloor}) < O(n!)$, which makes it faster than **brute force**, with the downside of requiring more space.
     """)
     return
 
@@ -986,7 +984,7 @@ def branch_and_bound_explanation(mo):
     ### 3.2.1 Branch and Bound
     Branch and bound solves an optimisation problem by searching through the solution tree using either depth or breath first search. It finds sub-problems of the original problem and eliminates ones that cannot contain the optimal solution by finding their lower and upper bounds, comparing against the best found upper bound. If a subproblem $P'$ has a lower bound greater than the best upper bound, it cannot contain the solution and therefore does not need to be explored. This can reduce the solution tree in the average and best cases depending on the problem and the 'tightness' of the bounds: how close they are to the true lower and upper bounds of $P'$. To maintain correctness, the lower bound must be inclusive of the true lower bound and the upper bound must be inclusive of the true upper bound such that $lb_\text{true} \leq lb_\text{heuristic} \leq ub_\text{heuristic} \leq ub_\text{true}$. Due to the algorithm requiring fast lower and upper bound calculation, this is done with heuristic methods.
 
-    While **branch and bound** and **brute force** share $O(n!)$ worst case, the former will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm. Dynamic programming caches previous results and therefore has $O(n + n(n - 1) + n(n - 1)(n - 2) + \dots + \frac{n!}{\lfloor \frac{n}{2} \rfloor!} + \frac{n!}{\lceil \frac{n+1}{2} \rceil!} + \dots + n + 1)$. Since we are using $O$ notation, this time complexity is bound in $O(2n^{\lfloor \frac{n}{2} \rfloor}) = O(n^{\lfloor \frac{n}{2} \rfloor})$. This final time complexity is grows slower than $O(n!)$, which makes this algorithm better for most $n$.
+    While **branch and bound** and **brute force** share $O(n!)$ worst case, the former will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm. Dynamic programming caches previous results and therefore has $T(n) = n + n(n - 1) + n(n - 1)(n - 2) + \dots + \frac{n!}{\lfloor \frac{n}{2} \rfloor!} + \frac{n!}{\lceil \frac{n+1}{2} \rceil!} + \dots + n + 1 = O(n^{\lfloor \frac{n}{2} \rfloor})$. This final time complexity is grows slower than $O(n!)$, which makes this algorithm better for most $n$.
     """)
     return
 

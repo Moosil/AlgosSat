@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.13"
+__generated_with = "0.23.14"
 app = marimo.App(width="medium", app_title="Memo1", css_file="../custom.css")
 
 
@@ -329,7 +329,7 @@ def _(mo):
 
     The set of edges $E \subseteq \{\{u,v\} \mid u,v \in V, u \neq v\}$ abstracts the sector paths between **salient sectors**
 
-    The weight function $w: V \times V \to \mathbb{R}^+ \cup \{0\}$ abstract long stretches of coridoor sectors. The weight function $w: \text{Vertex}
+    The weight function $w: V \times V \to \mathbb{R}^+ \cup \{0\}$ abstract long stretches of coridoor sectors. The weight function $w: \text{Vertex} \to \mathbb{Z}^+ \cup \{0\}$
 
     ### $v_e$
     $v_e$ represents the entry vertex, where the algorithm should start and the first element of $W$

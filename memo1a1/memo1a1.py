@@ -474,9 +474,13 @@ def hierarchical_vs_flat_graph(mo):
 @app.cell
 def hierarchical_vs_flat_runtime(pd, plt):
     _df = pd.read_csv("memo1a1/data_memos.csv")
+    _df_fac = pd.read_csv("memo1a1/data_facility.csv")
 
     _fig, ((_ax1, _ax2), (_ax3, _ax4)) = plt.subplots(2, 2, figsize=(6, 6), height_ratios=[14, 1], width_ratios=[1, 14])
-    _ax2.scatter(_df["Memo1 time"], _df["Memo1A1 time"], c='b', marker='o', s=10, alpha=.01)
+
+    _legend_items = [plt.Line2D([0], [0], marker='o', color=["purple", "green", "yellow"][i-2], markerfacecolor=["purple", "green", "yellow"][i-2], markersize=4) for i in range(2, 5)]
+    _ax2.scatter(_df["Memo1 time"], _df["Memo1A1 time"], c=_df_fac["n_wings"], marker='o', s=10, alpha=.01)
+    _ax2.legend(_legend_items, ["1 wing", "2 wings", "3 wings"])
     _ax2.set_xlim(0, 10)
     _ax2.set_ylim(0, 10)
 
@@ -506,7 +510,9 @@ def hierarchical_vs_flat_runtime_comment(get_fig, mo):
     mo.md(rf"""
     <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Comparing Hierarchical & Flat graph implementations")}</span>
 
-    Figure {get_fig("Comparing Hierarchical & Flat graph implementations")} shows a runtime comparison of algorithms solving this problem on both the flat and hierarchical graph, implemented in python. This shows the hierarchical graph is ~10% better median, 12% better 3rd quartile, and a smaller inter-quartile range. This means it is consistently more efficient than the flat graph over the test set of 10,000 facility blueprints
+    Figure {get_fig("Comparing Hierarchical & Flat graph implementations")} shows a runtime comparison of algorithms solving this problem on both the flat and hierarchical graph, implemented in python. This shows the hierarchical graph is ~10% better median, 12% better 3rd quartile, and a smaller inter-quartile range. This means it is consistently more efficient than the flat graph over the test set of 10,000 facility blueprints.
+
+    Additionally, each number of wings has a smaller spread of runtimes in non-outlier cases for the hierarchical graph compared with the flat graph.
     """)
     return
 
@@ -794,7 +800,7 @@ def runtime_explanation(get_fig, mo):
 
     However, the right of figure {get_fig("Different approaches' runtime")} shows that at $n = |S| = 5$ as it is in the problem, **dynamic programming** runs an order of magnitude faster than **brute force** and **branch and bound**. While it is ~1.5 orders of magnitude slower than **nearest neighbour**, it is still very fast and is optimal. This is the reason why it will be used over those other more efficient approaches.
 
-    If $n$ was to increase, it will become impossible to consider **brute force** and **dynamic programming**, and **branch and bound** will only be usable with significant optimisations (discussed later). This can be seen in the left figure, with **brute force** and **dynamic programming** these algorithms not being graphed after $n = 20$
+    If $n$ was to increase, it will become impossible to consider **brute force** and **dynamic programming**, and **branch and bound** will only be usable with significant optimisations (discussed later). This can be seen in the left figure, with **brute force** and **dynamic programming** these algorithms not being graphed after $n = 20$.
     """)
     return
 
@@ -893,7 +899,7 @@ def lin_kernighan_explanation(mo):
     ### 3.2.3 Lin-Kernighan
     Lin-Kernighan is a heuristic algorithm for optimising a found solution to a shortest-path or cycle problem. It swaps different combinations of edges to find the local minimum of a solution. This will always produce a better or equal path than the one found, so it is a good step for finding a close-to-optimal solution for **branch and bound** algorithms or optimising a different heuristic algorithm.
 
-    This algorithm runs in $O(n^{2.2})$ average case, but has significant constant and lower order costs, which make it less efficient than **dynamic programming** for this problem, while giving non-optimal solutions
+    This algorithm runs in $O(n^{2.2})$ average case, but has significant constant and lower order costs, which make it less efficient than **dynamic programming** for this problem, while giving non-optimal solutions.
     """)
     return
 
@@ -1045,7 +1051,7 @@ def algorithm_explorer_controls(facility_drawer, mo):
         start=0,
         stop=len(_path) - 1,
         step=1,
-        label="Step (drag to walk through the trace) ",
+        label="Step (drag to walk through the facility)",
         full_width=True,
         include_input=True
     )
@@ -1145,7 +1151,7 @@ def pseudocode(mo, re):
         res = re.sub("FUNCTION(?= )", "<span class='pseudocode-command'>FUNCTION</span>", res)
         res = re.sub("WHILE(?= )", "<span class='pseudocode-command'>WHILE</span>", res)
         res = re.sub("FOR EACH(?= )", "<span class='pseudocode-command'>FOR EACH</span>", res)
-        res = re.sub(r"FOR(?=. <-)", "<span class='pseudocode-command'>FOR</span>", res)
+        res = re.sub(r"FOR(?= [^ ]+ <-)", "<span class='pseudocode-command'>FOR</span>", res)
         res = re.sub("IF(?= )", "<span class='pseudocode-command'>IF</span>", res)
         for command in ["PROCEDURE", "FUNCTION", "WHILE", "FOR", "IF"]:
             res = re.sub(f"END {command}", f"<span class='pseudocode-command'>END {command}</span>", res)
@@ -1174,7 +1180,7 @@ def pseudocode(mo, re):
             return p_str
 
         def syntax_highlight_name(p_str: str, names: list[str], class_name: str) -> str:
-            surrounding = r"\s\.\:\,\(\)\[\]\{\}\<\>"
+            surrounding = r"\s\.\:\,\(\)\[\]\{\}\<\>\;"
             for name in names:
                 p_str = re.sub(fr"(?<=[{surrounding}]){name}(?=[{surrounding}])", f"<span class='{class_name}'>{name}</span>", p_str)
             return p_str
@@ -1219,7 +1225,7 @@ def pseudocode_procedure_justification(mo):
     While many procedures can be justified due to duplication of use, encapsulating a well-known algorithm which improves the coherence of the pseudocode, or for labelling the goal or output of a block of code, some procedures need justification for why they weren't inlined.
 
     `get_path_from_bfs` is an example of one such that is easily traceable, and could be instead labelled with a comment. The reason why these were turned into procedures were to allow for implementors of this algorithm to more easily find optimisations that I may be unaware of. For a particular implementation, a memoisation modification of this procedure may increase the algorithm's efficiency, and by extracting this code as a procedure, it is easier to notice blocks of code that may run often and could be further optimised.
-        
+
     In the function `ember_rescue`, the stages of the algorithm could be encapsulated in their own procedures. This was not done as it would require more auxiliary space in certain implementations, and this procedure would only be used once.
     """)
     return

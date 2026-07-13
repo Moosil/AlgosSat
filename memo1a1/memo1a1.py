@@ -872,7 +872,7 @@ def branch_and_bound_explanation(mo):
     ### 3.2.1 Branch and Bound
     Branch and bound solves an optimisation problem by searching through the solution tree using either depth or breath first search. It finds sub-problems of the original problem and eliminates ones that cannot contain the optimal solution by finding their lower and upper bounds, comparing against the best found upper bound. If a subproblem $P'$ has a lower bound greater than the best upper bound, it cannot contain the solution and therefore does not need to be explored. This can reduce the solution tree in the average and best cases depending on the problem and the 'tightness' of the bounds: how close they are to the true lower and upper bounds of $P'$. To maintain correctness, the lower bound must be inclusive of the true lower bound and the upper bound must be inclusive of the true upper bound such that $lb_\text{true} \leq lb_\text{heuristic} \leq ub_\text{heuristic} \leq ub_\text{true}$. Due to the algorithm requiring fast lower and upper bound calculation, this is done with heuristic methods.
 
-    While **branch and bound** and **brute force** share $O(n!)$ worst case, the former will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm.
+    While **branch and bound** and **brute force** share $\Theta(n!)$ worst case, the former will be much faster for large $n$. This, however is what makes it not suitable for this problem, as with $n = |S| = 5$, the cost of finding bounds outweighs the benefits of this algorithm.
     """)
     return
 
@@ -1219,6 +1219,8 @@ def pseudocode_procedure_justification(mo):
     While many procedures can be justified due to duplication of use, encapsulating a well-known algorithm which improves the coherence of the pseudocode, or for labelling the goal or output of a block of code, some procedures need justification for why they weren't inlined.
 
     `get_path_from_bfs` is an example of one such that is easily traceable, and could be instead labelled with a comment. The reason why these were turned into procedures were to allow for implementors of this algorithm to more easily find optimisations that I may be unaware of. For a particular implementation, a memoisation modification of this procedure may increase the algorithm's efficiency, and by extracting this code as a procedure, it is easier to notice blocks of code that may run often and could be further optimised.
+        
+    In the function `ember_rescue`, the stages of the algorithm could be encapsulated in their own procedures. This was not done as it would require more auxiliary space in certain implementations, and this procedure would only be used once.
     """)
     return
 

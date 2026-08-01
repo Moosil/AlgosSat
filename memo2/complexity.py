@@ -1,4 +1,6 @@
-from sympy import Sum, oo, Rational
+import math
+
+from sympy import oo, Rational
 import sympy as sp
 from sympy.abc import k
 
@@ -41,7 +43,7 @@ class Complexity:
             4 + 2 * cls.braced_init()
             + cls._while(lambda i: 3, n)
             + n * 2 * 4 * cls._if()
-            + 2 * Sum(cls._for(k) + (2 + cls._if()) * k, (k, 1, n)).doit()
+            + 2 * sp.Sum(cls._for(k) + (2 + cls._if()) * k, (k, 1, n)).doit()
             + 4 + 6 * n + cls._return()
         )
 
@@ -223,6 +225,22 @@ def main():
     sp.print_latex(sp.factor(expr, fraction=False))
     print()
     sp.print_latex(sp.O(expr, *[(x, oo) for x in [n, m, w, j, p, q]]))
+
+    # same thing. Unfortunately this doesn't create a closed form
+    test_case_1 = (Rational(1, 2) * sp.hyper((1, p + 1), (sp.ceiling(p/2) + 2,), Rational(1, 2)))
+    test_case_2 = (Rational(1, 2) * sp.Sum((1 / (2 ** k)) * sp.rf(sp.ceiling(p / 2) + k + 2, sp.ceiling(p / 2) - 1) / sp.rf(sp.ceiling(p / 2) + 2, sp.ceiling(p / 2) - 1), (k, 0, oo)))
+    test_expr_even = (p + 2) / p * ((p + 1) * (2 ** (p - 1)) * sp.beta(p/2+1,p/2+1) - Rational(1, 2))
+    test_expr_odd = (p + 1) * (2 ** (p - 1)) * sp.beta((p-3)/2+1,(p+3)/2+1) - (p+3)/(p-1)
+    test_expr = sp.Piecewise((test_expr_even, sp.Eq(sp.Mod(p, 2), 0)), (test_expr_odd, True)).doit()
+    sp.print_latex(test_expr_even.subs(p, p + 1))
+    sp.print_latex(test_expr)
+    for i in range(1_000):
+        tv = test_expr.evalf(subs={p: i}, maxn=math.floor(500))
+        rv = test_case_1.evalf(subs={p: i}, maxn=math.floor(500))
+        if tv != rv:
+            print(f"Test case {i}:\nTest({i}) = {tv}\nReal({i}) = {rv}\nTest case {"succeeded" if math.isclose(tv, rv) else "failed"}\n")
+
+
 
 if __name__ == "__main__":
     main()

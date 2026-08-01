@@ -1,4 +1,4 @@
-from sympy import Sum, oo, gamma, Rational, Product
+from sympy import Sum, oo, Rational
 import sympy as sp
 from sympy.abc import k
 
@@ -196,7 +196,7 @@ class Complexity:
         )
 
     @classmethod
-    def ember_rescue(cls, v, e, w, j, p, q, *args, exact: bool = False):
+    def ember_rescue(cls, v, e, w, j, p, q, *, exact: bool = False):
         return (
             1 + cls.get_supplies_to_collect(p)
             + 1 + cls._for(5)
@@ -214,7 +214,8 @@ class Complexity:
             + cls._return() + cls._return()
         )
 
-if __name__ == "__main__":
+
+def main():
     n, m, w, j, p, q = sp.symbols("n,m,w,j,p,q", nonnegative=True, integer=True, real=True, commutative=True, )
     expr = Complexity.ember_rescue(n,m,w,j,p,q)
     sp.print_latex(expr)
@@ -222,3 +223,6 @@ if __name__ == "__main__":
     sp.print_latex(sp.factor(expr, fraction=False))
     print()
     sp.print_latex(sp.O(expr, *[(x, oo) for x in [n, m, w, j, p, q]]))
+
+if __name__ == "__main__":
+    main()

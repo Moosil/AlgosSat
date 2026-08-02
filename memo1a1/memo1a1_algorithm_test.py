@@ -427,8 +427,8 @@ if __name__ == "__main__":
     while True:
         test_id = input(
             """Enter a number from 1-6 for a particular test:
-            [1] test memo1a's algorithm
-            [2] test memo1's algorithm
+            [1] test memo1's algorithm
+            [2] test memo1a1's algorithm
             [3] get facility data
             [4] test stage 2 of algorithm
             [5] get difference between memo1 and memo1a

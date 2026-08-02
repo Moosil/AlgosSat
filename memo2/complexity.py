@@ -48,10 +48,10 @@ class Complexity:
         )
 
     @classmethod
-    def get_supplies_to_collect(cls, p):
+    def get_supplies_to_collect(cls, p, s):
         return (
             1
-            + cls._for(5) + 5 * (2 + cls.braced_init())
+            + cls._for(s) + s * (2 + cls.braced_init())
             + 1
             + cls._for(p) + p * (3 + cls._if() + 2 + cls.braced_init())
             + cls._return()
@@ -117,14 +117,16 @@ class Complexity:
         )
 
     @classmethod
-    def dynamic_programming_recursive(cls, p, q, exact: bool):
-        approx = (p + sp.sqrt(2 * p) * sp.ln(p)) / p * (2 ** p) - p
-        exact_hyp = 2*(2**p - 1) - p - 2*sp.binomial(p, sp.ceiling(p/2) + 1)*Rational(1, 2) * sp.hyper((1, p + 1), (sp.ceiling(p/2) + 2,), Rational(1, 2))
+    def dynamic_programming_recursive(cls, p, q, s, exact: bool):
+        big_x_approx = p ** s / (sp.factorial(s-1)) + 1 # very close approximation for x >> s. Ideal for large facility if CRUDY-1 has small storage
+        exact_sum = sp.Sum(p * sp.binomial(p - 1, k - 1), (k, 1, s)) + 1 # exact sum taken from OEIS A155865
+        exact_hyp = sp.simplify(exact_sum.doit()) # with a 2F1. Closed form likely exists but is very slow to converge and is difficult to find if it does exist.
+        exact_m_p = sp.simplify(exact_sum.subs(s, p).doit()) # if m == p. taken from OEIS A001787
 
         return (
             1 + cls.braced_init() + 1 + cls._if()
             + q * (1 + cls._if() + cls._for(q) + 3 + cls._if() + 2 + cls.braced_init())
-            + (exact_hyp if exact else approx) * (
+            + (exact_hyp if exact else exact_m_p) * (
                 2 + cls._if() + cls._for(p) + 1 + 2 + 2 + 4 + 1
                 + cls._if() + 1 + 1 + cls.braced_init()
                 + cls._for(p + 1) + (p + 1) * 1
@@ -134,9 +136,9 @@ class Complexity:
         )
 
     @classmethod
-    def dynamic_programming(cls, p, q, exact: bool):
+    def dynamic_programming(cls, p, q, s, exact: bool):
         return (
-            1 + cls.dynamic_programming_recursive(p, q, exact)
+            1 + cls.dynamic_programming_recursive(p, q, s, exact)
             + 1 + cls.braced_init()
             + cls._for(p + 2)
             + (p + 2) * 1
@@ -198,18 +200,18 @@ class Complexity:
         )
 
     @classmethod
-    def ember_rescue(cls, v, e, w, j, p, q, *, exact: bool = False):
+    def ember_rescue(cls, v, e, w, j, p, q, s, *, exact: bool = False):
         return (
-            1 + cls.get_supplies_to_collect(p)
-            + 1 + cls._for(5)
-            + 5 * (2 + cls._if() + 2)
+            1 + cls.get_supplies_to_collect(p, s)
+            + 1 + cls._for(s)
+            + s * (2 + cls._if() + 2)
             + cls.max() + 1 + 1
             + 1 + cls._for(w) + 1
             + w * (3 + cls._if() + 3 + cls.dfs(v, e))
             + 1 + cls.get_F(v, p, q, w, j)
             + 1 + cls.get_path_matrix(p + q + j + 1, e, p)
             + 1 + cls.get_path_cost_matrix(p, q)
-            + 1 + cls.dynamic_programming(p, q, exact)
+            + 1 + cls.dynamic_programming(p, q, s, exact)
             + 1 + cls.get_F_path_from_H_path(p + 2, p + q + j + 1)
             + 1 + cls.get_G_path_from_F_path(v, p + q + j + 1, w)
             + 1 + cls.get_new_supply_storage(v, p)
@@ -218,27 +220,10 @@ class Complexity:
 
 
 def main():
-    n, m, w, j, p, q = sp.symbols("n,m,w,j,p,q", nonnegative=True, integer=True, real=True, commutative=True, )
-    expr = Complexity.ember_rescue(n,m,w,j,p,q)
-    sp.print_latex(expr)
+    n, m, w, j, p, q, s = sp.symbols("n,m,w,j,p,q,s", positive=True, integer=True)
+    print(sp.latex(sp.simplify(Complexity.ember_rescue(n,m,w,j,p,q,s, exact=True), fraction=False)))
     print()
-    sp.print_latex(sp.factor(expr, fraction=False))
-    print()
-    sp.print_latex(sp.O(expr, *[(x, oo) for x in [n, m, w, j, p, q]]))
-
-    # same thing. Unfortunately this doesn't create a closed form
-    test_case_1 = (Rational(1, 2) * sp.hyper((1, p + 1), (sp.ceiling(p/2) + 2,), Rational(1, 2)))
-    test_case_2 = (Rational(1, 2) * sp.Sum((1 / (2 ** k)) * sp.rf(sp.ceiling(p / 2) + k + 2, sp.ceiling(p / 2) - 1) / sp.rf(sp.ceiling(p / 2) + 2, sp.ceiling(p / 2) - 1), (k, 0, oo)))
-    test_expr_even = (p + 2) / p * ((p + 1) * (2 ** (p - 1)) * sp.beta(p/2+1,p/2+1) - Rational(1, 2))
-    test_expr_odd = (p + 1) * (2 ** (p - 1)) * sp.beta((p-3)/2+1,(p+3)/2+1) - (p+3)/(p-1)
-    test_expr = sp.Piecewise((test_expr_even, sp.Eq(sp.Mod(p, 2), 0)), (test_expr_odd, True)).doit()
-    sp.print_latex(test_expr_even.subs(p, p + 1))
-    sp.print_latex(test_expr)
-    for i in range(1_000):
-        tv = test_expr.evalf(subs={p: i}, maxn=math.floor(500))
-        rv = test_case_1.evalf(subs={p: i}, maxn=math.floor(500))
-        if tv != rv:
-            print(f"Test case {i}:\nTest({i}) = {tv}\nReal({i}) = {rv}\nTest case {"succeeded" if math.isclose(tv, rv) else "failed"}\n")
+    print(sp.latex(sp.simplify(sp.O(Complexity.ember_rescue(n,m,w,j,p,q,s, exact=False), *[(x, oo) for x in [n, m, w, j, p, q, s]]))))
 
 
 

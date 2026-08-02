@@ -453,7 +453,9 @@ class DpImpl:
 
     def __call__(self, entry: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], max_supplies: int):
         self.memo = {}
-        return [entry] + self.dp(entry, supplies, exits, dist_matrix, max_supplies)[0]
+        self.counter = [0] * (max_supplies + 1)
+        res = [entry] + self.dp(entry, supplies, exits, dist_matrix, max_supplies)[0]
+        return res
 
     def dp(self, source: VertexT, supplies: set[VertexT], exits: set[VertexT], dist_matrix: dict[VertexT, dict[VertexT, int]], fuel: int):
         key = (source, frozenset(supplies))
@@ -481,6 +483,7 @@ class DpImpl:
                     min_cost = cost
                     min_cost_walk = [supply] + min_walk_through
 
+        self.counter[fuel] += 1
         self.memo[key] = min_cost_walk, min_cost
         return min_cost_walk, min_cost
 

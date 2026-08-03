@@ -22,16 +22,33 @@ if __name__ == "__main__":
     sp.print_latex(simp_expr)
     print()
 
-    for it in range(1, 20):
-        simp_expr = sp.expand(sp.simplify(expr.subs(m, sp.Integer(it)).doit()))
-        print(f"Simplified for m = {it}")
-        sp.print_latex(simp_expr)
-        sp.print_latex(sp.O(simp_expr, (p, sp.oo)))
-        print()
+    print("Experimental")
+    simp_expr = sp.hyper((1, m - p + 1), (m + 1,), -1)
+    test_expr = sp.Sum(sp.rf(p - m - k, k) / sp.rf(m + 1, k), (k, 0, p - m - 1))
+    test_expr = sp.gamma(p-m) * sp.gamma(m+1) * sp.Sum(1/(sp.gamma(p-m-k) * sp.gamma(m+k+1)), (k, 0, p - m - 1))
+    # print(test_expr.simplify())
+    # for pi in range(1, 20):
+    #     for mi in range(1, pi):
+    #         print(f"f({pi}, {mi}) = {float(simp_expr.subs([(p, pi), (m, mi)]).simplify().doit())} = {float(test_expr.subs([(p, pi), (m, mi)]).simplify().doit())}")
 
-    print("f(p, m) = ?")
-    dp_impl = DpImpl()
-    for pi in range(1, 20):
-        for mi in range(1, pi + 1):
-            dp_impl(0, set([i+1 for i in range(pi)]), set([pi+1, pi+2]), {i: {j+1: 1 for j in range(pi+2)} for i in range(pi+1)}, mi)
-            print(f"f({pi}, {mi}) = {sum(dp_impl.counter)} = {expr.subs([(p, pi), (m, mi)]).doit()}")
+    # for it in range(1, 20):
+    #     simp_expr = sp.expand(sp.simplify(expr.subs(m, sp.Integer(it)).doit()))
+    #     print(f"Simplified for m = {it}")
+    #     sp.print_latex(simp_expr)
+    #     sp.print_latex(sp.O(simp_expr, (p, sp.oo)))
+    #     print()
+    #
+    # print("f(p, m) = ?")
+    # dp_impl = DpImpl()
+    # for pi in range(1, 20):
+    #     for mi in range(1, pi + 1):
+    #         dp_impl(0, set([i+1 for i in range(pi)]), set([pi+1, pi+2]), {i: {j+1: 1 for j in range(pi+2)} for i in range(pi+1)}, mi)
+    #         print(f"f({pi}, {mi}) = {sum(dp_impl.counter)} = {expr.subs([(p, pi), (m, mi)]).doit()}")
+
+    error_term = p * sp.binomial(p - 1, m) * sp.gamma(p-m) * sp.gamma(m+1) * sp.Sum(1/(sp.gamma(p-m-k) * sp.gamma(m+k+1)), (k, 0, p - m - 1))
+    for pi in range(1, 100):
+        for mi in range(1, pi):
+            true_value = (2**(p - 1) * p).subs([(p, pi), (m, mi)]).doit()
+            error_value = float((true_value - error_term.subs([(p, pi), (m, mi)]).doit()) / true_value)
+            if error_value < .95:
+                print(f"error({pi}, {mi}) = {error_value}")

@@ -121,12 +121,13 @@ class Complexity:
         big_x_approx = p ** s / (sp.factorial(s-1)) + 1 # very close approximation for x >> s. Ideal for large facility if CRUDY-1 has small storage
         exact_sum = sp.Sum(p * sp.binomial(p - 1, k - 1), (k, 1, s)) + 1 # exact sum taken from OEIS A155865
         exact_hyp = sp.simplify(exact_sum.doit()) # with a 2F1. Closed form likely exists but is very slow to converge and is difficult to find if it does exist.
+        exact_fin_sum = p*(2**(p - 1) - sp.binomial(p - 1, s) * sp.gamma(p-s) * sp.gamma(s+1) * sp.Sum(1/(sp.gamma(p-s-k) * sp.gamma(s+k+1)), (k, 0, p - s - 1)))+ 1
         exact_m_p = sp.simplify(exact_sum.subs(s, p).doit()) # if m == p. taken from OEIS A001787
 
         return (
             1 + cls.braced_init() + 1 + cls._if()
             + q * (1 + cls._if() + cls._for(q) + 3 + cls._if() + 2 + cls.braced_init())
-            + (exact_hyp if exact else exact_m_p) * (
+            + (exact_fin_sum if exact and p != s else exact_m_p) * (
                 2 + cls._if() + cls._for(p) + 1 + 2 + 2 + 4 + 1
                 + cls._if() + 1 + 1 + cls.braced_init()
                 + cls._for(p + 1) + (p + 1) * 1
@@ -221,9 +222,9 @@ class Complexity:
 
 def main():
     n, m, w, j, p, q, s = sp.symbols("n,m,w,j,p,q,s", positive=True, integer=True)
-    print(sp.latex(sp.simplify(Complexity.ember_rescue(n,m,w,j,p,q,s, exact=True), fraction=False)))
+    print(sp.latex(Complexity.ember_rescue(n,m,w,j,p,q,s, exact=True).simplify()))
     print()
-    print(sp.latex(sp.simplify(sp.O(Complexity.ember_rescue(n,m,w,j,p,q,s, exact=False), *[(x, oo) for x in [n, m, w, j, p, q, s]]))))
+    print(sp.latex(sp.O(Complexity.ember_rescue(n,m,w,j,p,q,s, exact=False).simplify(), *[(x, oo) for x in [n, m, w, j, p, q, s]])))
 
 
 

@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.14"
 dependencies = [
+    "catppuccin>=2.5.0",
+    "colour>=0.1.5",
     "manim>=0.20.1",
     "manim-slides>=5.6.0",
     "marimo>=0.23.4",

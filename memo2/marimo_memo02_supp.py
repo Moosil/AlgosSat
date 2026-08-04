@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.20.2"
+__generated_with = "0.23.16"
 app = marimo.App(width="medium")
 
 
@@ -21,13 +21,11 @@ def imports():
     SAVE_FILE_ORIG = "responses.json"           # Memo 01 responses (read-only)
     SAVE_FILE_SUPP = "responses_M02_supp.json"  # supplementary responses (written here)
     return (
-        SAVE_FILE_ORIG,
-        SAVE_FILE_SUPP,
         LinearSegmentedColormap,
+        SAVE_FILE_SUPP,
         datetime,
         deque,
         json,
-        math,
         mcolors,
         mo,
         nx,
@@ -232,8 +230,7 @@ def cost_model(fac, random, seed_input):
                 'avg':   round(sum(_costs) / len(_costs), 2),
                 'total': sum(_costs),
             })
-
-    return (fac_weighted, wing_cost_summary)
+    return fac_weighted, wing_cost_summary
 
 
 @app.cell
@@ -360,7 +357,7 @@ def drawing_utils_weighted(LinearSegmentedColormap, mcolors, plt):
         plt.tight_layout()
         return fig
 
-    return (COL_ROUTE, draw_weighted_facility)
+    return (draw_weighted_facility,)
 
 
 @app.cell
@@ -428,22 +425,21 @@ def analysis_engine(deque, fac, nx):
 
     # all reachable expansion counts (every node is a possible target)
     expansions_all = sorted(bfs_rank.values())
-
     return (
+        E,
         G,
         V,
-        E,
-        entry,
-        bfs_rank,
         bfs_frontier,
-        dfs_stack_sizes,
+        bfs_rank,
         dfs_max_depth,
+        dfs_stack_sizes,
+        entry,
         expansions_all,
     )
 
 
 @app.cell
-def facility_size(V, E, dfs_max_depth, mo, seed_input):
+def facility_size(E, V, dfs_max_depth, mo, seed_input):
     mo.vstack([
         mo.md(f"## 📐 Your Facility -- Seed {int(seed_input.value)}"),
         mo.md(
@@ -463,7 +459,13 @@ def facility_size(V, E, dfs_max_depth, mo, seed_input):
 
 
 @app.cell
-def facility_visualiser(draw_weighted_facility, fac_weighted, mo, seed_input, wing_cost_summary):
+def facility_visualiser(
+    draw_weighted_facility,
+    fac_weighted,
+    mo,
+    seed_input,
+    wing_cost_summary,
+):
     _fig = draw_weighted_facility(
         fac_weighted,
         title=(f"Your Facility -- Seed {int(seed_input.value)} · "
@@ -498,40 +500,37 @@ def facility_visualiser(draw_weighted_facility, fac_weighted, mo, seed_input, wi
     return
 
 
-# ======================================================================
-# SECTION A -- BEST CASE
-# ======================================================================
 @app.cell
 def s2a_header(mo):
     mo.md("""
----
-## [S2-A] Best-Case Time Complexity (Ω)
-*Criterion 5 deepener · Written response (approx. 80--150 words)*
+    ---
+    ## [S2-A] Best-Case Time Complexity (Ω)
+    *Criterion 5 deepener · Written response (approx. 80--150 words)*
 
-> The **best case** is the smallest amount of work the algorithm can do on an input of a
-> given size. We describe it with **big-Omega**, Ω. The key question for a traversal is:
-> **can the algorithm stop early?**
+    > The **best case** is the smallest amount of work the algorithm can do on an input of a
+    > given size. We describe it with **big-Omega**, Ω. The key question for a traversal is:
+    > **can the algorithm stop early?**
 
-**Address all three parts:**
+    **Address all three parts:**
 
-**Part 1 -- When does best case occur?**
-For your Memo 01 algorithm, describe the input that triggers the least work.
-- If it **searches for a single target** (entry → an exit) and stops when found, the best
-  case is the target sitting **next to the entry** → Ω(1) expansions.
-- If it must **visit every sector** (full exploration / collect all supplies) regardless
-  of layout, then it *cannot* stop early, so **best = worst = Θ(V + E)**. State which of
-  these is true for *your* algorithm.
+    **Part 1 -- When does best case occur?**
+    For your Memo 01 algorithm, describe the input that triggers the least work.
+    - If it **searches for a single target** (entry → an exit) and stops when found, the best
+      case is the target sitting **next to the entry** → Ω(1) expansions.
+    - If it must **visit every sector** (full exploration / collect all supplies) regardless
+      of layout, then it *cannot* stop early, so **best = worst = Θ(V + E)**. State which of
+      these is true for *your* algorithm.
 
-**Part 2 -- Use the demo.**
-The demo shows, for *your* facility, how many sector-expansions BFS needs to reach **each
-possible target**. Read off the **minimum** (best case), and the values for **Exit A**
-and **Exit B**. Quote these numbers.
+    **Part 2 -- Use the demo.**
+    The demo shows, for *your* facility, how many sector-expansions BFS needs to reach **each
+    possible target**. Read off the **minimum** (best case), and the values for **Exit A**
+    and **Exit B**. Quote these numbers.
 
-**Part 3 -- Why best case is a weak guarantee.**
-Explain why CRUDY-1's mission planning should **not** rely on the best case. (Hint: the
-field cannot guarantee the survivor is next to the entrance.)
+    **Part 3 -- Why best case is a weak guarantee.**
+    Explain why CRUDY-1's mission planning should **not** rely on the best case. (Hint: the
+    field cannot guarantee the survivor is next to the entrance.)
 
----
+    ---
     """)
     return
 
@@ -607,7 +606,15 @@ def s2a_demo(bfs_rank, expansions_all, fac, mo, plt, target_pick):
 
 
 @app.cell
-def s2a_map(G, draw_weighted_facility, entry, fac_weighted, mo, nx, target_pick):
+def s2a_map(
+    G,
+    draw_weighted_facility,
+    entry,
+    fac_weighted,
+    mo,
+    nx,
+    target_pick,
+):
     """Overlay the shortest route from entry to the selected target on the map."""
     _t = target_pick.value
     try:
@@ -669,39 +676,36 @@ def s2a_display(mo, resp_s2a):
     return
 
 
-# ======================================================================
-# SECTION B -- AVERAGE CASE
-# ======================================================================
 @app.cell
 def s2b_header(mo):
     mo.md("""
----
-## [S2-B] Average-Case Time Complexity (Θ)
-*Criterion 5 deepener · Written response (approx. 100--180 words)*
+    ---
+    ## [S2-B] Average-Case Time Complexity (Θ)
+    *Criterion 5 deepener · Written response (approx. 100--180 words)*
 
-> The **average case** is the *expected* work over a realistic distribution of inputs.
-> If CRUDY-1's target is **equally likely to be any sector**, the expected number of
-> expansions is the **mean over all targets**. The demo estimates this with a
-> **Monte-Carlo simulation** on your facility.
+    > The **average case** is the *expected* work over a realistic distribution of inputs.
+    > If CRUDY-1's target is **equally likely to be any sector**, the expected number of
+    > expansions is the **mean over all targets**. The demo estimates this with a
+    > **Monte-Carlo simulation** on your facility.
 
-**Address all three parts:**
+    **Address all three parts:**
 
-**Part 1 -- Model the input distribution.**
-State your assumption about where the target is (e.g. *"uniformly random across all V
-sectors"*). A different assumption (targets cluster near exits) would change the average --
-note this.
+    **Part 1 -- Model the input distribution.**
+    State your assumption about where the target is (e.g. *"uniformly random across all V
+    sectors"*). A different assumption (targets cluster near exits) would change the average --
+    note this.
 
-**Part 2 -- Run the simulation.**
-Use the trials slider to run many random searches. Quote the **empirical mean**
-expansions and compare it to the theoretical mean for a uniform target,
-which is about **(V + 1) / 2**. Note that average and worst case are both **Θ(V)** here --
-the average is a *constant factor* smaller, not a different growth class.
+    **Part 2 -- Run the simulation.**
+    Use the trials slider to run many random searches. Quote the **empirical mean**
+    expansions and compare it to the theoretical mean for a uniform target,
+    which is about **(V + 1) / 2**. Note that average and worst case are both **Θ(V)** here --
+    the average is a *constant factor* smaller, not a different growth class.
 
-**Part 3 -- Consequence.**
-Explain what the average case tells CRUDY-1's planners that the worst case does not, and
-why both numbers are worth reporting.
+    **Part 3 -- Consequence.**
+    Explain what the average case tells CRUDY-1's planners that the worst case does not, and
+    why both numbers are worth reporting.
 
----
+    ---
     """)
     return
 
@@ -715,7 +719,7 @@ def s2b_controls(mo):
                             label="Simulation RNG seed (for reproducibility)")
     mo.vstack([mo.md("#### 🎛️ Average-case simulator"),
                mo.hstack([n_trials, sim_seed], justify="start")])
-    return (n_trials, sim_seed)
+    return n_trials, sim_seed
 
 
 @app.cell
@@ -800,57 +804,54 @@ def s2b_display(mo, resp_s2b):
     return
 
 
-# ======================================================================
-# SECTION C -- SPACE COMPLEXITY
-# ======================================================================
 @app.cell
 def s2c_header(mo):
     mo.md("""
----
-## [S2-C] Space Complexity
-*Criterion 5 / 6 deepener · Written response (approx. 100--180 words)*
+    ---
+    ## [S2-C] Space Complexity
+    *Criterion 5 / 6 deepener · Written response (approx. 100--180 words)*
 
-> Time is not the only cost. CRUDY-1 has **limited on-board memory**, so the **space
-> complexity** of your traversal matters. Space is the memory your algorithm holds at
-> once -- usually some combination of the **visited** record, any **stored paths**, and a
-> **frontier** (the sectors waiting to be explored).
->
-> **BFS and DFS below are examples, not the expected answer.** Not every algorithm keeps
-> an explicit frontier: a **recursive** traversal hides it in the call stack, and some
-> designs keep **no frontier at all** (e.g. scanning a fixed grid/matrix, or marking
-> cells in place). If your Memo 01 algorithm has no frontier model, your space complexity
-> will **evolve differently** -- analyse *your own* structures rather than copying BFS/DFS.
+    > Time is not the only cost. CRUDY-1 has **limited on-board memory**, so the **space
+    > complexity** of your traversal matters. Space is the memory your algorithm holds at
+    > once -- usually some combination of the **visited** record, any **stored paths**, and a
+    > **frontier** (the sectors waiting to be explored).
+    >
+    > **BFS and DFS below are examples, not the expected answer.** Not every algorithm keeps
+    > an explicit frontier: a **recursive** traversal hides it in the call stack, and some
+    > designs keep **no frontier at all** (e.g. scanning a fixed grid/matrix, or marking
+    > cells in place). If your Memo 01 algorithm has no frontier model, your space complexity
+    > will **evolve differently** -- analyse *your own* structures rather than copying BFS/DFS.
 
-**Address all four parts:**
+    **Address all four parts:**
 
-**Part 1 -- Account for the structures *you actually use*.**
-- `visited` / marking: a separate set is **O(V)**; marking cells **in place** can be
-  **O(1)** extra.
-- Frontier *(if any)*: an explicit BFS **queue** or DFS **stack** is **O(V)** worst case;
-  a **recursive** DFS instead costs call-stack depth, **O(longest branch)**; an algorithm
-  with **no frontier** has no such term at all.
-- Stored paths: keeping a path *per frontier entry* (`path + [neighbour]`) is **O(V) per
-  entry → O(V²)**. State whether your code does this.
+    **Part 1 -- Account for the structures *you actually use*.**
+    - `visited` / marking: a separate set is **O(V)**; marking cells **in place** can be
+      **O(1)** extra.
+    - Frontier *(if any)*: an explicit BFS **queue** or DFS **stack** is **O(V)** worst case;
+      a **recursive** DFS instead costs call-stack depth, **O(longest branch)**; an algorithm
+      with **no frontier** has no such term at all.
+    - Stored paths: keeping a path *per frontier entry* (`path + [neighbour]`) is **O(V) per
+      entry → O(V²)**. State whether your code does this.
 
-**Part 2 -- Combine for *your* algorithm.**
-Give the overall space bound. It may be **O(V)**, **O(V²)** if you copy paths, or as low
-as **O(1) auxiliary** if you mark in place and hold no frontier -- whichever matches *your*
-implementation.
+    **Part 2 -- Combine for *your* algorithm.**
+    Give the overall space bound. It may be **O(V)**, **O(V²)** if you copy paths, or as low
+    as **O(1) auxiliary** if you mark in place and hold no frontier -- whichever matches *your*
+    implementation.
 
-**Part 3 -- Use the demo as a worked example.**
-The demo plots frontier size over time for **BFS and DFS** as illustrations. Quote the
-peak for each and explain them by *shape*: the BFS queue holds the current **ring** (peak
-≈ maximum width), while the DFS stack holds the **unexplored branches along the current
-deep path** (peak grows with depth). Then state **which model matches your algorithm** --
-explicit queue, explicit stack, recursion depth, or none -- and what *its* peak memory
-would be. On a sparse maze either BFS or DFS can win, so read the numbers, don't assume.
+    **Part 3 -- Use the demo as a worked example.**
+    The demo plots frontier size over time for **BFS and DFS** as illustrations. Quote the
+    peak for each and explain them by *shape*: the BFS queue holds the current **ring** (peak
+    ≈ maximum width), while the DFS stack holds the **unexplored branches along the current
+    deep path** (peak grows with depth). Then state **which model matches your algorithm** --
+    explicit queue, explicit stack, recursion depth, or none -- and what *its* peak memory
+    would be. On a sparse maze either BFS or DFS can win, so read the numbers, don't assume.
 
-**Part 4 -- Real-world consequence.**
-Use the memory estimator to state how much RAM *your* design needs at a city-scale site,
-and whether that fits a small drone. This is a **Criterion 6** consequence in the space
-dimension, not time.
+    **Part 4 -- Real-world consequence.**
+    Use the memory estimator to state how much RAM *your* design needs at a city-scale site,
+    and whether that fits a small drone. This is a **Criterion 6** consequence in the space
+    dimension, not time.
 
----
+    ---
     """)
     return
 
@@ -865,12 +866,20 @@ def s2c_controls(mo):
                          show_value=True)
     mo.vstack([mo.md("#### 🎛️ Space explorer"),
                mo.hstack([bytes_per_node, big_V], justify="start")])
-    return (big_V, bytes_per_node)
+    return big_V, bytes_per_node
 
 
 @app.cell
-def s2c_demo(V, big_V, bytes_per_node, bfs_frontier, dfs_max_depth,
-             dfs_stack_sizes, mo, plt):
+def s2c_demo(
+    V,
+    bfs_frontier,
+    big_V,
+    bytes_per_node,
+    dfs_max_depth,
+    dfs_stack_sizes,
+    mo,
+    plt,
+):
     _bfs_peak = max(bfs_frontier)
     _dfs_peak = max(dfs_stack_sizes)
 
@@ -972,9 +981,6 @@ def s2c_display(mo, resp_s2c):
     return
 
 
-# ======================================================================
-# SAVE + FOOTER
-# ======================================================================
 @app.cell
 def save_controls(mo):
     save_btn = mo.ui.button(value=0, label="💾 Save All Supplementary Responses",
@@ -990,8 +996,17 @@ def save_controls(mo):
 
 
 @app.cell
-def save_responses(SAVE_FILE_SUPP, datetime, json, mo, os,
-                   resp_s2a, resp_s2b, resp_s2c, save_btn):
+def save_responses(
+    SAVE_FILE_SUPP,
+    datetime,
+    json,
+    mo,
+    os,
+    resp_s2a,
+    resp_s2b,
+    resp_s2c,
+    save_btn,
+):
     if save_btn.value > 0:
         if os.path.exists(SAVE_FILE_SUPP):
             try:
@@ -1021,23 +1036,23 @@ def save_responses(SAVE_FILE_SUPP, datetime, json, mo, os,
 @app.cell
 def footer(mo):
     mo.md("""
----
-*End of Memo 02 supplementary workbook -- submit alongside your Memo 02 notebook.*
+    ---
+    *End of Memo 02 supplementary workbook -- submit alongside your Memo 02 notebook.*
 
-**Before submitting, check:**
-- [ ] Same seed as your Memo 01 / 02 cover sheets.
-- [ ] **[S2-A]** states whether your algorithm can terminate early, gives the Ω best case,
-      and quotes the demo's best / Exit A / Exit B numbers.
-- [ ] **[S2-B]** states the input distribution, quotes the empirical mean vs (V+1)/2, and
-      notes that average and worst case share the same growth class.
-- [ ] **[S2-C]** accounts for the structures *your* algorithm uses (visited, any
-      frontier or recursion, path storage), states which model matches yours (explicit
-      queue/stack, recursion depth, or none), gives an overall space bound, uses the
-      BFS/DFS peaks as illustration, and gives a city-scale RAM consequence.
-- [ ] All three responses saved to `responses_M02_supp.json`.
+    **Before submitting, check:**
+    - [ ] Same seed as your Memo 01 / 02 cover sheets.
+    - [ ] **[S2-A]** states whether your algorithm can terminate early, gives the Ω best case,
+          and quotes the demo's best / Exit A / Exit B numbers.
+    - [ ] **[S2-B]** states the input distribution, quotes the empirical mean vs (V+1)/2, and
+          notes that average and worst case share the same growth class.
+    - [ ] **[S2-C]** accounts for the structures *your* algorithm uses (visited, any
+          frontier or recursion, path storage), states which model matches yours (explicit
+          queue/stack, recursion depth, or none), gives an overall space bound, uses the
+          BFS/DFS peaks as illustration, and gives a city-scale RAM consequence.
+    - [ ] All three responses saved to `responses_M02_supp.json`.
 
-*Together with Memo 02 (worst case + consequences) these complete the full
-best / average / worst / space complexity picture for your initial solution.*
+    *Together with Memo 02 (worst case + consequences) these complete the full
+    best / average / worst / space complexity picture for your initial solution.*
     """)
     return
 

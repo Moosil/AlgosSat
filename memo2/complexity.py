@@ -222,7 +222,7 @@ class Complexity:
 
 def main():
     n, m, w, j, p, q, s = sp.symbols("n,m,w,j,p,q,s", positive=True, integer=True)
-    print(sp.latex(Complexity.ember_rescue(n,m,w,j,p,q,s, exact=True).simplify()))
+    print(sp.latex(Complexity.ember_rescue(n,m,w,j,p,q,s, exact=False).simplify()))
     print()
     print(sp.latex(sp.O(Complexity.ember_rescue(n,m,w,j,p,q,s, exact=False).simplify(), *[(x, oo) for x in [n, m, w, j, p, q, s]])))
 

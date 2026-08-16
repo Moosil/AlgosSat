@@ -3,21 +3,14 @@ import csv
 import pstats
 import random
 import tracemalloc
-from math import ceil
+from itertools import chain
 from pstats import SortKey
 
-import numba
-
 import networkx as nx
-from itertools import chain
-
-import sympy as sym
-from tqdm import trange
 from tqdm.contrib.concurrent import thread_map
 
-from complexity import Complexity
-import memo2_algorithm
 import average_tc
+import memo2_algorithm
 
 
 class GraphDrawer:
@@ -55,11 +48,11 @@ class GraphDrawer:
         carve(0, 0)
         return g
 
-    def get_abstracted_graph(self, weighted=True) -> tuple[set[nx.Graph], set[tuple]]:
+    def get_abstracted_graph(self) -> tuple[set[nx.Graph], set[tuple]]:
         wings = set()
         AAAAAA_vertices = {*self.exits, self.entry, *list(chain(*self.junctions)), *self.supplies}
         for i in range(self.n_wings):
-            wing: nx.Graph = self.weighted_wings[i].copy() if weighted else self.wings[i].copy()
+            wing: nx.Graph = self.wings[i].copy()
             for u, d in self.wings[i].degree:
                 w_u = tuple([i] + list(u))
                 if d == 2 and w_u not in AAAAAA_vertices:
@@ -98,9 +91,7 @@ class GraphDrawer:
     def _setup_cost_models(self):
         int_seed = self.seed
 
-        self.weighted_wings = [g.copy() for g in self.wings]
-
-        for w, wg in enumerate(self.weighted_wings):
+        for w, wg in enumerate(self.wings):
             if w == 0:
                 pass
             elif w == 1:
@@ -258,7 +249,7 @@ def test_memo2():
 
 def get_facility_data():
     file_name = "data_facility_ordered.csv"
-    TRIALS = 1
+    TRIALS = 100
     WING_TRIALS = 10
 
     tasks = [(i, j, k, l) for i in range(1, WING_TRIALS) for j in range(1, 2 * WING_TRIALS + 1) for k in range(1, min(WING_TRIALS, 2)) for l in range(1, j)]
@@ -267,8 +258,8 @@ def get_facility_data():
         e_total = 0
         j_total = 0
         op_total = 0
-        for _ in range(TRIALS):
-            facility_drawer = GraphDrawer(task[0] + 10102000, task[0], task[1], task[2])
+        for i in range(TRIALS):
+            facility_drawer = GraphDrawer(i + 10102000, task[0], task[1], task[2])
             abs_graph = facility_drawer.get_abstracted_graph()
             v_total += sum(w_j.number_of_nodes() for w_j in abs_graph[0])
             e_total += sum(w_j.number_of_edges() for w_j in abs_graph[0])

@@ -178,18 +178,18 @@ PROCEDURE dp_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex],
             cost <- path_cost_matrix[source][exit]
             IF cost < min_cost THEN
                 min_cost <- cost
-                min_cost_path <- [sink]
+                min_cost_path <- [exit]
             END IF
         END FOR
     ELSE
-        FOR EACH sink IN sinks DO
-            recursive_res <- dp_recursive(sink, difference(sinks, {sink}), exits, path_cost_matrix, fuel - 1)
+        FOR EACH supply IN supplies DO
+            recursive_res <- dp_recursive(supply, difference(supplies, {supply}), exits, path_cost_matrix, fuel - 1)
             min_path_through <- recursive_res[0]
             cost <- recursive_res[1]
-            cost <- cost + path_cost_matrix[source][sink]
+            cost <- cost + path_cost_matrix[source][supply]
             IF cost < min_cost THEN
                 min_cost <- cost
-                min_cost_path <- [sink]
+                min_cost_path <- [supply]
                 FOR EACH vertex IN min_path_through DO
                     push(min_cost_path, vertex)
                 END FOR
@@ -205,7 +205,7 @@ PROCEDURE dp(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost
 
     res <- [entry]
     FOR EACH vertex IN path DO
-        push(res, path)
+        push(res, vertex)
     END FOR
     RETURN res
 END PROCEDURE
@@ -276,7 +276,7 @@ PROCEDURE get_F(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex,
         FOR i <- 1 TO length(salient_vertices) DO
             FOR j <- i + 1 TO length(salient_vertices) DO
                 u <- salient_vertices[i]
-                v <- salient_vertices[i + 1]
+                v <- salient_vertices[j]
 
                 path <- get_path_from_dfs(u, v, prevs[wing])
                 weight <- get_path_length(wing, path)
@@ -298,11 +298,12 @@ PROCEDURE get_new_supply_storage(supplies: Set[Vertex], supply_storage: Array[Su
 
     supply_storage_idx <- 1
     FOR i <- 1 TO num_of_supplies_to_collect DO
-        IF supply_storage_idx <= length(supply_storage) THEN
+        IF supply_storage_idx > length(supply_storage) THEN
             RETURN supply_storage
         END IF
         IF supply_storage[supply_storage_idx] = NULL THEN
             supply_storage[supply_storage_idx] <- vertex_to_supply_id[collected_supplies[i]]
+			supply_storage_idx <- supply_storage_idx + 1
         END IF
     END FOR
     RETURN supply_storage
@@ -338,6 +339,6 @@ FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: V
 
     G_path <- get_G_path_from_F_path(G, F_path, prevs)
 
-    new_supply_storage <- get_new_supply_storage(supply_storage, vertex_to_supply_id, num_of_supplies_to_collect, H_path)
+    new_supply_storage <- get_new_supply_storage(uncollected_supplies, supply_storage, vertex_to_supply_id, num_of_supplies_to_collect, H_path)
     RETURN G_path, new_supply_storage
 END FUNCTION

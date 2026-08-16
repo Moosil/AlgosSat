@@ -1,11 +1,5 @@
 __marimo__/
 
-/media/
+.venv/
 
-/slides/
-
-/.venv/
-
-/.idea/
-
-/example_memos/
+.idea/

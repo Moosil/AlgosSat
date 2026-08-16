@@ -6,11 +6,16 @@ requires-python = ">=3.14"
 dependencies = [
     "catppuccin>=2.5.0",
     "colour>=0.1.5",
+    "jax>=0.11.0",
     "manim>=0.20.1",
     "manim-slides>=5.6.0",
     "marimo>=0.23.4",
     "matplotlib>=3.10.9",
     "networkx>=3.6.1",
+    "numba>=0.67.0",
     "pandas>=3.0.3",
     "sympy>=1.14.0",
 ]
+
+[tool.marimo.runtime]
+watcher_on_save = "autorun"

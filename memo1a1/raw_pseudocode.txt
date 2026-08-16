@@ -88,6 +88,9 @@ PROCEDURE max(a: Real, b: Real) -> Real
 END PROCEDURE
 
 PROCEDURE get_path_length(g: Graph, path: List[Vertex]) -> Positive Integer or 0
+    IF length(path) <= 1 THEN
+	    RETURN 0
+    END IF
     res <- 0
     FOR i <- 1 TO length(path) - 1 DO
         res <- res + get_edge_weight(g, path[i], path[i + 1])
@@ -163,7 +166,7 @@ PROCEDURE get_path_cost_matrix(g: Graph, path_matrix: Map[Vertex, Map[Vertex, Li
     RETURN res
 END PROCEDURE
 
-PROCEDURE dynamic_programming_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0, memo: Map[Tuple[Vertex, Set[Vertex]], Tuple[List[Vertex], Positive Integer or 0]) -> Tuple[List[Vertex], Positive Integer or 0]
+PROCEDURE dp_recursive(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0, memo: Map[Tuple[Vertex, Set[Vertex]], Tuple[List[Vertex], Positive Integer or 0]) -> Tuple[List[Vertex], Positive Integer or 0]
     key <- (entry, supplies)
     IF has(memo, key) THEN
         RETURN memo[key]
@@ -183,7 +186,7 @@ PROCEDURE dynamic_programming_recursive(entry: Vertex, supplies: Set[Vertex], ex
     END IF
     IF fuel != 0 THEN
         FOR EACH sink IN sinks DO
-            recursive_res <- dynamic_programming_recursive(sink, difference(sinks, {sink}), exits, path_cost_matrix, fuel - 1)
+            recursive_res <- dp_recursive(sink, difference(sinks, {sink}), exits, path_cost_matrix, fuel - 1)
             min_path_through <- recursive_res[0]
             cost <- recursive_res[1]
             cost <- cost + path_cost_matrix[source][sink]
@@ -200,8 +203,8 @@ PROCEDURE dynamic_programming_recursive(entry: Vertex, supplies: Set[Vertex], ex
     RETURN (min_cost_walk, min_cost)
 END PROCEDURE
 
-PROCEDURE dynamic_programming(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0) -> List[Vertex]
-    path <- dynamic_programming_recursive(entry, supplies, exits, path_cost_matrix, fuel, empty Map)[0]
+PROCEDURE dp(entry: Vertex, supplies: Set[Vertex], exits: Set[Vertex], path_cost_matrix: Map[Vertex, Map[Vertex, Positive Integer or 0]], fuel: Positive Integer or 0) -> List[Vertex]
+    path <- dp_recursive(entry, supplies, exits, path_cost_matrix, fuel, empty Map)[0]
 
     res <- [entry]
     FOR EACH vertex IN path DO
@@ -333,7 +336,7 @@ FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: V
 
     path_cost_matrix <- get_path_cost_matrix(F, path_matrix)
 
-    H_path <- dynamic_programming(entry, uncollected_supplies, exits, path_cost_matrix, num_of_supplies_to_collect)
+    H_path <- dp(entry, uncollected_supplies, exits, path_cost_matrix, num_of_supplies_to_collect)
 
     F_path <- get_F_path_from_H_path(H_path, path_matrix)
 

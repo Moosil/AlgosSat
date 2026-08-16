@@ -727,7 +727,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(f"""
-    ## References\n{open("references.txt", "r", encoding="utf-8").read()}
+    ## References\n{open("memo1/references.txt", "r", encoding="utf-8").read()}
     """)
     return
 

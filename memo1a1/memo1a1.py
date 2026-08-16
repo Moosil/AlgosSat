@@ -1344,7 +1344,7 @@ def appendix(mo):
 @app.cell
 def references(mo):
     mo.md(f"""
-    ## 6.1 References\n{open("references.txt", "r", encoding="utf-8").read()}
+    ## 6.1 References\n{open("memo1/references.txt", "r", encoding="utf-8").read()}
     """)
     return
 

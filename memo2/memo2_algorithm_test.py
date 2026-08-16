@@ -1,15 +1,23 @@
+import cProfile
 import csv
+import pstats
 import random
-from pathlib import Path
+import tracemalloc
+from math import ceil
+from pstats import SortKey
+
+import numba
 
 import networkx as nx
 from itertools import chain
 
 import sympy as sym
-import tqdm
-from tqdm import tqdm
+from tqdm import trange
+from tqdm.contrib.concurrent import thread_map
 
 from complexity import Complexity
+import memo2_algorithm
+import average_tc
 
 
 class GraphDrawer:
@@ -49,7 +57,7 @@ class GraphDrawer:
 
     def get_abstracted_graph(self, weighted=True) -> tuple[set[nx.Graph], set[tuple]]:
         wings = set()
-        AAAAAA_vertices = {*self.exits, self.entry, chain(*self.junctions), *self.supplies}
+        AAAAAA_vertices = {*self.exits, self.entry, *list(chain(*self.junctions)), *self.supplies}
         for i in range(self.n_wings):
             wing: nx.Graph = self.weighted_wings[i].copy() if weighted else self.wings[i].copy()
             for u, d in self.wings[i].degree:
@@ -185,50 +193,115 @@ class GraphDrawer:
 
         self._setup_cost_models()
 
+def get_runtime(test_func):
+    pr = cProfile.Profile()
+    pr.enable()
+
+    res = test_func()
+
+    pr.disable()
+    sortby = SortKey.CUMULATIVE
+    ps = pstats.Stats(pr).sort_stats(sortby)
+    return ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3], res
+
+
+def get_mem(test_func):
+    tracemalloc.start()
+
+    res = test_func()
+
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('filename')
+    return sum(stat.size for stat in top_stats if "memo1a_algorithm.py" in stat.traceback._frames[0][0]), res
+
+def run_test(test_func, facility_drawer):
+    run_time, res = get_runtime(test_func)
+    print(f"Runtime: {run_time * 1000:.3f}ms")
+
+    print(f"Total allocated size: {get_mem(test_func)[0] / 1024:.3f} KiB")
+
+    path = facility_drawer.get_path_from_super_path(res)
+
+    print(f"super path: {res}")
+    print(f"len of super path: {len(res)}")
+    # print(f"path: {path}")
+    print(f"len of path: {len(path)}")
+
+    print(f"entry: {facility_drawer.entry}")
+    print(f"exits: {", ".join(str(x) for x in facility_drawer.exits)}")
+
+    def has_edge(u, v) -> bool:
+        if u[0] == v[0]:
+            u = u[1:]
+            v = v[1:]
+            return any(wing.has_edge(u, v) for wing in facility_drawer.wings)
+        else:
+            return (u, v) in facility_drawer.junctions or (v, u) in facility_drawer.junctions
+
+    is_correct = path[0] == facility_drawer.entry
+    is_correct &= path[-1] in facility_drawer.exits
+    is_correct &= all(has_edge(path[i], path[i + 1]) for i in range(len(path) - 1))
+    print(f"is correct: {"yes" if is_correct else "no"}")
+
+
+def test_memo2():
+    facility_drawer = GraphDrawer(28122007, 2 + (28122007 % 3), 5, 2)
+    abs_graph = facility_drawer.get_abstracted_graph()
+
+    exits = set(facility_drawer.exits)
+    supplies = set(facility_drawer.supplies)
+    storage = tuple([None] * 5)
+    supply_map = {i: hash(i) for i in facility_drawer.supplies}
+
+    run_test(lambda: memo2_algorithm.ember_rescue(abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set())[0], facility_drawer)
+
 
 def get_facility_data():
-    res: list[dict] = []
+    file_name = "data_facility_ordered.csv"
+    TRIALS = 1
+    WING_TRIALS = 10
 
-    v, e, n, w, j, p, q = sym.symbols("V,E,n,W,J,P,Q", positive=True, integer=True)
-    formula = Complexity.ember_rescue(v, e, w, j, p, q, 5, True)
-    try:
-        with tqdm(desc="Collecting facility data") as pbar:
-            while True:
-                w_i = random.randrange(1, 100)
-                p_i = random.randrange(1, 20)
-                q_i = random.randrange(1, 4 * w_i)
+    tasks = [(i, j, k, l) for i in range(1, WING_TRIALS) for j in range(1, 2 * WING_TRIALS + 1) for k in range(1, min(WING_TRIALS, 2)) for l in range(1, j)]
+    def process_task(task: tuple[int, int, int, int]):
+        v_total = 0
+        e_total = 0
+        j_total = 0
+        op_total = 0
+        for _ in range(TRIALS):
+            facility_drawer = GraphDrawer(task[0] + 10102000, task[0], task[1], task[2])
+            abs_graph = facility_drawer.get_abstracted_graph()
+            v_total += sum(w_j.number_of_nodes() for w_j in abs_graph[0])
+            e_total += sum(w_j.number_of_edges() for w_j in abs_graph[0])
+            j_total += len(abs_graph[1])
+            exits = set(facility_drawer.exits)
+            supplies = set(facility_drawer.supplies)
+            storage = tuple([None] * task[3])
+            supply_map = {i: hash(i) for i in facility_drawer.supplies}
+            op_total += average_tc.ember_rescue(abs_graph, facility_drawer.entry, exits, supplies, storage, supply_map, set())[2]
+        return round(v_total / TRIALS), task[0], task[1], task[2], round(e_total / TRIALS), round(j_total / TRIALS), task[3], round(op_total / TRIALS)
 
-                facility_drawer = GraphDrawer(pbar.n + 10102000, w_i, p_i, q_i)
-                abs_graph = facility_drawer.get_abstracted_graph()
-                v_i = sum(w_j.number_of_nodes() for w_j in abs_graph[0])
-                e_i = sum(w_j.number_of_edges() for w_j in abs_graph[0])
-                j_i = len(abs_graph[1])
+    results = list(thread_map(process_task, tasks, desc="Analysing Facilities"))
 
-                op_count = formula.evalf(subs={v: v_i, e: e_i, j: j_i, w: w_i, p: p_i, q: q_i})
-
-                res.append(
-                    {
-                        "v": v_i,
-                        "w": w_i,
-                        "p": p_i,
-                        "q": q_i,
-                        "e": e_i,
-                        "j": j_i,
-                        "s": 5,
-                        "op_count": op_count
-                    }
-                )
-                pbar.update()
-    except:
-        if len(res) > 0:
-            if not Path("data_facility.csv").is_file():
-                with open("data_facility.csv", "w", encoding="utf-8", newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(res[0].keys())
-            with open("data_facility.csv", "a", encoding="utf-8", newline='') as f:
-                writer = csv.writer(f)
-                writer.writerows([d.values() for d in res])
+    with open(file_name, "w", encoding="utf-8", newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["v","w","p","q","e","j","s","op_count"])
+        writer.writerows(results)
 
 
 if __name__ == "__main__":
-    get_facility_data()
+    while True:
+        test_id = input(
+            """Enter a number from 1-2 for a particular test:
+            [1] test memo2's algorithm
+            [2] get_facility_data
+            """
+        )
+        match test_id:
+            case "1":
+                test_memo2()
+                break
+            case "2":
+                get_facility_data()
+                break
+            case _:
+                print(f"{test_id} is not a value between 1 and 2")

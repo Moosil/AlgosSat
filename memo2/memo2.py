@@ -435,13 +435,13 @@ def graph_drawer_impl(chain, mcolors, mpatches, nx, plt, random, seed_input):
 
 
 @app.cell(hide_code=True)
-def _(mo, re):
+def _(mo, np, re):
     class PseudocodeExplorer:
-        def __init__(self):
-            self.raw_pseudocode = open("memo1a1/raw_pseudocode.txt", encoding="utf-8").read()
+        def __init__(self, fp: str):
+            self.raw_pseudocode = open(fp, encoding="utf-8").read()
             self.full_pseudocode = self._parse_pseudocode(self.raw_pseudocode)
 
-        def get_fn_fancy(self, name: str, font_size: int = 12, numbered: bool = False):
+        def get_fn_fancy(self, name: str, font_size: int = 12, numbered: bool = False, *, start_offset: int = 0, start_offset_function_name_prefix: bool=True, end_offset: int = 0, start_elipsis=True, end_elipsis=True):
             start = self.raw_pseudocode.find(f"PROCEDURE {name}(")
             if start == -1:
                 start = self.raw_pseudocode.find(f"FUNCTION {name}(")
@@ -453,7 +453,23 @@ def _(mo, re):
                 return f"Oops, didn't find function or procedure called {name}."
             start_line = self.raw_pseudocode.count('\n', 0, start)
             end_line = self.raw_pseudocode.count('\n', start, end)
-            return self.get_lines_fancy(start_line, start_line + end_line + 1, font_size, numbered)
+            res = self.get_lines(start_line + start_offset, start_line + end_line + 1 - end_offset, numbered, start_number_offset=start_offset, first_not_numbered=start_offset == 0)
+            if start_offset != 0:
+                res = "<br>" + res
+                if start_elipsis:
+                    res = "..." + res
+                if start_offset_function_name_prefix:
+                    res = self.get_lines(start_line, start_line + 1, False) + "<br>" + res
+            if end_offset != 0:
+                res += "<br>"
+                if end_elipsis:
+                    res += "..."
+            return mo.md(
+                rf"""
+        <div style="font-family: monospace; font-size: {font_size}px; white-space: pre-wrap;">{res}</div>
+        """
+                )
+
 
         def get_lines_fancy(self, start: int, stop: int, font_size: int = 12, numbered: bool = False):
             return mo.md(
@@ -462,12 +478,14 @@ def _(mo, re):
         """
                 )
 
-        def get_lines(self, start: int, stop: int, numbered: bool):
+        def get_lines(self, start: int, stop: int, numbered: bool, *, start_number_offset: int=0, first_not_numbered: bool=True):
             if numbered:
                 splits = self.full_pseudocode.split('<br>')[start:stop]
-                res = splits[0]
+                pad = int(np.ceil(np.log10(len(splits))))
+                res = "" if first_not_numbered else f"<span class='pseudocode-bracket'>[{start_number_offset:0{pad}}]</span>"
+                res += splits[0]
                 for i in range(1, len(splits)):
-                    res += f"<br><span class='pseudocode-bracket'>[{i}]</span> {splits[i]}"
+                    res += f"<br><span class='pseudocode-bracket'>[{start_number_offset + i:0{pad}}]</span> {splits[i]}"
                 return res
             else:
                 return '<br>'.join(self.full_pseudocode.split('<br>')[start:stop])
@@ -485,6 +503,16 @@ def _(mo, re):
                 end = code.find('(', i)
                 procedures.append(code[i:end])
 
+            i = 0
+            while True:
+                i = code.find("FUNCTION ", i)
+                if i == -1:
+                    break
+
+                i += len("FUNCTION ")
+                end = code.find('(', i)
+                procedures.append(code[i:end])
+
             del i
 
             res = code.replace('\n', "<br>").replace("    ", "&#9;")
@@ -494,6 +522,7 @@ def _(mo, re):
             res = re.sub("FOR EACH(?= )", "<span class='pseudocode-command'>FOR EACH</span>", res)
             res = re.sub(r"FOR(?= [^ ]+ <-)", "<span class='pseudocode-command'>FOR</span>", res)
             res = re.sub("IF(?= )", "<span class='pseudocode-command'>IF</span>", res)
+            res = re.sub("ELSE", "<span class='pseudocode-command'>ELSE</span>", res)
             for command in ["PROCEDURE", "FUNCTION", "WHILE", "FOR", "IF"]:
                 res = re.sub(f"END {command}", f"<span class='pseudocode-command'>END {command}</span>", res)
 
@@ -553,8 +582,11 @@ def _(mo, re):
 
             return res
 
-    pseudocode_explorer = PseudocodeExplorer()
-    return (pseudocode_explorer,)
+    pseudocode_explorer = PseudocodeExplorer("memo2/raw_pseudocode.txt")
+
+
+    pseudocode_explorer_old = PseudocodeExplorer("memo1a1/raw_pseudocode.txt")
+    return pseudocode_explorer, pseudocode_explorer_old
 
 
 @app.cell(hide_code=True)
@@ -602,7 +634,7 @@ def introduction(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 2 Time complexity
+    # 2 Worst-case time complexity
     ## 2.1 Different problem approaches
     The design of the algorithm used to solve this problem is what determines its hard-ness, and to demonstrate that, I will juxtapose two algorithms that both solve the problem differently live in **P**, with my algorithm that is certainly **NP-Hard** and the single decision that makes this distinction.
     """)
@@ -1125,19 +1157,144 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def algorithm_explorer_header(mo):
+def _(mo):
     mo.md(r"""
-    # 3 Algorithm
+    # 3 Best-case time complexity
+    Best-case time complexity is the algorithm's running time on the best problem instance. This problem instant would have a facility which contains no supplies, with 1 exit adajcent to the entrance. There would be no other vertices, edges, inter-wing junctions, supplies or exits.
+
+    This best-case is so unlikely, and after searching a large sample of facilities, none were even close to this case. This make it not useful to analyse, as the vast majority of cases will not be close to this case.
+
+    If we assume there must be 3 wings, 5 supplies, 2 exits, 4 inter-wing junctions, each wing must be a tree structure, the best case becomes that all exits and supplies are in the same wing as the entrance. While this case is more likely, my algorithm isn't adaptive, and this will take roughly the same amount of time, despite the much simpler scenario.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo, pseudocode_explorer):
+def _():
+    return
+
+
+@app.cell(hide_code=True)
+def algorithm_explorer_header(mo):
+    mo.md(r"""
+    # 5 Algorithm
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, pseudocode_explorer, pseudocode_explorer_old):
     mo.md(rf"""
-    ## 3.1 Bug-fixes and updates
-    ### 3.1.1 `get_path_length` was updated to handle 0-length paths
-    {pseudocode_explorer.get_fn_fancy("get_path_length", numbered=True)}
+    ## 5.1 Bug-fixes and updates
+    ### 5.1.1 `get_path_length` was updated to handle 0-length paths
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("get_path_length", numbered=True, end_offset=4)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("get_path_length", numbered=True, end_offset=4)}
+
+    ### 5.1.2 `bfs` was replaced with `dfs`
+    The procedure also implemented Dijkstra's algorithm instead of Depth first search
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("bfs", numbered=True)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("dfs", numbered=True)}
+
+    ### 5.1.3 Incorrect variable name in `get_path_cost_matrix`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("get_path_cost_matrix", numbered=True, start_offset=6, end_offset=4)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("get_path_cost_matrix", numbered=True, start_offset=6, end_offset=4)}
+
+
+    ### 5.1.4 Renaming `get_path_from_bfs` to `get_path_from_dfs`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("get_path_from_bfs", numbered=True, end_offset=46)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("get_path_from_dfs", numbered=True, end_offset=46)}
+
+    ### 5.1.5 Renaming `dynamic_programming_recursive` to `dp_recursive` and `dynamic_programming` to `dp`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, end_offset=35)}
+    <br>
+    {pseudocode_explorer_old.get_fn_fancy("dynamic_programming", numbered=True, end_offset=8)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("dp_recursive", numbered=True, end_offset=34)}
+    <br>
+    {pseudocode_explorer.get_fn_fancy("dp", numbered=True, end_offset=8)}
+
+    ### 5.1.6 Bugs in `get_new_supply_storage`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("get_new_supply_storage", numbered=True)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("get_new_supply_storage", numbered=True)}
+
+
+    ### 5.1.7 Incorrect sub-procedure call in `dp_recursive`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, start_offset=20, end_offset=15)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("dp_recursive", numbered=True, start_offset=20, end_offset=14)}
+
+    ### 5.1.8 Replaced redundant `IF` in `dp_recursive` with `ELSE`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, start_offset=17, end_offset=17)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("dp_recursive", numbered=True, start_offset=17, end_offset=17)}
+
+    ### 5.1.9 Replaced redundant `IF` in `get_G_path_from_F_path` with `ELSE`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("get_G_path_from_F_path", numbered=True, start_offset=12, end_offset=6)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("get_G_path_from_F_path", numbered=True, start_offset=12, end_offset=6)}
+
+    ### 5.1.10 various syntax errors
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, start_offset=27, end_offset=6, end_elipsis=False)}
+    {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, start_offset=33, end_offset=2, start_offset_function_name_prefix=False)}
+    <br>
+    {pseudocode_explorer_old.get_fn_fancy("get_F_path_from_H_path", numbered=True, start_offset=8, end_offset=2)}
+    <br>
+    {pseudocode_explorer_old.get_fn_fancy("get_which_wing", numbered=True, start_offset=2, end_offset=4)}
+    <br>
+    {pseudocode_explorer_old.get_fn_fancy("get_G_path_from_F_path", numbered=True, start_offset=17, end_offset=2)}
+    <br>
+    {pseudocode_explorer_old.get_fn_fancy("get_F", numbered=True, start_offset=2, end_offset=33, end_elipsis=False)}
+    {pseudocode_explorer_old.get_fn_fancy("get_F", numbered=True, start_offset=12, end_offset=22, start_offset_function_name_prefix=False, end_elipsis=False)}
+    {pseudocode_explorer_old.get_fn_fancy("get_F", numbered=True, start_offset=18, end_offset=17, start_offset_function_name_prefix=False)}
+    <br>
+    {pseudocode_explorer_old.get_fn_fancy("ember_rescue", numbered=True, start_offset=9, end_offset=23, end_elipsis=False)}
+    {pseudocode_explorer_old.get_fn_fancy("ember_rescue", numbered=True, start_offset=13, end_offset=17, start_offset_function_name_prefix=False, end_elipsis=False)}
+    {pseudocode_explorer_old.get_fn_fancy("ember_rescue", numbered=True, start_offset=18, end_offset=14, start_offset_function_name_prefix=False, end_elipsis=False)}
+    {pseudocode_explorer_old.get_fn_fancy("ember_rescue", numbered=True, start_offset=24, end_offset=8, start_offset_function_name_prefix=False)}
+
+    #### New
+
+    {pseudocode_explorer.get_fn_fancy("dp_recursive", numbered=True, start_offset=26, end_offset=6, end_elipsis=False)}
+    {pseudocode_explorer.get_fn_fancy("dp_recursive", numbered=True, start_offset=32, end_offset=2, start_offset_function_name_prefix=False)}
+    <br>
+    {pseudocode_explorer.get_fn_fancy("get_F_path_from_H_path", numbered=True, start_offset=8, end_offset=2)}
+    <br>
+    {pseudocode_explorer.get_fn_fancy("get_which_wing", numbered=True, start_offset=2, end_offset=4)}
+    <br>
+    {pseudocode_explorer.get_fn_fancy("get_G_path_from_F_path", numbered=True, start_offset=16, end_offset=2)}
+    <br>
+    {pseudocode_explorer.get_fn_fancy("get_F", numbered=True, start_offset=2, end_offset=33, end_elipsis=False)}
+    {pseudocode_explorer.get_fn_fancy("get_F", numbered=True, start_offset=12, end_offset=22, start_offset_function_name_prefix=False, end_elipsis=False)}
+    {pseudocode_explorer.get_fn_fancy("get_F", numbered=True, start_offset=18, end_offset=17, start_offset_function_name_prefix=False)}
+    <br>
+    {pseudocode_explorer.get_fn_fancy("ember_rescue", numbered=True, start_offset=9, end_offset=23, end_elipsis=False)}
+    {pseudocode_explorer.get_fn_fancy("ember_rescue", numbered=True, start_offset=13, end_offset=17, start_offset_function_name_prefix=False, end_elipsis=False)}
+    {pseudocode_explorer.get_fn_fancy("ember_rescue", numbered=True, start_offset=18, end_offset=14, start_offset_function_name_prefix=False, end_elipsis=False)}
+    {pseudocode_explorer.get_fn_fancy("ember_rescue", numbered=True, start_offset=24, end_offset=8, start_offset_function_name_prefix=False)}
     """)
     return
 
@@ -1320,7 +1477,7 @@ def appendix(mo):
 @app.cell
 def references(mo):
     mo.md(f"""
-    ## 6.1 References\n{open("references.txt", "r", encoding="utf-8").read()}
+    ## 6.1 References\n{open("memo2/references.txt", "r", encoding="utf-8").read()}
     """)
     return
 

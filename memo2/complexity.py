@@ -35,11 +35,10 @@ class Complexity:
     @classmethod
     def dfs(cls, v, e):
         return (
-                cls._for(v) + v + 2
                 + 3 + cls.braced_init()
                 + cls._while(lambda i: 1, v)
                 + v * (2 + cls._for(0) + cls.get_neighbours(v))
-                + 2 * e * (2 + cls._if() + cls.braced_init() + 2 + 1 + 1)
+                + 2 * e * (3 + cls._if() + cls.braced_init() + 2 + 1 + 1)
                 + cls._return()
         )
 
@@ -50,7 +49,7 @@ class Complexity:
                 + cls._while(lambda i: 3, n)
                 + n * 2 * 4 * cls._if()
                 + 2 * sp.Sum(cls._for(k) + (2 + cls._if()) * k, (k, 1, n)).doit()
-                + 4 + 6 * n + cls._return()
+                + 3 + cls.braced_init() + 6 * n + cls._return()
         )
 
     @classmethod
@@ -100,6 +99,7 @@ class Complexity:
         return (
                 4 + v + 1
                 + cls._for(v) + 1 + v * 2
+                + cls._for(v) + 1 + v * 2 + 1
                 + cls._while(lambda i: 1, v)
                 + v * (3 + cls._if() + 2 + cls._if() + cls._for(0) + cls.get_neighbours(v))
                 + p * (1 + cls.reconstruct_path(v) + 3 + cls._if()) + cls._return()

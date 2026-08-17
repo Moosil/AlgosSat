@@ -3,3 +3,9 @@ __marimo__/
 .venv/
 
 .idea/
+
+third_party/
+
+cmake-build-debug/
+
+cmake-build-release/

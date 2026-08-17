@@ -1,0 +1,3 @@
+[submodule "memo2/average_case/third_party/barkeep"]
+	path = memo2/average_case/third_party/barkeep
+	url = https://github.com/oir/barkeep.git

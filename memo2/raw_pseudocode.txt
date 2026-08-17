@@ -340,5 +340,5 @@ FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: V
     G_path <- get_G_path_from_F_path(G, F_path, prevs)
 
     new_supply_storage <- get_new_supply_storage(uncollected_supplies, supply_storage, vertex_to_supply_id, num_of_supplies_to_collect, H_path)
-    RETURN G_path, new_supply_storage
+    RETURN (G_path, new_supply_storage)
 END FUNCTION

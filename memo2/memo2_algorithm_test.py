@@ -248,7 +248,7 @@ def test_memo2():
 
 
 def get_facility_data():
-    file_name = "data_facility_ordered.csv"
+    file_name = "data_facility.csv"
     TRIALS = 100
     WING_TRIALS = 10
 

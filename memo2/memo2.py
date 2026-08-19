@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.16"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium", app_title="Memo2", css_file="../custom.css")
 
 
@@ -28,6 +28,7 @@ def imports():
         mpatches,
         np,
         nx,
+        pd,
         plt,
         random,
         re,
@@ -948,47 +949,52 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    _pretty_name = {
-        "v": "Vertex count",
-        "w": "Wing count",
-        "p": "Supply count",
-        "q": "Exit count",
-        "e": "Edge count",
-        "j": "Inter-wing junction count",
-        "s": "CRUDY-1 supply storage size",
-        "op_count": "Operation count"
-    }
+    class VariableSetter(mo.ui.dictionary):
+        _pretty_name = {
+            "v": "Vertex count",
+            "w": "Wing count",
+            "p": "Supply count",
+            "q": "Exit count",
+            "e": "Edge count",
+            "j": "Inter-wing junction count",
+            "s": "CRUDY-1 supply storage size",
+            "op_count": "Operation count"
+        }
 
-    _range_max = {
-        "v": 150,
-        "w": 150,
-        "p": 50,
-        "q": 50,
-        "e": 150,
-        "j": 150,
-        "s": 50,
-    }
+        def __init__(self, label, range_max: dict[str, int]=None, initial_values=None, range_min: dict[str, int]=None, *, df=None, variables: list[str]=None):
+            if variables is None:
+                variables = ["v", "e", "w", "j", "q", "p", "s"]
 
-    _initial_value = {
-        "v": 70,
-        "w": 150,
-        "p": 11,
-        "q": 4,
-        "e": 150,
-        "j": 150,
-        "s": 50,
-    }
+            self.variables = list(variables)
 
-    op_cost_dict = mo.ui.dictionary(
-        {_pretty_name[name]: mo.ui.slider(1, _range_max[name], 1, label=_pretty_name[name], show_value=True, value=_initial_value[name]) for name in _pretty_name if name != "op_count"},    label="Variables"
+            for v in self.variables:
+                if v not in initial_values:
+                    initial_values[v] = None
+        
+            if df is None:
+                if range_max is None:
+                    range_max = "oops. range_max or df must be filled"
+                super().__init__({self._pretty_name[name]: mo.ui.slider(1 if range_min is None else range_min[name], range_max[name], 1, label=self._pretty_name[name], show_value=True, value=None if initial_values is None else initial_values[name]) for name in variables}, label=label)
+            else:
+                super().__init__({self._pretty_name[name]: mo.ui.slider(steps=[int (n) for n in sorted(df[name].unique())], label=self._pretty_name[name], show_value=True, value=None if initial_values is None else initial_values[name]) for name in variables}, label=label)
+
+        def __getitem__(self, name):
+            if name in self._pretty_name:
+                name = self._pretty_name[name]
+            return super().__getitem__(name)
+
+    operation_cost_explorer = VariableSetter(
+        "Variables",
+        {"v": 150, "w": 150, "p": 50, "q": 50, "e": 150, "j": 150, "s": 50},
+        {"v": 70,  "w": 150, "p": 11, "q": 4,  "e": 150, "j": 150, "s": 50},
+        None
     )
-
-    op_cost_dict
-    return (op_cost_dict,)
+    operation_cost_explorer
+    return VariableSetter, operation_cost_explorer
 
 
 @app.cell(hide_code=True)
-def _(Complexity, mo, np, op_cost_dict, sym):
+def _(Complexity, mo, np, operation_cost_explorer, sym):
     _v, _e, _w, _j, _p, _q, _s = sym.symbols("V,E,W,J,P,Q,S", positive=True, integer=True)
 
     @mo.cache
@@ -1007,7 +1013,7 @@ def _(Complexity, mo, np, op_cost_dict, sym):
     }
 
     mo.md(rf"""
-    $$T({op_cost_dict[_pretty_name["v"]].value}, {op_cost_dict[_pretty_name["e"]].value}, {op_cost_dict[_pretty_name["w"]].value}, {op_cost_dict[_pretty_name["j"]].value}, {op_cost_dict[_pretty_name["p"]].value}, {op_cost_dict[_pretty_name["q"]].value}, {op_cost_dict[_pretty_name["s"]].value}) = {np.format_float_scientific(np.ceil(_get_formula()(op_cost_dict[_pretty_name["v"]].value, op_cost_dict[_pretty_name["e"]].value, op_cost_dict[_pretty_name["w"]].value, op_cost_dict[_pretty_name["j"]].value, op_cost_dict[_pretty_name["p"]].value, op_cost_dict[_pretty_name["q"]].value, op_cost_dict[_pretty_name["s"]].value)), precision=3)}$$
+    $$T({operation_cost_explorer["v"].value}, {operation_cost_explorer["e"].value}, {operation_cost_explorer["w"].value}, {operation_cost_explorer["j"].value}, {operation_cost_explorer["p"].value}, {operation_cost_explorer["q"].value}, {operation_cost_explorer["s"].value}) = {np.format_float_scientific(np.ceil(_get_formula()(operation_cost_explorer["v"].value, operation_cost_explorer["e"].value, operation_cost_explorer["w"].value, operation_cost_explorer["j"].value, operation_cost_explorer["p"].value, operation_cost_explorer["q"].value, operation_cost_explorer["s"].value)), precision=3)}$$
     """)
     return
 
@@ -1032,8 +1038,29 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(Complexity, mo, np, plt, sym):
+def _(mo):
+    mo.md(r"""
+    Fixed values:
+    """)
+    return
+
+
+@app.cell
+def _(VariableSetter):
+    worst_case_partial_growth_rate_explorer = VariableSetter("Fixed Variables",
+        {"v": 150, "w": 150, "p": 50, "q": 50, "e": 150, "j": 150, "s": 50},
+        {"v": 1,  "w": 1, "p": 1, "q": 1,  "e": 1, "j": 1, "s": 1},
+        None
+    )
+    worst_case_partial_growth_rate_explorer
+    return (worst_case_partial_growth_rate_explorer,)
+
+
+@app.cell(hide_code=True)
+def _(Complexity, mo, np, plt, sym, worst_case_partial_growth_rate_explorer):
     _MAX_VALUE = 150
+
+    _MAX_VALUE_SUPPLIES = 20
 
     _pretty_name = {
         "v": "Vertex count",
@@ -1046,26 +1073,17 @@ def _(Complexity, mo, np, plt, sym):
         "op_count": "Operation count"
     }
 
-    _fix_value = {
-        "v": 1,
-        "e": 1,
-        "w": 1,
-        "p": 1,
-        "q": 1,
-        "e": 1,
-        "j": 1,
-        "s": 1
-    }
+    _variables = ["v", "e", "w", "j", "q", "p", "s"]
 
     _n, _m = sym.symbols("n,m", positive=True, integer=True)
 
     def get_v(name, var_name):
         if name != var_name:
-            return _fix_value[name]
+            return worst_case_partial_growth_rate_explorer[name].value
         else:
             return _n
 
-    functions = {name: sym.lambdify((_n,), Complexity.ember_rescue(get_v("v", name), get_v("e", name), get_v("w", name), get_v("j", name), get_v("p", name), get_v("q", name), get_v("s", name), True), "numpy") for name in _pretty_name if name != "op_count"}
+    functions = {name: sym.lambdify((_n,), Complexity.ember_rescue(get_v("v", name), get_v("e", name), get_v("w", name), get_v("j", name), get_v("p", name), get_v("q", name), get_v("s", name), True), "numpy") for name in _variables}
 
     # add it as area as p and s are dependent (in terms of range)
     function_p_s = sym.lambdify((_n, _m), Complexity.ember_rescue(get_v("v", "p"), get_v("e", "p"), get_v("w", "p"), get_v("j", "p"), _n, get_v("q", "p"), _m, True), "numpy")
@@ -1074,54 +1092,56 @@ def _(Complexity, mo, np, plt, sym):
         _fig, _ax = plt.subplots(1, 1, figsize=(12, 6))
         if name == "s":
             max_value = 0
-            colors = plt.cm.viridis(np.linspace(0, 1, _MAX_VALUE))
-            for m in range(0, _MAX_VALUE, 5):
-                max_value = function_p_s(m, _MAX_VALUE)
-                _ax.plot(list(range(1, _MAX_VALUE)), [function_p_s(m, i) for i in range(1, _MAX_VALUE)], label=_pretty_name[name], color=colors[m])
+            colors = plt.cm.viridis(np.linspace(0, 1, _MAX_VALUE_SUPPLIES))
+            for m in range(0, _MAX_VALUE_SUPPLIES):
+                max_value = function_p_s(m, _MAX_VALUE_SUPPLIES)
+                _ax.plot(list(range(1, _MAX_VALUE_SUPPLIES)), [function_p_s(m, i) for i in range(1, _MAX_VALUE_SUPPLIES)], label=_pretty_name[name], color=colors[m])
 
-            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=_MAX_VALUE))
-            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, _MAX_VALUE + 1, 25)))
-            axcb.set_label(f"Fixed {_pretty_name["p"]}", fontsize=14)
+            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=_MAX_VALUE_SUPPLIES))
+            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, _MAX_VALUE_SUPPLIES + 1, 5)))
+            axcb.set_label(f"{_pretty_name["p"]}", fontsize=14)
             _ax.set_yscale("log", base=10)
+            _ax.set_xlim(0, _MAX_VALUE_SUPPLIES)
             _ax.set_ylim(0, 10 ** (np.log10(max_value) * 1.1))
         elif name == "p":
             max_value = 0
-            colors = plt.cm.viridis(np.linspace(0, 1, _MAX_VALUE))
-            for m in range(0, _MAX_VALUE, 5):
-                max_value = function_p_s(_MAX_VALUE - 1, m)
-                _ax.plot(list(range(m + 1, _MAX_VALUE)), [function_p_s(i, m) for i in range(m + 1, _MAX_VALUE)], label=_pretty_name[name], color=colors[m])
+            colors = plt.cm.viridis(np.linspace(0, 1, _MAX_VALUE_SUPPLIES))
+            for m in range(0, _MAX_VALUE_SUPPLIES):
+                max_value = function_p_s(_MAX_VALUE_SUPPLIES - 1, m)
+                _ax.plot(list(range(m + 1, _MAX_VALUE_SUPPLIES)), [function_p_s(i, m) for i in range(m + 1, _MAX_VALUE_SUPPLIES)], label=_pretty_name[name], color=colors[m])
 
-            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=_MAX_VALUE))
-            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, _MAX_VALUE + 1, 25)))
-            axcb.set_label(f"Fixed {_pretty_name["s"]}", fontsize=14)
+            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=_MAX_VALUE_SUPPLIES))
+            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, _MAX_VALUE_SUPPLIES + 1, 5)))
+            axcb.set_label(f"{_pretty_name["s"]}", fontsize=14)
             _ax.set_yscale("log", base=10)
+            _ax.set_xlim(0, _MAX_VALUE_SUPPLIES)
             _ax.set_ylim(0, 10 ** (np.log10(max_value) * 1.1))
         else:
             _ax.plot(list(range(1, _MAX_VALUE)), [functions[name](i) for i in range(1, _MAX_VALUE)], label=_pretty_name[name], color="#74c7ec")
             max_value = functions[name](_MAX_VALUE)
             _ax.set_ylim(1, max_value * 1.1)
+            _ax.set_xlim(0, _MAX_VALUE)
+            plt.xticks(list(range(0, _MAX_VALUE + 1, 25)))
 
         _ax.set_xlabel(_pretty_name[name], fontsize=14)
         _ax.set_title(f"{_pretty_name[name]} vs Operation count", fontsize=16)
-        _ax.set_xlim(0, _MAX_VALUE)
         _ax.tick_params(axis='x', which='major', labelsize=14)
         _ax.set_ylabel("Operation count", fontsize=14)
-        plt.xticks(list(range(0, _MAX_VALUE + 1, 25)))
 
         _fig.tight_layout()
         return _fig
 
-    partial_growth_tabs = mo.ui.tabs({_pretty_name[name]: _plot(name) for name in _pretty_name if name != "op_count"})
-    partial_growth_tabs
+    worst_case_partial_growth_tabs = mo.ui.tabs({_pretty_name[name]: _plot(name) for name in _variables})
+    worst_case_partial_growth_tabs
     return
 
 
 @app.cell(hide_code=True)
 def _(get_fig, mo):
     mo.md(rf"""
-    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Partial Growth")}</span>
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Partial Growth Worst Case")}</span>
 
-    Figure {get_fig("Partial Growth")} shows the growth of the time complexity in relation to each variable in the problem. In each figure that is not normalised, every other variable is fixed to 1, as otherwise constant costs make the graphs useless. 
+    Figure {get_fig("Partial Growth Worst Case")} shows the growth of the time complexity in relation to each variable in the problem. In each figure, every other variable is fixed to 1, as otherwise lower-order costs make the graphs useless. 
 
     The number of wings, edges and interwing junctions have linear growth, while the number of vertices and exits display polynomial growth.
 
@@ -1164,20 +1184,276 @@ def _(mo):
 
     This best-case is so unlikely, and after searching a large sample of facilities, none were even close to this case. This make it not useful to analyse, as the vast majority of cases will not be close to this case.
 
-    If we assume there must be 3 wings, 5 supplies, 2 exits, 4 inter-wing junctions, each wing must be a tree structure, the best case becomes that all exits and supplies are in the same wing as the entrance. While this case is more likely, my algorithm isn't adaptive, and this will take roughly the same amount of time, despite the much simpler scenario.
+    If we assume there must be 3 wings, 5 supplies, 2 exits, 4 inter-wing junctions, each wing must be a tree structure, the best case becomes that all exits and supplies are in the same wing as the entrance. While this case is more likely, my algorithm isn't a hybrid algorithm, and this will take roughly the same amount of time, despite the much simpler scenario.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
+    mo.md(r"""
+    # 4 Average-case time complexity
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 4.1 Partial growth rates
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    To learn about average complexities, we can test empirically on many facilities. To reduce the complexity of collecting this data, I decided to have a fixed number of inter-wing junctions. I also implemented the algorithms in C++ to get a constant speedup over my previous Python implementations.
+    """)
+    return
+
+
+@app.cell
+def _(VariableSetter, mo, pd):
+    _df = pd.read_csv("memo2/data_facility_trials.csv")
+
+    _pretty_name = {
+        "v": "Vertex count",
+        "w": "Wing count",
+        "p": "Supply count",
+        "q": "Exit count",
+        "e": "Edge count",
+        "j": "Inter-wing junction count",
+        "s": "CRUDY-1 supply storage size"
+    }
+
+    _variables = ["v", "e", "w", "q", "p", "s"]
+
+    _all_vars = ["v", "e", "w", "j", "q", "p", "s"]
+
+    average_case_partial_growth_rate_explorer = VariableSetter("Fixed Variables",
+        df=_df, variables=_variables, initial_values={"v": 314}
+    )
+
+    _default_enabled = {
+        "v": False,
+        "w": False,
+        "p": True,
+        "q": False,
+        "e": False,
+        "j": False,
+        "s": True
+    }
+
+    average_case_partial_growth_rate_explorer_cbs = mo.ui.dictionary({_pretty_name[name]: mo.ui.checkbox(value=_default_enabled[name], on_change=lambda v: on_change_cb(name, v)) for name in _variables}, label="Enabled")
+
+    average_case_partial_growth_rate_colour_picker = mo.ui.dropdown([_pretty_name[n] for n in _all_vars], allow_select_none=True, value=_pretty_name["w"], searchable=False, label="Coloured variable (except in supply/supply storage figures)")
+
+    def on_change_cb(name: str, value: bool):
+        average_case_partial_growth_rate_explorer[name].disabled = value
+
+    mo.vstack([
+        mo.hstack([
+            average_case_partial_growth_rate_explorer,
+            average_case_partial_growth_rate_explorer_cbs
+        ], widths=[1.5, 1]),
+        average_case_partial_growth_rate_colour_picker
+    ])
+    return (
+        average_case_partial_growth_rate_colour_picker,
+        average_case_partial_growth_rate_explorer,
+        average_case_partial_growth_rate_explorer_cbs,
+    )
+
+
+@app.cell(hide_code=True)
+def _(
+    average_case_partial_growth_rate_colour_picker,
+    average_case_partial_growth_rate_explorer,
+    average_case_partial_growth_rate_explorer_cbs,
+    mo,
+    np,
+    pd,
+    plt,
+):
+    _pretty_name = {
+        "v": "Vertex count",
+        "w": "Wing count",
+        "p": "Supply count",
+        "q": "Exit count",
+        "e": "Edge count",
+        "j": "Inter-wing junction count",
+        "s": "CRUDY-1 supply storage size",
+        "op_count": "Operation count"
+    }
+
+    _variables = ["v", "e", "w", "j", "q", "p", "s"]
+
+    @mo.cache
+    def _get_df(names=[]):
+        df = pd.read_csv("memo2/data_facility_trials.csv")
+
+        for n in _variables:
+            if n in ["j"]:
+                continue
+
+            if not average_case_partial_growth_rate_explorer_cbs[_pretty_name[n]].value:
+                continue
+
+            if n in names:
+                continue
+    
+            mask = df[n].values == average_case_partial_growth_rate_explorer[n].value
+            df = df[mask]
+            if len(df) == 0:
+                print("Empty df")
+                break
+
+        if len(df) > 1000:
+            df = df.sample(n=1000)
+        return df
+
+    def _plot(name):
+        _fig, _ax = plt.subplots(1, 1, figsize=(12, 6))
+        if name == "s":
+            df = _get_df(["s", "p"])
+            colors = plt.cm.viridis(np.linspace(0, 1, max(df["p"])))
+            for m in sorted(df["p"].unique()):
+                c_df = df[df["p"] == m]
+                if len(c_df) > 0:
+                    _ax.scatter(c_df["s"], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
+
+            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df["p"])))
+            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, max(df["p"]) + 1, 5)))
+            axcb.set_label(f"{_pretty_name["p"]}", fontsize=14)
+            _ax.set_yscale("log", base=10)
+            _ax.set_ylim(0, 10 ** (np.log10(max(df["op_count"])) * 1.1))
+        elif name == "p":
+            df = _get_df(["s", "p"])
+            colors = plt.cm.viridis(np.linspace(0, 1, max(df["s"])))
+            for m in sorted(df["s"].unique()):
+                c_df = df[df["s"] == m]
+                if len(c_df) > 0:
+                    _ax.scatter(c_df["p"], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
+
+            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df["s"])))
+            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, max(df["s"]) + 1, 5)))
+            axcb.set_label(f"{_pretty_name["s"]}", fontsize=14)
+            _ax.set_yscale("log", base=10)
+            _ax.set_ylim(0, 10 ** (np.log10(max(df["op_count"])) * 1.1))
+        else:
+            df = _get_df([name])
+            if len(df) == 0:
+                return _fig
+        
+            _ax.set_ylim(1, max(df["op_count"]) * 1.1)
+
+            if average_case_partial_growth_rate_colour_picker.value is None:
+                    _ax.scatter(df[name], df["op_count"], color="#74c7ec", label=_pretty_name[name])
+                
+            else:
+                colour_name = [k for k, v in _pretty_name.items() if v == average_case_partial_growth_rate_colour_picker.value][0]
+            
+                colors = plt.cm.viridis(np.linspace(0, 1, max(df[colour_name])))
+                for m in sorted(df[colour_name].unique()):
+                    c_df = df[df[colour_name] == m]
+                    if len(c_df) > 0:
+                        _ax.scatter(c_df[name], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
+    
+                sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df[colour_name])))
+                axcb = _fig.colorbar(sm, ax=_ax)
+                axcb.set_label(f"{_pretty_name[colour_name]}", fontsize=14)
+
+        if len(df) == 0:
+            return _fig
+        _ax.set_xlabel(_pretty_name[name], fontsize=14)
+        _ax.set_title(f"{_pretty_name[name]} vs Operation count", fontsize=16)
+        _ax.set_xlim(0, max(df[name]) * 1.1)
+        _ax.tick_params(axis='x', which='major', labelsize=14)
+        _ax.set_ylabel("Operation count", fontsize=14)
+
+        _fig.tight_layout()
+        return _fig
+
+    average_case_partial_growth_tabs = mo.ui.tabs({_pretty_name[name]: _plot(name) for name in _variables})
+    average_case_partial_growth_tabs
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo):
+    _pretty_name = {
+        "v": "Vertex count",
+        "w": "Wing count",
+        "p": "Supply count",
+        "q": "Exit count",
+        "e": "Edge count",
+        "j": "Inter-wing junction count",
+        "s": "CRUDY-1 supply storage size"
+    }
+
+    mo.md(rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Partial Growth Average Case")}</span>
+
+    Figure {get_fig("Partial Growth Average Case")} shows the growth of the time complexity in relation to each variable in the problem. In each figure that is not normalised, every other variable is fixed to 1, as otherwise constant costs make the graphs useless. 
+
+    Vertex count shows linear growth with number of operations: Even though it looks as if they grow in range as there are more vertices, if you set 'colour' to 'Exit count', you will notice that the upper-right points on the plot are caused by greater number of exits. This suggests the worst case $O(|V|^2)$ may be an unlikely outlier case, and for most facilities, the algorithm can be considered to grow linearly with $|V|$.
+
+    Edge count has an almost identical graph to vertex count, which is likely due to the tree nature of each wing meaning that $|V| \approx |E|$. Since edge count also has the same worst case linear growth, these two graphs will look roughly the same.
+
+    Wing count also has this same trend, likely owing to the fact that greater wings may correlate to greater vertices. This can also be said about Inter-wing junction count, revealing these 4 variables may be dependent.
+
+    Exit count also displays linear growth, this time the larger envelope at lower exit counts due to the number of wings.
+
+    While supply count has a similar trend to the expected (worst-case), instead of expanding the range of operation-counts for high supplies based on the storage size of CRUDY-1, the opposite seems to happen, with large number of supplies tapering off the range of different operation counts.
+
+    Similarly, a strange flipping of the worst-case operation counts can be observed with CRUDY-1's supply storage size, with lower storage sizes showing greater operation-count ranges compared to greater storage sizes.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 4.2 Worst vs Average Case
+    Neither worst nor the average case mean more than the other. Worst case gives a guarantee of how the algorithm will grow with each variable, while average case gives an expected growth. When designing an algorithm, both are important to keep in mind.
+
+    When deciding if an algorithm is usable for a problem, it is important to consider the hard upper bound on the runtime, as this case _can_ happen, as well as how often this case happens. With this, you can determine if this changes the suitability of an algorithm for the problem, even if in the average case it will be suitable.
+
+    Additionally, if it is possible to find defining characteristics of these worst-case problem instances, and there exists an algorithm that can solve these instances in less time, that algorithm can be used for these instances, reducing the worst-case time complexity. This, of course, being the idea behind hybrid algorithms.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 5 Space complexity
+    This section will be less formal and complete than my time complexity analysis, as it is unlikely that the minimum ~274Kb RAM on drone MCUs will be used up by any problem instance that the runtime isn't sooner a problem.
+
+    The algorithm stores each wing's prev map, giving $O(|V|)$ amortised space complexity, as each vertex can only be reached from one other vertex.
+
+    It stores uncollected supplies: $O(|S|)$ space complexity.
+
+    It stores $F$, the intermediatry graph with $|S| + |X| + |E_W| + 1$ vertices and at most $(|S| + |X| + |E_W| + 1)^2$ edges, giving $O((|S| + |X| + |E_W|)^2)$ space complexity.
+
+    It stores $H$, a matrix of dimentions $|S| + 1$x$|S| + |X|$, giving $O(|S|(|S| + |X|))$ space complexity.
+
+    It stores a memoisation, which stores 1 entry of at most size $|S|$ for each call of the `dp_recursive` function, giving $O(|S|^3 2^{|S|})$ space complexity.
+
+    It stores the paths on $H$, $G$ and $F$, which are in $O(|S|)$, $O(|S| + |J|)$ and $O(|V|)$ space complexity respectively.
+
+    This totals to $O(|S|^3 2^{|S|} + |V| + (|S| + |X| + |E_W|)^2)$ space complexity.
+
+    While this total can be lowered by deleting variables when no longer needed, using more efficient data structures, particularily for memoisation, and avoiding storing intermediatry variables, space complexity was not the focus of creating this algorithm.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def algorithm_explorer_header(mo):
     mo.md(r"""
-    # 5 Algorithm
+    # 6 Algorithm
     """)
     return
 
@@ -1185,15 +1461,15 @@ def algorithm_explorer_header(mo):
 @app.cell(hide_code=True)
 def _(mo, pseudocode_explorer, pseudocode_explorer_old):
     mo.md(rf"""
-    ## 5.1 Bug-fixes and updates
-    ### 5.1.1 `get_path_length` was updated to handle 0-length paths
+    ## 6.1 Bug-fixes and updates
+    ### 6.1.1 `get_path_length` was updated to handle 0-length paths
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("get_path_length", numbered=True, end_offset=4)}
 
     #### New
     {pseudocode_explorer.get_fn_fancy("get_path_length", numbered=True, end_offset=4)}
 
-    ### 5.1.2 `bfs` was replaced with `dfs`
+    ### 6.1.2 `bfs` was replaced with `dfs`
     The procedure also implemented Dijkstra's algorithm instead of Depth first search
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("bfs", numbered=True)}
@@ -1201,7 +1477,7 @@ def _(mo, pseudocode_explorer, pseudocode_explorer_old):
     #### New
     {pseudocode_explorer.get_fn_fancy("dfs", numbered=True)}
 
-    ### 5.1.3 Incorrect variable name in `get_path_cost_matrix`
+    ### 6.1.3 Incorrect variable name in `get_path_cost_matrix`
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("get_path_cost_matrix", numbered=True, start_offset=6, end_offset=4)}
 
@@ -1209,14 +1485,14 @@ def _(mo, pseudocode_explorer, pseudocode_explorer_old):
     {pseudocode_explorer.get_fn_fancy("get_path_cost_matrix", numbered=True, start_offset=6, end_offset=4)}
 
 
-    ### 5.1.4 Renaming `get_path_from_bfs` to `get_path_from_dfs`
+    ### 6.1.4 Renaming `get_path_from_bfs` to `get_path_from_dfs`
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("get_path_from_bfs", numbered=True, end_offset=46)}
 
     #### New
     {pseudocode_explorer.get_fn_fancy("get_path_from_dfs", numbered=True, end_offset=46)}
 
-    ### 5.1.5 Renaming `dynamic_programming_recursive` to `dp_recursive` and `dynamic_programming` to `dp`
+    ### 6.1.5 Renaming `dynamic_programming_recursive` to `dp_recursive` and `dynamic_programming` to `dp`
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, end_offset=35)}
     <br>
@@ -1227,7 +1503,7 @@ def _(mo, pseudocode_explorer, pseudocode_explorer_old):
     <br>
     {pseudocode_explorer.get_fn_fancy("dp", numbered=True, end_offset=8)}
 
-    ### 5.1.6 Bugs in `get_new_supply_storage`
+    ### 6.1.6 Bugs in `get_new_supply_storage`
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("get_new_supply_storage", numbered=True)}
 
@@ -1235,28 +1511,56 @@ def _(mo, pseudocode_explorer, pseudocode_explorer_old):
     {pseudocode_explorer.get_fn_fancy("get_new_supply_storage", numbered=True)}
 
 
-    ### 5.1.7 Incorrect sub-procedure call in `dp_recursive`
+    ### 6.1.7 Incorrect sub-procedure call in `dp_recursive`
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, start_offset=20, end_offset=15)}
 
     #### New
-    {pseudocode_explorer.get_fn_fancy("dp_recursive", numbered=True, start_offset=20, end_offset=14)}
+    {pseudocode_explorer.get_fn_fancy("dp_recursive", numbered=True, start_offset=19, end_offset=15)}
 
-    ### 5.1.8 Replaced redundant `IF` in `dp_recursive` with `ELSE`
+    ### 6.1.8 Replaced redundant `IF` in `dp_recursive` with `ELSE`
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, start_offset=17, end_offset=17)}
 
     #### New
     {pseudocode_explorer.get_fn_fancy("dp_recursive", numbered=True, start_offset=17, end_offset=17)}
 
-    ### 5.1.9 Replaced redundant `IF` in `get_G_path_from_F_path` with `ELSE`
+    ### 6.1.9 Replaced redundant `IF` in `get_G_path_from_F_path` with `ELSE`
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("get_G_path_from_F_path", numbered=True, start_offset=12, end_offset=6)}
 
     #### New
     {pseudocode_explorer.get_fn_fancy("get_G_path_from_F_path", numbered=True, start_offset=12, end_offset=6)}
 
-    ### 5.1.10 various syntax errors
+    ### 6.1.10 Wrong variable in `get_F`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("get_F", numbered=True, start_offset=25, end_offset=10)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("get_F", numbered=True, start_offset=25, end_offset=10)}
+
+    ### 6.1.11 Wrong variable being pushed in `dp`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("dynamic_programming", numbered=True, start_offset=5, end_offset=3)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("dp", numbered=True, start_offset=5, end_offset=3)}
+
+    ### 6.1.12 `sinks` being referenced in `dp_recursive` when it should've been `supplies`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, start_offset=19, end_offset=4)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("dp_recursive", numbered=True, start_offset=18, end_offset=4)}
+
+    ### 6.1.13 Incorrect function name in `ember_rescue`
+    #### Old
+    {pseudocode_explorer_old.get_fn_fancy("ember_rescue", numbered=True, start_offset=24, end_offset=8)}
+
+    #### New
+    {pseudocode_explorer.get_fn_fancy("ember_rescue", numbered=True, start_offset=24, end_offset=8)}
+
+    ### 6.1.14 various syntax errors
     #### Old
     {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, start_offset=27, end_offset=6, end_elipsis=False)}
     {pseudocode_explorer_old.get_fn_fancy("dynamic_programming_recursive", numbered=True, start_offset=33, end_offset=2, start_offset_function_name_prefix=False)}
@@ -1302,7 +1606,7 @@ def _(mo, pseudocode_explorer, pseudocode_explorer_old):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 3.2 Algorithm explorer
+    ## 6.2 Algorithm explorer
     """)
     return
 
@@ -1469,7 +1773,7 @@ def algorithm_explorer(ember_rescue_cached, facility_drawer, mo, path_len):
 @app.cell(hide_code=True)
 def appendix(mo):
     mo.md(r"""
-    # 6 Appendix
+    # 7 Appendix
     """)
     return
 
@@ -1477,7 +1781,7 @@ def appendix(mo):
 @app.cell
 def references(mo):
     mo.md(f"""
-    ## 6.1 References\n{open("memo2/references.txt", "r", encoding="utf-8").read()}
+    ## 7.1 References\n{open("memo2/references.txt", "r", encoding="utf-8").read()}
     """)
     return
 

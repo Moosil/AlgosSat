@@ -13,6 +13,7 @@ dependencies = [
     "matplotlib>=3.10.9",
     "networkx>=3.6.1",
     "numba>=0.67.0",
+    "numpy>=2.5.2",
     "pandas>=3.0.3",
     "sympy>=1.14.0",
 ]

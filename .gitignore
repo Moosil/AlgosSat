@@ -4,8 +4,6 @@ __marimo__/
 
 .idea/
 
-third_party/
-
 cmake-build-debug/
 
 cmake-build-release/

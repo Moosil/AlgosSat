@@ -3,7 +3,7 @@
 @import url('https://cdn.jsdelivr.net/npm/@catppuccin/palette/css/catppuccin.css');
 
 :root {
-    --marimo-monospace-font: "JetBrains Mono";
+    --marimo-monospace-font: "JetBrains Mono", monospace;
 }
 
 .pseudocode-command {

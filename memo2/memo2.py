@@ -970,7 +970,7 @@ def _(mo):
             for v in self.variables:
                 if v not in initial_values:
                     initial_values[v] = None
-        
+    
             if df is None:
                 if range_max is None:
                     range_max = "oops. range_max or df must be filled"
@@ -1302,7 +1302,7 @@ def _(
 
             if n in names:
                 continue
-    
+
             mask = df[n].values == average_case_partial_growth_rate_explorer[n].value
             df = df[mask]
             if len(df) == 0:
@@ -1345,21 +1345,21 @@ def _(
             df = _get_df([name])
             if len(df) == 0:
                 return _fig
-        
+    
             _ax.set_ylim(1, max(df["op_count"]) * 1.1)
 
             if average_case_partial_growth_rate_colour_picker.value is None:
                     _ax.scatter(df[name], df["op_count"], color="#74c7ec", label=_pretty_name[name])
-                
+            
             else:
                 colour_name = [k for k, v in _pretty_name.items() if v == average_case_partial_growth_rate_colour_picker.value][0]
-            
+        
                 colors = plt.cm.viridis(np.linspace(0, 1, max(df[colour_name])))
                 for m in sorted(df[colour_name].unique()):
                     c_df = df[df[colour_name] == m]
                     if len(c_df) > 0:
                         _ax.scatter(c_df[name], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
-    
+
                 sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df[colour_name])))
                 axcb = _fig.colorbar(sm, ax=_ax)
                 axcb.set_label(f"{_pretty_name[colour_name]}", fontsize=14)
@@ -1408,6 +1408,8 @@ def _(get_fig, mo):
     While supply count has a similar trend to the expected (worst-case), instead of expanding the range of operation-counts for high supplies based on the storage size of CRUDY-1, the opposite seems to happen, with large number of supplies tapering off the range of different operation counts.
 
     Similarly, a strange flipping of the worst-case operation counts can be observed with CRUDY-1's supply storage size, with lower storage sizes showing greater operation-count ranges compared to greater storage sizes.
+
+    This data suggests the time complexity is in $O(|V| + |E| + |V_W| + |E_W| + |X| + |S|^3 2^{{|S|}}) = \Theta(|V| + |E| + |V_W| + |E_W| + |X| + 2^{{|S|}})$
     """)
     return
 

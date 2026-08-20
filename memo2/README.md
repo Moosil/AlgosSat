@@ -1,5 +1,3 @@
-#TODO add references for new libraries (sympy + c++ libs)
-
 This folder contains all the code for Memo1 Amendment 1
 
 average_case/ contains the empirical-data-generating algorithm, implemented in c++ (it has its own README file)

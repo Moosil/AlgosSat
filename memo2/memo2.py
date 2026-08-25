@@ -625,9 +625,9 @@ def introduction(mo):
     # 1 Introduction
     We have been tasked to design a **decision architecture** for a robot. To do this, we will create a abstraction for this problem, and subsequently an algorithm to solve it.
 
-    We will first abstract this problem, discuss and evaluate multiple approaches, before outlining the final chosen approach.
-
-    After which, the algorithm will be implemented in python and run on multiple facilities, we will rigorously prove its correctness and completeness and visualise the running of the algorithm on a representation of the facility.
+    After designing this algorithm, it is necessary if the algorithm runs in a tractable and useful amount of time, so a analysis of best, average, and worst-case time complexities will be done on the algorithm, as well as a real-world analysis of drone CPU architecture to determine if the algorithm is useful.
+    
+    Similarly, process memory usage must be assessed, to check whether it may be a bottle-neck to the performance of this algorithm, before the time becomes one.
     """)
     return
 

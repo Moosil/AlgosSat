@@ -626,7 +626,7 @@ def introduction(mo):
     We have been tasked to design a **decision architecture** for a robot. To do this, we will create a abstraction for this problem, and subsequently an algorithm to solve it.
 
     After designing this algorithm, it is necessary if the algorithm runs in a tractable and useful amount of time, so a analysis of best, average, and worst-case time complexities will be done on the algorithm, as well as a real-world analysis of drone CPU architecture to determine if the algorithm is useful.
-    
+
     Similarly, process memory usage must be assessed, to check whether it may be a bottle-neck to the performance of this algorithm, before the time becomes one.
     """)
     return
@@ -970,7 +970,7 @@ def _(mo):
             for v in self.variables:
                 if v not in initial_values:
                     initial_values[v] = None
-    
+
             if df is None:
                 if range_max is None:
                     range_max = "oops. range_max or df must be filled"
@@ -985,7 +985,7 @@ def _(mo):
 
     operation_cost_explorer = VariableSetter(
         "Variables",
-        {"v": 150, "w": 150, "p": 50, "q": 50, "e": 150, "j": 150, "s": 50},
+        {"v": 144*3, "w": 150, "p": 50, "q": 50, "e": 144*3-4, "j": 150, "s": 50},
         {"v": 70,  "w": 150, "p": 11, "q": 4,  "e": 150, "j": 150, "s": 50},
         None
     )
@@ -1345,15 +1345,15 @@ def _(
             df = _get_df([name])
             if len(df) == 0:
                 return _fig
-    
+
             _ax.set_ylim(1, max(df["op_count"]) * 1.1)
 
             if average_case_partial_growth_rate_colour_picker.value is None:
                     _ax.scatter(df[name], df["op_count"], color="#74c7ec", label=_pretty_name[name])
-            
+        
             else:
                 colour_name = [k for k, v in _pretty_name.items() if v == average_case_partial_growth_rate_colour_picker.value][0]
-        
+    
                 colors = plt.cm.viridis(np.linspace(0, 1, max(df[colour_name])))
                 for m in sorted(df[colour_name].unique()):
                     c_df = df[df[colour_name] == m]

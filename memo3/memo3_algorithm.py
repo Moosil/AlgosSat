@@ -45,18 +45,17 @@ def knapsack(cap: int, val: list[int], wt: list[int]) -> tuple[list[int], int]:
 
     return old_res[cap], dp[cap]
 
-def bin_pack(sizes: list[int], count: list[int], cap: int) -> list[list[int]]:
+def bin_pack(weights: list[int], cap: int) -> list[list[int]]:
     """FFD"""
     bins = [[]]
-    for i, s in enumerate(sizes):
-        count[i] -= 1
+    for w in weights:
         added = False
         for b in bins:
-            if sum(b) + s <= cap:
-                b.append(s)
+            if sum(b) + w <= cap:
+                b.append(w)
                 added = True
         if not added:
-            bins.append([s])
+            bins.append([w])
 
     return bins
 
@@ -176,75 +175,103 @@ def pack_supplies(to_pack: dict[int, list[VertexT]]) -> list[list[VertexT]]:
     return res
 
 
-def clear_branch(g: nx.Graph, entry: VertexT, supplies_to_collect: dict[VertexT, int]):
+def clear_branch(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], orig: VertexT, branch: VertexT, orig_wing: WingT, prevs: list[VertexT], supply_paths: dict[tuple[VertexT, ...], set[int]], supply_weights: dict[int, int], supplies: list[VertexT], inter_wing_path: list[VertexT]):
     res = []
 
-    prevs: dict[VertexT, tuple[VertexT, int]]
-
-    stack = [(list(g.neighbors(entry))[0], [entry])]
-
-    while len(stack) > 0:
-        curr, branch_prevs = stack.pop(0)
-        new_branch_prevs = branch_prevs.copy()
-
-        prev = branch_prevs[-1]
-        supplies_on_path = defaultdict(list[VertexT])
-        while g.degree[curr] == 2:
-            new_branch_prevs.append(curr)
-            n: list | VertexT = list(g.neighbors(curr))
-            if n[0] == prev:
-                n = n[1]
-            else:
-                n = n[0]
-
+    curr = branch
+    prev = orig
+    while orig_wing.degree[curr] == 2:
+        n = list(orig_wing.neighbors(curr))
+        prevs.append(curr)
+        if n[0] == prev:
             prev = curr
-            curr = n
-            if curr in supplies_to_collect:
-                supplies_on_path[supplies_to_collect[curr]].append(curr)
-
-        new_branch_prevs.append(curr)
-        if curr in supplies_to_collect:
-            supplies_on_path[supplies_to_collect[curr]].append(curr)
-        if g.degree[curr] == 1:
-            runs = pack_supplies(supplies_on_path)
-            filled_w_supplies = 1
-            for run in runs:
-                if sum(supplies_to_collect[s] for s in run) == 5:
-                    res.append((run, [branch_prevs[0]] * len(run)))
-                else:
-                    new_vertices = []
-                    for i in range(len(run)):
-                        new_vertex = branch_prevs[-filled_w_supplies - i]
-                        while new_vertex in supplies_to_collect:
-                            filled_w_supplies += 1
-                            new_vertex = branch_prevs[-filled_w_supplies - i]
-                        supplies_to_collect[new_vertex] = supplies_to_collect.pop(run[i])
-                        new_vertices.append(new_vertex)
-                    res.append(([r for r in run], new_vertices))
-                    filled_w_supplies += len(run)
-
-            ordered = list(set(new_branch_prevs).intersection(supplies_to_collect))
-            ks, tot = knapsack(5, [supplies_to_collect[s] for s in ordered], [supplies_to_collect[s] for s in ordered])
-            while tot == 5:
-                res.append(([ordered[k] for k in ks], [branch_prevs[0]] * len(ks)))
-                for k in ks:
-                    supplies_to_collect.pop(ordered[k])
-                ordered = list(set(new_branch_prevs).intersection(supplies_to_collect))
-                ks, tot = knapsack(5, [supplies_to_collect[s] for s in ordered], [supplies_to_collect[s] for s in ordered])
+            curr = n[1]
         else:
-            ordered = list(set(new_branch_prevs).intersection(supplies_to_collect))
-            ks, tot = knapsack(5, [supplies_to_collect[s] for s in ordered], [supplies_to_collect[s] for s in ordered])
-            while tot == 5:
-                res.append(([ordered[k] for k in ks], [branch_prevs[0]] * len(ks)))
-                for k in ks:
-                    supplies_to_collect.pop(ordered[k])
-                ordered = list(set(new_branch_prevs).intersection(supplies_to_collect))
-                ks, tot = knapsack(5, [supplies_to_collect[s] for s in ordered], [supplies_to_collect[s] for s in ordered])
+            prev = curr
+            curr = n[0]
 
-            for n in g.neighbors(curr):
-                if n in new_branch_prevs:
-                    continue
-                stack.append((n, new_branch_prevs))
+        # junction_other = None
+        # for j in G[1]:
+        #     if curr == j[0]:
+        #         junction_other = j[1]
+        #         break
+        #     elif curr == j[1]:
+        #         junction_other = j[0]
+        #         break
+        #
+        # if junction_other is not None:
+        #     if junction_other not in inter_wing_path:
+        #         n_wing = get_which_wing(G, junction_other)
+        #         for n in n_wing.neighbors(junction_other):
+        #             clear_branch(G, junction_other, n, n_wing, prevs + [junction_other], supply_paths, supply_weights, supplies, inter_wing_path + [curr, junction_other])
+
+    prevs.append(curr)
+    degree = orig_wing.degree[curr]
+    if degree == 3:
+        for n in orig_wing.neighbors(curr):
+            if n == prev:
+                continue
+
+            res += clear_branch(G, curr, n, orig_wing, prevs.copy(), supply_paths, supply_weights, supplies, inter_wing_path)
+
+    res = [f"goto {curr}"] + res
+    supplies_in_wing_to_collect = list(i for i in range(len(supplies)) if supplies[i] in prevs and i in supply_paths[tuple(inter_wing_path)])
+
+    total_weight = sum(supply_weights[s] for s in supplies_in_wing_to_collect)
+    while total_weight >= 5:
+        sack, sack_weight = knapsack(5, [supply_weights[i] for i in range(len(supplies)) if supplies[i] in prevs], [supply_weights[i] for i in range(len(supplies)) if supplies[i] in prevs])
+
+        """collect supplies in sack on the way back"""
+        res.append(f"sack: {', '.join([str(supplies[supplies_in_wing_to_collect[s]]) for s in sack])}, sack weight: {sack_weight}")
+        for s in sack:
+            # order matters
+            total_weight -= supply_weights[supplies_in_wing_to_collect[s]]
+            supplies[supplies_in_wing_to_collect[s]] = None
+
+    storage = []
+    i: int = len(prevs) - 1
+    while i >= 0:
+        if prevs[i] == orig:
+            break
+
+        if prevs[i] in supplies:
+            storage.append(prevs[i])
+            res.append(f"goto {prevs[i]}")
+            res.append("pickup")
+
+        i -= 1
+
+    while i >= 0 and len(storage) > 0:
+        if prevs[i] not in supplies:
+            supplies[supplies.index(storage.pop())] = prevs[i]
+            res.append(f"goto {prevs[i]}")
+            res.append("drop")
+            if len(storage) == 0:
+                break
+
+        i -= 1
+
+    res.append(f"goto {orig}")
+
+    return res
+
+
+def get_supply_wing_paths(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], supplies: list[VertexT], entry_to_supply: dict[VertexT, list[VertexT]]):
+    junctions = set()
+    for j in G[1]:
+        junctions.add(j[0])
+        junctions.add(j[1])
+
+    res = defaultdict(set)
+    for s in range(len(supplies)):
+        junction_path = []
+        curr_path = entry_to_supply[supplies[s]]
+        for i in range(len(curr_path)):
+            if curr_path[i] in junctions and curr_path[i + 1] in junctions:
+                junction_path.append(curr_path[i])
+                junction_path.append(curr_path[i + 1])
+
+        res[tuple(junction_path)].add(s)
 
     return res
 
@@ -281,16 +308,23 @@ def ember_rescue(
     """knapsack problem on the possible runs"""
     reduced_supplies = reduce_supplies(supplies, supply_weights, supply_priorities, pair_distances[entry], energy_amount - exit_run_cost)
 
+    supply_wing_paths = get_supply_wing_paths(G, reduced_supplies, pair_paths[entry])
+
     def pretty_string(run: tuple[list[VertexT], list[VertexT]]) -> str:
-        return f"{", ".join(str(i) for i in run[0])} -> {", ".join(str(i) for i in run[1])}"
+        return f"{", ".join(str(i) for i in run[0])} {run[1]}"
 
     def pretty_print(runs) -> None:
         for run in runs:
             if len(run[0]) == 0:
                 continue
 
-            print(pretty_string(run)) #  + f" weight total: {sum([supply_weights[s] for s in run[0]])}"
+            if isinstance(run, str):
+                print(run)
+            else:
+                print(pretty_string(run)) #  + f" weight total: {sum([supply_weights[s] for s in run[0]])}"
 
-    print(f"total supply candidates: {len(reduced_supplies)}")
+    print(f"supply candidates: {reduced_supplies}")
     print(f"number of weight 1 supplies: {len(list(filter(lambda x: supply_weights[x] == 1, reduced_supplies)))}")
-    pretty_print(clear_branch(flat_G, entry, {s: supply_weights[s] for s in reduced_supplies}))
+    next_v = list(flat_G.neighbors(entry))[0]
+    supply_weight_idx = {i: supply_weights[s] for i, s in enumerate(supplies)}
+    pretty_print(clear_branch(G, entry, next_v, get_which_wing(G, entry), [entry], supply_wing_paths, supply_weight_idx, reduced_supplies, []))

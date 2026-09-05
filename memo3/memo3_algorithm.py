@@ -388,3 +388,8 @@ def ember_rescue(
         i += 1
 
     print("\n".join(res))
+
+# Bug list
+# - ghost supply pickup
+# - can drop supplies on junction vertex
+# - wierd collect?

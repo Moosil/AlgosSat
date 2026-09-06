@@ -158,9 +158,9 @@ class GraphDrawer:
     def trip_cost(self, trip):
         """Energy for one shuttle: shaft -> units in the given order -> shaft.
 
-			Mass accumulates as units are picked up, so each leg is charged at the
-			mass carried *along that leg*.
-			"""
+            Mass accumulates as units are picked up, so each leg is charged at the
+            mass carried *along that leg*.
+            """
         here, total, load = self.entry, 0.0, 0
         for u in trip:
             total += (1 + load) * self.dist[here][u]

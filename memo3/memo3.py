@@ -41,7 +41,8 @@ def global_vars():
 def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
     class GraphDrawer:
         def __init__(self) -> None:
-            self.budget = float("inf")
+            self.budget_reserve = 0
+            self.budget = 0
             self.seed = seed_input.value
             self.WING_COLS, self.WING_ROWS = 10, 10
             self.N_SUPPLIES = 30

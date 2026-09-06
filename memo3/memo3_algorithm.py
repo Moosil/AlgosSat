@@ -191,7 +191,6 @@ def clear_branch(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: Vert
     curr = branch
     prev = orig
     prevs.append(curr)
-    curr_prevs = []
     while orig_wing.degree[curr] == 2:
         n = list(orig_wing.neighbors(curr))
         if n[0] == prev:
@@ -377,7 +376,6 @@ def ember_rescue(
     print("\n".join(res))
 
 # Improvements:
-# - add rolling curr_prevs so the goto string is complete with the entire walk
 # - better two+-supply management
-#   - better for post-process as it requires knowledge of entire walk, rather than segments
-#   - should do without rolling curr_prevs to make it easier to post-process?
+#   - should be done once res is appened to, if certain patterns are found, it can optimise them
+# - post process to fill in gaps between salient verticies using DFS

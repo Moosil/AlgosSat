@@ -191,6 +191,7 @@ def clear_branch(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: Vert
     curr = branch
     prev = orig
     prevs.append(curr)
+    curr_prevs = []
     while orig_wing.degree[curr] == 2:
         n = list(orig_wing.neighbors(curr))
         if n[0] == prev:
@@ -234,7 +235,8 @@ def clear_branch(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: Vert
                         storage = []
                         for s in supplies_in_junction:
                             storage.append(s)
-                            res.append("pkup")
+                            if supplies[s] != junction_other:
+                                res.append("pkup")
 
                         i = len(prevs) - 1
                         while i >= 0 and len(storage) > 0:
@@ -285,7 +287,12 @@ def clear_branch(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: Vert
             storage.append(supply_vertex_in_wing_to_collect[prevs[i]])
             if len(branch_res) == 0 or i != len(prevs) - 1:
                 res.append(f"goto {prevs[i]}")
-            res.append("pkup")
+                res.append("pkup")
+            else:
+                if len(res) > 0 and res[-1] == "drop":
+                    res.pop()
+                else:
+                    res.append("pkup")
 
         i -= 1
 
@@ -365,20 +372,12 @@ def ember_rescue(
     supply_weight_idx = {i: supply_weights[s] for i, s in enumerate(supplies)}
     res = clear_branch(G, entry, entry, next_v, get_which_wing(G, entry), [entry], supply_wing_paths, supply_weight_idx, reduced_supplies, tuple())
 
-    print(f"init length: {len(res)}")
+    res += [f"goto {c}" for c in exit_run]
 
-    i = 0
-    while i < len(res):
-        curr_inst = res[i]
-        match curr_inst[0:4]:
-            case "drop":
-                if i + 1 < len(res) and res[i + 1] == "pkup":
-                    res.pop(i)
-                    res.pop(i)
-                else:
-                    i += 1
-            case _:
-                i += 1
-
-    print(f"strip length: {len(res)}")
     print("\n".join(res))
+
+# Improvements:
+# - add rolling curr_prevs so the goto string is complete with the entire walk
+# - better two+-supply management
+#   - better for post-process as it requires knowledge of entire walk, rather than segments
+#   - should do without rolling curr_prevs to make it easier to post-process?

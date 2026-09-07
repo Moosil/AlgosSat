@@ -1,3 +1,4 @@
+import ast
 import heapq
 import itertools
 from collections import defaultdict
@@ -273,37 +274,125 @@ def clear_branch(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: Vert
 
     supplies_in_wing_to_collect = list(i for i in range(len(supplies)) if supplies[i] in prevs and i in supply_paths[inter_wing_path])
 
-    res += knapsack_supplies(supplies, supply_weights, supplies_in_wing_to_collect, entry, prevs)
+    ks = knapsack_supplies(supplies, supply_weights, supplies_in_wing_to_collect, entry, prevs)
 
-    supply_vertex_in_wing_to_collect = {supplies[s]: s for s in supplies_in_wing_to_collect}
-    storage = []
-    i: int = len(prevs) - 1
-    while i >= 0:
-        if prevs[i] == orig:
-            break
+    if len(ks) > 0:
+        res += ks
 
-        if prevs[i] in supply_vertex_in_wing_to_collect:
-            storage.append(supply_vertex_in_wing_to_collect[prevs[i]])
-            if len(branch_res) == 0 or i != len(prevs) - 1:
-                res.append(f"goto {prevs[i]}")
-                res.append("pkup")
-            else:
-                if len(res) > 0 and res[-1] == "drop":
-                    res.pop()
-                else:
-                    res.append("pkup")
-
-        i -= 1
-
-    while i >= 0 and len(storage) > 0:
-        if prevs[i] not in supplies:
-            supplies[storage.pop()] = prevs[i]
-            res.append(f"goto {prevs[i]}")
-            res.append("drop")
-            if len(storage) == 0:
+        supply_vertex_in_wing_to_collect = {supplies[s]: s for s in supplies_in_wing_to_collect}
+        storage = []
+        i: int = len(prevs) - 1
+        while i >= 0:
+            if prevs[i] == orig:
                 break
 
-        i -= 1
+            if prevs[i] in supply_vertex_in_wing_to_collect:
+                res.append(f"goto {prevs[i]}")
+                res.append("pkup")
+
+            i -= 1
+
+        if orig == entry:
+            res.append(f"goto {entry}")
+            while len(storage) > 0:
+                s = storage.pop()
+                supplies[s] = None
+                res.append("drop")
+        else:
+            while i >= 0 and len(storage) > 0:
+                if prevs[i] not in supplies:
+                    s = storage.pop()
+                    supplies[s] = prevs[i]
+                    res.append(f"goto {prevs[i]}")
+                    res.append("drop")
+                    if len(storage) == 0:
+                        break
+
+                i -= 1
+
+            if i == -1:
+                while len(storage) > 0:
+                    s = storage.pop()
+                    supplies[s] = None
+                    res.append("drop")
+
+        if prevs[i] != orig:
+            res.append(f"goto {orig}")
+    else:
+        curr_pos = curr
+        i: int = len(res) - 2
+        while i >= 0:
+            if res[i][:4] == "goto":
+                curr_pos = ast.literal_eval(res[i][5:])
+                break
+            i -= 1
+
+        storage = []
+        supply_vertex_in_wing_to_collect = {supplies[s]: s for s in supplies_in_wing_to_collect}
+        will_pickup = curr == curr_pos or curr_pos == entry
+        if not will_pickup:
+            storage.append(supply_vertex_in_wing_to_collect[curr_pos])
+            for j in range(len(res) - i - 1):
+                res.pop(i)
+
+            i -= 1
+            while i >= 0:
+                if res[i][:4] == "pkup":
+                    break
+                elif res[i][:4] == "drop":
+                    storage.append(supply_vertex_in_wing_to_collect[ast.literal_eval(res[i - 1][5:])])
+                    res.pop(i)
+                    i -= 1
+                res.pop(i)
+                i -= 1
+
+        i: int = len(prevs) - 1
+        while i >= 0:
+            c_prevs = prevs[i]
+            if c_prevs == orig:
+                break
+
+            if c_prevs in supply_vertex_in_wing_to_collect and (will_pickup or (c_prevs == curr and supply_vertex_in_wing_to_collect[curr] not in storage)):
+                storage.append(supply_vertex_in_wing_to_collect[c_prevs])
+                if len(branch_res) == 0 or i != len(prevs) - 1:
+                    res.append(f"goto {c_prevs}")
+                    res.append("pkup")
+                else:
+                    if len(res) > 0 and res[-1] == "drop":
+                        res.pop()
+                    else:
+                        res.append("pkup")
+
+            # order matters
+            if c_prevs == curr_pos:
+                will_pickup = True
+
+            i -= 1
+
+        if orig == entry:
+            res.append(f"goto {entry}")
+            while len(storage) > 0:
+                s = storage.pop()
+                supplies[s] = None
+                res.append("drop")
+        else:
+            while i >= 0 and len(storage) > 0:
+                c_prevs = prevs[i]
+                if c_prevs not in supplies:
+                    s = storage.pop()
+                    supplies[s] = c_prevs
+                    res.append(f"goto {c_prevs}")
+                    res.append("drop")
+                    if len(storage) == 0:
+                        break
+
+                i -= 1
+
+            if i == -1:
+                while len(storage) > 0:
+                    s = storage.pop()
+                    supplies[s] = None
+                    res.append("drop")
 
     if prevs[i] != orig:
         res.append(f"goto {orig}")

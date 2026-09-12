@@ -171,7 +171,7 @@ def dijkstra_to(g: nx.Graph, source: VertexT, sink: VertexT) -> list[VertexT]:
                 dist[v] = dist[u] + w
                 heapq.heappush(pq, (dist[v], v))
 
-    return None
+    raise RuntimeError("bro how tf did it get here")
 
 
 def flatten_graph(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]]) -> nx.Graph:
@@ -387,7 +387,9 @@ def clear_branch(
 
     curr_pos = curr
     storage = []
-    supply_vertex_in_wing_to_collect = {supplies[s]: s for s in supplies_in_wing_to_collect}
+    supply_vertex_in_wing_to_collect = defaultdict(list)
+    for s in supplies_in_wing_to_collect:
+        supply_vertex_in_wing_to_collect[supplies[s]].append(s)
 
     if get_curr_pos(res, orig) != entry and len(res) > 0 and res[-1] == "drop":
         i: int = len(res) - 2
@@ -397,18 +399,20 @@ def clear_branch(
                 break
             i -= 1
 
+        unchanged_res = res.copy()
         if curr_pos != curr and curr_pos != entry:
-            storage.append(supply_vertex_in_wing_to_collect[curr_pos])
             res.pop(-1)
-            for j in range(len(res) - i):
+            drops = len(res) - i
+            for j in range(drops):
                 res.pop(i)
+                storage.append(supply_vertex_in_wing_to_collect[curr_pos].pop())
 
             i -= 1
             while i >= 0:
                 if res[i] == "pickup":
                     break
                 elif res[i] == "drop":
-                    storage.append(supply_vertex_in_wing_to_collect[res[i - 1]])
+                    storage.append(supply_vertex_in_wing_to_collect[res[i - 1]].pop())
                     res.pop(i)
                     i -= 1
                 res.pop(i)
@@ -420,10 +424,14 @@ def clear_branch(
         if c_prevs == orig:
             break
 
-        if c_prevs in supply_vertex_in_wing_to_collect and supply_vertex_in_wing_to_collect[c_prevs] not in storage:
-            storage.append(supply_vertex_in_wing_to_collect[c_prevs])
-            res.append(c_prevs)
-            res.append("pickup")
+        if c_prevs in supply_vertex_in_wing_to_collect:
+            c_i = len(supply_vertex_in_wing_to_collect[c_prevs]) - 1
+            while c_i >= 0:
+                if supply_vertex_in_wing_to_collect[c_prevs][c_i] not in storage:
+                    storage.append(supply_vertex_in_wing_to_collect[c_prevs].pop(c_i))
+                    res.append(c_prevs)
+                    res.append("pickup")
+                c_i -= 1
 
         i -= 1
 
@@ -519,10 +527,22 @@ def ember_rescue(
     res = []
     prev_pos = entry
     prev_wing = get_which_wing(G, prev_pos)
+    curr_drops = 0
     for i in range(len(super_path)):
         curr = super_path[i]
         if isinstance(curr, str):
-            res.append(curr)
+            if curr == "drop":
+                curr_drops += 1
+                res.append(curr)
+            if curr == "pickup":
+                if curr_drops > 0:
+                    for j in range(len(res) - 1, -1, -1):
+                        if res[j] == "drop":
+                            res.pop(j)
+                            break
+                    curr_drops -= 1
+                else:
+                    res.append(curr)
         else:
             curr_wing = get_which_wing(G, curr)
             if curr_wing == prev_wing:
@@ -532,6 +552,7 @@ def ember_rescue(
                 prev_wing = get_which_wing(G, curr)
 
             prev_pos = curr
+            curr_drops = 0
 
     res += exit_run[1:]
     return res

@@ -70,13 +70,16 @@ class GraphDrawer:
                 curr = plan[i]
                 if isinstance(curr, str):
                     if curr == "pickup":
+                        # print(f"picking up supply at {curr_loc}")
                         index = curr_supply_locations.index(curr_loc)
                         while index in curr_supplies:
                             assert curr_loc in curr_supply_locations[index + 1:], f"{curr_loc} isn't in {curr_supply_locations} after {index}\ncurr_supplies: {curr_supplies}"
                             index = curr_supply_locations.index(curr_loc, index + 1)
                         curr_supplies.append(index)
+                        # print(f"picked up supply {index}")
                     else:
                         move_supply = curr_supplies.pop()
+                        # print(f"dropping off supply at {curr_loc}: supply {move_supply}")
                         trip_move_supplies[len(trip_supplies)][move_supply] = curr_loc
                         curr_supply_locations[move_supply] = curr_loc
                 else:
@@ -337,9 +340,9 @@ def test_seed(seed: int):
 
 def test_facilities():
     file_name = "data_facility.csv"
-    TRIALS = 1000
+    TRIALS = 10000
     data = []
-    for i in trange(28122020, 28122020 + TRIALS):
+    for i in trange(10012007, 10012007 + TRIALS):
         curr = {}
 
         facility = GraphDrawer(i)
@@ -370,10 +373,17 @@ def test_facilities():
         curr["trip_collected_3"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 3])
         curr["trip_collected_4"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 3])
         curr["trip_collected_5"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 5])
+        curr["budget"] = budget
+        curr["priority"] = sum(facility.values[s] for s in collected_supplies)
+        curr["vertices"] = sum(w_j.number_of_nodes() for w_j in abs_graph[0])
+        curr["edges"] = sum(w_j.number_of_edges() for w_j in abs_graph[0])
+        curr["junctions"] = len(abs_graph[1])
+        curr["wings"] = len(abs_graph[0])
+        curr["exits"] = 2
         data.append(curr)
 
     with open(file_name, "w", encoding="utf-8", newline='') as f:
-        row_names = ["time", "collected_supplies_3", "collected_supplies_2", "collected_supplies_1", "trip_collected_2", "trip_collected_3", "trip_collected_4", "trip_collected_5"]
+        row_names = ["time", "collected_supplies_3", "collected_supplies_2", "collected_supplies_1", "trip_collected_2", "trip_collected_3", "trip_collected_4", "trip_collected_5", "budget", "priority", "vertices", "edges", "junctions", "wings", "exits"]
         writer = csv.writer(f)
         writer.writerow(row_names)
         writer.writerows([[r[n] for n in row_names] for r in data])
@@ -388,7 +398,7 @@ if __name__ == "__main__":
         )
         match test_id:
             case "1":
-                test_seed(28122020)
+                test_seed(28122020 + 75)
                 break
             case "2":
                 test_facilities()

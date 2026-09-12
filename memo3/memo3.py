@@ -83,9 +83,11 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
 
             return wings, set(self.junctions)
 
-        def get_collected_supplies_and_budget(self, plan):
+        def get_plan_info(self, plan):
             curr_supply_locations = self.supplies.copy()
             total_energy_cost = 0
+            trip_supplies = []
+            trip_move_supplies = [{}]
             if plan and len(plan) > 0:
                 i = 0
                 curr_loc = self.entry
@@ -97,24 +99,28 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                         if curr == "pickup":
                             index = curr_supply_locations.index(curr_loc)
                             while index in curr_supplies:
+                                assert curr_loc in curr_supply_locations[index + 1:], f"{curr_loc} isn't in {curr_supply_locations} after {index}\ncurr_supplies: {curr_supplies}"
                                 index = curr_supply_locations.index(curr_loc, index + 1)
                             curr_supplies.append(index)
                         else:
-                            curr_supply_locations[curr_supplies.pop()] = curr_loc
+                            move_supply = curr_supplies.pop()
+                            trip_move_supplies[len(trip_supplies)][move_supply] = curr_loc
+                            curr_supply_locations[move_supply] = curr_loc
                     else:
                         mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
                         total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
                         curr_loc = curr
                         curr_trip.append(curr)
 
-                        if curr == self.entry or curr == self.exit_a or curr == self.exit_b:
+                        if curr == self.entry or i == len(plan) - 1:
                             # number the trip at its first collection point
-    
+                            trip_supplies.append(set(self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry).difference(s for trip_s in trip_supplies for s in trip_s))
+                            trip_move_supplies.append({})
                             curr_trip = [self.entry]
 
                     i += 1
-        
-            return [self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry], total_energy_cost
+
+            return [self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry], total_energy_cost, trip_supplies, trip_move_supplies
 
         def _setup_multi_wing_facility(self, seed):
             int_seed = int(seed)
@@ -307,7 +313,7 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
             self.budget_reserve = round(full_extraction_cost * .35)
 
         def draw_multi_wing(
-            self, plan=None, abandoned=None, show_labels=True, title="Weighted Multi-Wing Facility"
+            self, plan=None, show_labels=True, highlight_trip=None, title="Weighted Multi-Wing Facility"
         ):
             COL_BG = '#F5F7FA'
             COL_GRID = '#C8D0DC'
@@ -367,7 +373,7 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                         [ox + c1 + 0.5, ox + c2 + 0.5], [r1 + 0.5, r2 + 0.5],
                         color=cost_color(data.get('weight', 1)), lw=corr_lw,
                         alpha=corr_alpha, solid_capstyle='round', zorder=2
-                        )
+                    )
 
                 for c in range(self.WING_COLS):
                     for r in range(self.WING_ROWS):
@@ -375,30 +381,30 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                             ax.plot(
                                 [ox + c + 1, ox + c + 1], [r, r + 1],
                                 color=COL_WALL, lw=1.4, zorder=3
-                                )
+                            )
                         if r + 1 < self.WING_ROWS and not wing.has_edge((c, r), (c, r + 1)):
                             ax.plot(
                                 [ox + c, ox + c + 1], [r + 1, r + 1],
                                 color=COL_WALL, lw=1.4, zorder=3
-                                )
+                            )
 
                 ax.add_patch(
                     plt.Rectangle(
                         (ox, 0), self.WING_COLS, self.WING_ROWS, fill=False,
                         edgecolor=COL_WALL, lw=2.2, zorder=4
-                        )
                     )
+                )
                 model_names = ['Uniform', 'Depth-based', 'Randomised', 'Randomised']
                 model_lbl = model_names[w] if w < len(model_names) else 'Randomised'
                 ax.text(
                     ox + self.WING_COLS / 2, self.WING_ROWS + 0.55, f"Wing {self.wing_names[w]}",
                     ha='center', va='bottom', fontsize=9, fontweight='bold',
                     color='#0B1F3B', zorder=8
-                    )
+                )
                 ax.text(
                     ox + self.WING_COLS / 2, self.WING_ROWS + 0.15, f"({model_lbl})", ha='center',
                     va='bottom', fontsize=7, color='#44546A', zorder=8
-                    )
+                )
 
             # ---- inter-wing junctions ----
             for (w1, c1, r1), (w2, c2, r2) in self.junctions:
@@ -407,22 +413,25 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                 ax.plot(
                     [x1, x2], [y1, y2], color=COL_JUNCTION, lw=2.0,
                     linestyle='--', alpha=0.8, zorder=5
-                    )
+                )
                 ax.plot(x1, y1, 'o', ms=8, color=COL_JUNCTION, zorder=6)
                 ax.plot(x2, y2, 'o', ms=8, color=COL_JUNCTION, zorder=6)
 
             # ---- shuttle trips, drawn along the real corridor route ----
             trip_of = {}
             trip_count = 0
-            curr_supply_locations = self.supplies.copy()
+            supplies_collected = self.supplies
+            trip_supply_end_locs = None
             if plan and len(plan) > 0:
                 i = 0
+                curr_supply_locations = self.supplies.copy()
                 curr_loc = self.entry
                 curr_trip = []
                 total_energy_cost = 0
                 curr_supplies = []
                 trip_first_supply = None
                 col = TRIP_COLOURS[trip_count % len(TRIP_COLOURS)]
+                supplies_collected, _, _, _ = self.get_plan_info(plan)
                 while i < len(plan):
                     curr = plan[i]
                     trip_of[curr] = col
@@ -442,21 +451,22 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                         xs = [xoff(n[0]) + n[1] + 0.5 for n in [curr_loc, curr]]
                         ys = [n[2] + 0.5 for n in [curr_loc, curr]]
                         # white underlay keeps overlapping routes legible
-                        ax.plot(
-                            xs, ys, color='white', lw=6.4, alpha=0.85, zorder=6,
-                            solid_capstyle='round'
-                        )
-                        ax.plot(
-                            xs, ys, color=col, lw=3.6, alpha=0.95, zorder=7,
-                            solid_capstyle='round'
-                        )
+                        if highlight_trip is None or highlight_trip == trip_count:
+                            ax.plot(
+                                xs, ys, color='white', lw=6.4, alpha=0.85, zorder=6,
+                                solid_capstyle='round'
+                            )
+                            ax.plot(
+                                xs, ys, color=col, lw=3.6, alpha=0.95, zorder=7,
+                                solid_capstyle='round'
+                            )
                         curr_loc = curr
                         curr_trip.append(curr)
 
-                    if curr == self.entry or curr == self.exit_a or curr == self.exit_b:
+                    if curr == self.entry:
                         # number the trip at its first collection point
 
-                        if trip_first_supply:
+                        if trip_first_supply is not None and (highlight_trip is None or highlight_trip == trip_count):
                             ax.text(
                                 xoff(trip_first_supply[0]) + trip_first_supply[1] + 0.5, trip_first_supply[2] + 0.5, total_energy_cost,
                                 ha='center', va='center', fontsize=6.5,
@@ -467,6 +477,9 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                                 )
                             )
 
+                        if highlight_trip == trip_count:
+                            trip_supply_end_locs = curr_supply_locations.copy()
+
                         trip_first_supply = None
                         trip_count += 1
                         curr_trip = [self.entry]
@@ -474,19 +487,20 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
 
                     i += 1
 
-                col = TRIP_COLOURS[(trip_count - 1) % len(TRIP_COLOURS)]
-                ax.text(
-                    xoff(curr_loc[0]) + curr_loc[1] + 0.5, curr_loc[2] + 0.5, total_energy_cost,
-                    ha='center', va='center', fontsize=6.5,
-                    fontweight='bold', color='white', zorder=13,
-                    bbox=dict(
-                        boxstyle='circle,pad=0.16', fc=col,
-                        ec='white', lw=0.7
+                col = TRIP_COLOURS[trip_count % len(TRIP_COLOURS)]
+                if highlight_trip is None:
+                    ax.text(
+                        xoff(curr_loc[0]) + curr_loc[1] + 0.5, curr_loc[2] + 0.5, total_energy_cost,
+                        ha='center', va='center', fontsize=6.5,
+                        fontweight='bold', color='white', zorder=13,
+                        bbox=dict(
+                            boxstyle='circle,pad=0.16', fc=col,
+                            ec='white', lw=0.7
+                        )
                     )
-                )
 
             # ---- supply units: star sized by mass ----
-            abandoned = set(abandoned or [])
+            abandoned = {s for s in facility_drawer.supplies if s not in supplies_collected}
             for i, u in enumerate(self.supplies):
                 ws, cs, rs = u
                 ox = xoff(ws)
@@ -495,24 +509,48 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                     ax.plot(
                         x, y, marker='x', ms=7, color=COL_DROPPED,
                         markeredgewidth=1.8, zorder=9
-                        )
+                    )
                 else:
                     ax.plot(
                         x, y, marker='*', markersize=mass_size(self.masses[u]),
                         color=trip_of.get(u, COL_SUPPLY),
                         markeredgecolor='white' if u in trip_of else COL_ENTRY,
                         markeredgewidth=0.8, zorder=9
-                        )
+                    )
                 if show_labels:
                     ax.text(
                         x + 0.30, y + 0.22,
                         f"S{i + 1}", fontsize=5.2, color=COL_WALL, zorder=10
-                        )
+                    )
                     ax.text(
                         x + 0.30, y - 0.42,
                         f"m{self.masses[u]}/p{self.values[u]}", fontsize=4.6,
                         color='#6B7480', zorder=10
+                    )
+
+            if trip_supply_end_locs is not None:
+                for i, u in enumerate(trip_supply_end_locs):
+                    ws, cs, rs = u
+                    ox = xoff(ws)
+                    x, y = ox + cs + 0.5, rs + 0.5
+                    if self.supplies[i] != u:
+                        ax.plot(
+                            x, y, marker='*', markersize=mass_size(self.masses[self.supplies[i]]),
+                            color=mcolors.to_rgba(trip_of.get(self.supplies[i], COL_SUPPLY), alpha=0.8),
+                            markeredgecolor="#FFFFFF80" if self.supplies[i] in trip_of else COL_ENTRY,
+                            markeredgewidth=0.8, zorder=9
                         )
+                    if show_labels:
+                        ax.text(
+                            x + 0.30, y + 0.22,
+                            f"S{i + 1}", fontsize=5.2, color=mcolors.to_rgba(COL_WALL, alpha=0.8), zorder=10
+                        )
+                        ax.text(
+                            x + 0.30, y - 0.42,
+                            f"m{self.masses[self.supplies[i]]}/p{self.values[self.supplies[i]]}", fontsize=4.6,
+                            color='#6B748080', zorder=10
+                        )
+
 
             # ---- shaft (the Memo 01 entry, now the extraction point) and exits ----
             we, ce, re = self.entry
@@ -520,36 +558,36 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                 plt.Circle(
                     (xoff(we) + ce + 0.5, re + 0.5), 0.34,
                     color=COL_ENTRY, zorder=11
-                    )
                 )
+            )
             ax.text(
                 xoff(we) + ce + 0.5, re + 0.5, 'S', ha='center', va='center',
                 fontsize=7, color='white', fontweight='bold', zorder=12
-                )
+            )
 
             for lbl, (wx, cx, rx) in zip(['A', 'B'], [self.exit_a, self.exit_b]):
                 ax.add_patch(
                     plt.Circle(
                         (xoff(wx) + cx + 0.5, rx + 0.5), 0.3,
                         color=COL_EXIT, zorder=11
-                        )
                     )
+                )
                 ax.text(
                     xoff(wx) + cx + 0.5, rx + 0.5, lbl, ha='center', va='center',
                     fontsize=6, color='white', fontweight='bold', zorder=12
-                    )
+                )
 
             # ---- corridor-cost colourbar (unchanged from Memo 02) ----
             sm = plt.cm.ScalarMappable(
                 cmap=WEIGHT_CMAP,
                 norm=mcolors.Normalize(vmin=1, vmax=5)
-                )
+            )
             sm.set_array([])
             cbar = fig.colorbar(sm, ax=ax, fraction=0.018, pad=0.02)
             cbar.set_label(
                 'Corridor cost  w(e)' + ('  (muted)' if showing_plan else ''),
                 fontsize=8, color='#0B1F3B'
-                )
+            )
             cbar.set_ticks([1, 2, 3, 4, 5])
             cbar.ax.tick_params(labelsize=7)
 
@@ -558,23 +596,23 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                 plt.Line2D(
                     [], [], marker='o', ls='', ms=7, color=COL_ENTRY,
                     label='S  extraction shaft (Memo 01 entry)'
-                    ),
+                ),
                 plt.Line2D(
                     [], [], marker='o', ls='', ms=6, color=COL_EXIT,
                     label='A / B  exits'
-                    ),
+                ),
                 plt.Line2D(
                     [], [], marker='*', ls='', ms=9, color=COL_SUPPLY,
                     markeredgecolor=COL_ENTRY, label='supply unit  (size = mass)'
-                    ),
+                ),
                 plt.Line2D(
                     [], [], marker='x', ls='', ms=7, color=COL_DROPPED,
                     label='abandoned'
-                    ),
+                ),
                 plt.Line2D(
                     [], [], ls='--', lw=2, color=COL_JUNCTION,
                     label='inter-wing junction'
-                    ),
+                ),
             ]
             if plan:
                 _lbl = f'shuttle trips ({trip_count}, numbered at first pickup)'
@@ -582,12 +620,12 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                     plt.Line2D(
                         [], [], lw=4, color=TRIP_COLOURS[0],
                         label=_lbl
-                        )
                     )
+                )
             ax.legend(
                 handles=handles, loc='upper center', bbox_to_anchor=(0.5, -0.02),
                 ncol=3, fontsize=7, framealpha=0.9, borderpad=0.6
-                )
+            )
 
             ax.set_xlim(-0.5, total_w + 0.5)
             ax.set_ylim(-1.0, self.WING_ROWS + 1.4)
@@ -596,7 +634,7 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
             ax.set_title(
                 title, fontsize=11, fontweight='bold',
                 color='#0B1F3B', pad=10
-                )
+            )
             plt.tight_layout()
 
             return fig
@@ -884,12 +922,18 @@ def _(mo):
 
 @app.cell
 def algorithm_resource(facility_drawer, mo):
+    import memo3_algorithm
+
+    _abs_graph = facility_drawer.get_abstracted_graph()
+    _entry = facility_drawer.entry
     _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
     _supplies = set(facility_drawer.supplies)
-    _storage = tuple([None] * 5)
+    _masses = facility_drawer.masses
+    _values = facility_drawer.values
     _supply_map = {i: hash(i) for i in facility_drawer.supplies}
+    _budget = facility_drawer.budget
 
-    _trials = 100
+    _trials = 10
 
     def _get_runtime(trials: int = 1) -> float:
         if trials < 1:
@@ -902,12 +946,10 @@ def algorithm_resource(facility_drawer, mo):
         pr = cProfile.Profile()
         pr.enable()
         for i in range(trials):
-            """put algoithm here"""
-            pass
+            memo3_algorithm.ember_rescue(_abs_graph, _entry, _exits, _supplies, _masses, _values, _supply_map, set(), _budget)
         pr.disable()
         ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
-        # return ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3] / trials
-        return 0
+        return ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3] / trials
 
     def _get_mem() -> float:
 
@@ -917,13 +959,12 @@ def algorithm_resource(facility_drawer, mo):
 
         tracemalloc.start()
 
-        """put algoithm here"""
-        pass
+        memo3_algorithm.ember_rescue(_abs_graph, _entry, _exits, _supplies, _masses, _values, _supply_map, set(), _budget)
 
         snapshot = tracemalloc.take_snapshot()
         tracemalloc.stop()
         top_stats = snapshot.statistics('filename')
-        return sum(stat.size for stat in top_stats if "memo1a_algorithm.py" in stat.traceback._frames[0][0])
+        return sum(stat.size for stat in top_stats if "memo3_algorithm.py" in stat.traceback._frames[0][0])
 
     _ave_mem = round(sum([_get_mem() for _ in range(_trials)]) / _trials)
 
@@ -933,29 +974,31 @@ def algorithm_resource(facility_drawer, mo):
             mo.stat(label="Memory (Python):", value=f"{_ave_mem} B")
         ], gap=1, wrap=True
     )
-    return
+    return (memo3_algorithm,)
 
 
 @app.cell(hide_code=True)
 def algorithm_resource_note(mo):
     mo.md(r"""
-    These value **HIGHLY** depend on the marimo virtual machine, and can vary by orders of magnitude. On my machine, I get Runtime: 2.72ms, Memory: 336 B
+    These value **HIGHLY** depend on the marimo virtual machine, and can vary by orders of magnitude. On my machine, I get Runtime: 8.19ms, Memory: 8547 B
     """)
     return
 
 
 @app.cell
-def algorithm_explorer_controls(facility_drawer, mo):
-    import memo3_algorithm
-
+def algorithm_explorer_controls(facility_drawer, memo3_algorithm, mo):
+    _abs_graph = facility_drawer.get_abstracted_graph()
+    _entry = facility_drawer.entry
     _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
     _supplies = set(facility_drawer.supplies)
-    _storage = tuple([None] * 5)
+    _masses = facility_drawer.masses
+    _values = facility_drawer.values
     _supply_map = {i: hash(i) for i in facility_drawer.supplies}
+    _budget = facility_drawer.budget
 
-    @mo.cache
+    # @mo.cache
     def ember_rescue_cached():
-        return memo3_algorithm.ember_rescue(facility_drawer.get_abstracted_graph(), facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, facility_drawer.supplies, facility_drawer.masses, facility_drawer.values, {}, set(), facility_drawer.budget)
+        return memo3_algorithm.ember_rescue(_abs_graph, _entry, _exits, _supplies, _masses, _values, _supply_map, set(), _budget)
 
     _path = ember_rescue_cached()
 
@@ -993,7 +1036,18 @@ def algorithm_explorer_controls_and_info(
         else:
             return (u, v) in facility_drawer.junctions or (v, u) in facility_drawer.junctions
 
-    _collected_supplies, _used_budget = facility_drawer.get_collected_supplies_and_budget(_path[:path_len.value])
+    _collected_supplies, _used_budget, _trip_supplies, _ = facility_drawer.get_plan_info(_path[:path_len.value])
+    # _collected_supplies, _used_budget, _trip_supplies = [], 1e9, []
+
+    highlight_trip = mo.ui.slider(
+        value=len(_trip_supplies) + 1,
+        start=1,
+        stop=len(_trip_supplies) + 1,
+        step=1,
+        label="Trip (drag to highlight a trip or to end for no highlight)",
+        full_width=True,
+        include_input=True
+    )
 
     mo.vstack(
         [
@@ -1025,19 +1079,54 @@ def algorithm_explorer_controls_and_info(
                     )
                 ], gap=1, wrap=True
             ),
-            path_len
+            path_len,
+            highlight_trip
         ]
     )
+    return (highlight_trip,)
+
+
+@app.cell(hide_code=True)
+def _(ember_rescue_cached, facility_drawer, highlight_trip, mo):
+    _path = ember_rescue_cached()
+    _, _, _trip_supplies, _trip_move_supplies = facility_drawer.get_plan_info(_path)
+    # _trip_supplies, _trip_move_supplies = [], [{}]
+
+    _ordered = list(i for i, n in _trip_move_supplies[highlight_trip.value - 1].items() if n != facility_drawer.entry)
+
+    def join_and(l: list):
+        if not isinstance(l, list):
+            l = list(l)
+        if len(l) == 0:
+            return ""
+        if len(l) == 1:
+            return str(l[0])
+        return f"{", ".join(str(s) for s in l[:-1])} and {l[-1]}"
+
+    mo.md(fr"""
+    Collecting supplies at {join_and(_trip_supplies[highlight_trip.value - 1])}
+
+    {f"Moving suppl{"ies" if len(_ordered) > 1 else "y"} at {join_and([facility_drawer.supplies[i] for i in _ordered])} to {join_and([_trip_move_supplies[highlight_trip.value - 1][i] for i in _ordered])}" if len(_ordered) > 0 else ""}
+    """) if highlight_trip.value != highlight_trip.stop else None
     return
 
 
 @app.cell
-def algorithm_explorer(ember_rescue_cached, facility_drawer, path_len):
+def algorithm_explorer(
+    ember_rescue_cached,
+    facility_drawer,
+    highlight_trip,
+    path_len,
+):
     _path = ember_rescue_cached()
 
-    _collected_supplies, _ = facility_drawer.get_collected_supplies_and_budget(_path)
+    facility_drawer.draw_multi_wing(plan=_path[:path_len.value + 1], highlight_trip=highlight_trip.value - 1 if highlight_trip.value != highlight_trip.stop else None)
+    return
 
-    facility_drawer.draw_multi_wing(plan=ember_rescue_cached()[:path_len.value + 1], abandoned={s for s in facility_drawer.supplies if s not in _collected_supplies})
+
+@app.cell
+def _(facility_drawer):
+    facility_drawer.draw_multi_wing()
     return
 
 

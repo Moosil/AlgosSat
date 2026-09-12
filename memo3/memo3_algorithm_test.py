@@ -1,9 +1,11 @@
+import csv
 import itertools
 import random
 
 import networkx as nx
+from tqdm import trange
 
-from memo3_algorithm import ember_rescue
+import memo3_algorithm
 
 
 class GraphDrawer:
@@ -53,6 +55,45 @@ class GraphDrawer:
             wings[i] = nx.relabel_nodes(wings[i], lambda x: tuple([i] + list(x)))
 
         return wings, set(self.junctions)
+
+    def get_plan_info(self, plan):
+        curr_supply_locations = self.supplies.copy()
+        total_energy_cost = 0
+        trip_supplies = []
+        trip_move_supplies = [{}]
+        if plan and len(plan) > 0:
+            i = 0
+            curr_loc = self.entry
+            curr_trip = []
+            curr_supplies = []
+            while i < len(plan):
+                curr = plan[i]
+                if isinstance(curr, str):
+                    if curr == "pickup":
+                        index = curr_supply_locations.index(curr_loc)
+                        while index in curr_supplies:
+                            assert curr_loc in curr_supply_locations[index + 1:], f"{curr_loc} isn't in {curr_supply_locations} after {index}\ncurr_supplies: {curr_supplies}"
+                            index = curr_supply_locations.index(curr_loc, index + 1)
+                        curr_supplies.append(index)
+                    else:
+                        move_supply = curr_supplies.pop()
+                        trip_move_supplies[len(trip_supplies)][move_supply] = curr_loc
+                        curr_supply_locations[move_supply] = curr_loc
+                else:
+                    mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
+                    total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
+                    curr_loc = curr
+                    curr_trip.append(curr)
+
+                    if curr == self.entry or i == len(plan) - 1:
+                        # number the trip at its first collection point
+                        trip_supplies.append(set(self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry).difference(s for trip_s in trip_supplies for s in trip_s))
+                        trip_move_supplies.append({})
+                        curr_trip = [self.entry]
+
+                i += 1
+
+        return [self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry], total_energy_cost, trip_supplies, trip_move_supplies
 
     def _setup_multi_wing_facility(self, seed):
         int_seed = int(seed)
@@ -244,13 +285,113 @@ class GraphDrawer:
         self.budget = round(full_extraction_cost * .60)
         self.budget_reserve = round(full_extraction_cost * .35)
 
+def get_runtime(seed: int, trials: int = 1) -> float:
+    facility = GraphDrawer(seed)
+    abs_graph = facility.get_abstracted_graph()
+    entry = facility.entry
+    exits = {facility.exit_a, facility.exit_b}
+    supplies = set(facility.supplies)
+    masses = facility.masses
+    values = facility.values
+    supply_map = {i: hash(i) for i in facility.supplies}
+    budget = facility.budget
 
-if __name__ == "__main__":
-    facility = GraphDrawer(28122007)
+    if trials < 1:
+        return 0
+
+    """source: https://docs.python.org/3/library/profile.html"""
+
+    import cProfile, pstats
+    from pstats import SortKey
+    pr = cProfile.Profile()
+    pr.enable()
+    for i in range(trials):
+        memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget)
+    pr.disable()
+    ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
+    return ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3] / trials
+
+def test_seed(seed: int):
+    facility = GraphDrawer(seed)
+
+    abs_graph = facility.get_abstracted_graph()
+    entry = facility.entry
+    exits = {facility.exit_a, facility.exit_b}
+    supplies = set(facility.supplies)
+    masses = facility.masses
+    values = facility.values
+    supply_map = {i: hash(i) for i in facility.supplies}
+    budget = facility.budget
+
+    res = memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget)
 
     print(
         '\n'.join(
             str(s) for s in
-            ember_rescue(facility.get_abstracted_graph(), facility.entry, {facility.exit_a, facility.exit_b}, facility.supplies, facility.masses, facility.values, {}, set(), facility.budget)
-            )
+            res
         )
+    )
+
+    print(facility.get_plan_info(res))
+
+
+def test_facilities():
+    file_name = "data_facility.csv"
+    TRIALS = 1000
+    data = []
+    for i in trange(28122020, 28122020 + TRIALS):
+        curr = {}
+
+        facility = GraphDrawer(i)
+
+        abs_graph = facility.get_abstracted_graph()
+        entry = facility.entry
+        exits = {facility.exit_a, facility.exit_b}
+        supplies = set(facility.supplies)
+        masses = facility.masses
+        values = facility.values
+        supply_map = {i: hash(i) for i in facility.supplies}
+        budget = facility.budget
+
+        import cProfile, pstats
+        from pstats import SortKey
+        pr = cProfile.Profile()
+        pr.enable()
+        res = memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget)
+        pr.disable()
+        ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
+
+        collected_supplies, used_budget, trip_collected_supplies, trip_moved_supplies = facility.get_plan_info(res)
+        curr["time"] = ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3]
+        curr["collected_supplies_3"] = len([s for s in collected_supplies if facility.masses[s] == 3])
+        curr["collected_supplies_2"] = len([s for s in collected_supplies if facility.masses[s] == 2])
+        curr["collected_supplies_1"] = len([s for s in collected_supplies if facility.masses[s] == 1])
+        curr["trip_collected_2"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 2])
+        curr["trip_collected_3"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 3])
+        curr["trip_collected_4"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 3])
+        curr["trip_collected_5"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 5])
+        data.append(curr)
+
+    with open(file_name, "w", encoding="utf-8", newline='') as f:
+        row_names = ["time", "collected_supplies_3", "collected_supplies_2", "collected_supplies_1", "trip_collected_2", "trip_collected_3", "trip_collected_4", "trip_collected_5"]
+        writer = csv.writer(f)
+        writer.writerow(row_names)
+        writer.writerows([[r[n] for n in row_names] for r in data])
+
+if __name__ == "__main__":
+    while True:
+        test_id = input(
+            """Enter a number from 1-2 for a particular test:
+[1] test memo3's algorithm
+[2] get_facility_data
+"""
+        )
+        match test_id:
+            case "1":
+                test_seed(28122020)
+                break
+            case "2":
+                test_facilities()
+                break
+            case _:
+                print(f"{test_id} is not a value between 1 and 2")

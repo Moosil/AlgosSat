@@ -248,4 +248,9 @@ class GraphDrawer:
 if __name__ == "__main__":
     facility = GraphDrawer(28122007)
 
-    print(ember_rescue(facility.get_abstracted_graph(), facility.entry, {facility.exit_a, facility.exit_b}, facility.supplies, facility.masses, facility.values, {}, set(), facility.budget))
+    print(
+        '\n'.join(
+            str(s) for s in
+            ember_rescue(facility.get_abstracted_graph(), facility.entry, {facility.exit_a, facility.exit_b}, facility.supplies, facility.masses, facility.values, {}, set(), facility.budget)
+            )
+        )

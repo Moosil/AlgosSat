@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.24.1"
 app = marimo.App(width="medium", app_title="Memo3", css_file="../custom.css")
 
 
@@ -10,16 +10,12 @@ def imports():
     import random
     import networkx as nx
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
     import matplotlib.colors as mcolors
     import itertools
-    import sympy as sym
     import numpy as np
-    import sys
     import re
-    import pandas as pd
 
-    return itertools, mcolors, mo, np, nx, plt, random, re, sys
+    return itertools, mcolors, mo, np, nx, plt, random, re
 
 
 @app.cell
@@ -78,6 +74,47 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
 
             carve(0, 0)
             return g
+
+        def get_abstracted_graph(self):
+            wings = []
+            for i in range(self.n_wings):
+                wings.append(self.wings[i].copy())
+                wings[i] = nx.relabel_nodes(wings[i], lambda x: tuple([i] + list(x)))
+
+            return wings, set(self.junctions)
+
+        def get_collected_supplies_and_budget(self, plan):
+            curr_supply_locations = self.supplies.copy()
+            total_energy_cost = 0
+            if plan and len(plan) > 0:
+                i = 0
+                curr_loc = self.entry
+                curr_trip = []
+                curr_supplies = []
+                while i < len(plan):
+                    curr = plan[i]
+                    if isinstance(curr, str):
+                        if curr == "pickup":
+                            index = curr_supply_locations.index(curr_loc)
+                            while index in curr_supplies:
+                                index = curr_supply_locations.index(curr_loc, index + 1)
+                            curr_supplies.append(index)
+                        else:
+                            curr_supply_locations[curr_supplies.pop()] = curr_loc
+                    else:
+                        mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
+                        total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
+                        curr_loc = curr
+                        curr_trip.append(curr)
+
+                    if curr == self.entry or curr == self.exit_a or curr == self.exit_b:
+                        # number the trip at its first collection point
+
+                        curr_trip = [self.entry]
+
+                    i += 1
+
+            return [self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry], total_energy_cost
 
         def _setup_multi_wing_facility(self, seed):
             int_seed = int(seed)
@@ -139,12 +176,12 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                 while len(self.supplies) < self.N_SUPPLIES:
                     added = False
                     for w in supply_wings:
-                        if len(self.supplies ) >= self.N_SUPPLIES:
+                        if len(self.supplies) >= self.N_SUPPLIES:
                             break
                         while idx[w] < len(tier[w]):
                             n = tier[w][idx[w]]
                             idx[w] += 1
-                            if n not in self.supplies :
+                            if n not in self.supplies:
                                 self.supplies.append(n)
                                 added = True
                                 break
@@ -176,9 +213,9 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
 
             _key = [self.entry] + self.supplies + [self.exit_a, self.exit_b]
             self.dist = {n: nx.single_source_dijkstra_path_length(self.G, n, weight='weight')
-            for n in _key}
+                         for n in _key}
             self.path = {n: nx.single_source_dijkstra_path(self.G, n, weight='weight')
-            for n in _key}
+                         for n in _key}
 
         def trip_cost(self, trip):
             """Energy for one shuttle: shaft -> units in the given order -> shaft.
@@ -217,7 +254,8 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
             for i, t in enumerate(plan, 1):
                 if self.trip_mass(t) > self.CAPACITY:
                     problems.append(
-                        f"Trip {i} carries mass {self.trip_mass(t)}, over capacity {self.CAPACITY}.")
+                        f"Trip {i} carries mass {self.trip_mass(t)}, over capacity {self.CAPACITY}."
+                    )
                 for u in t:
                     if u not in self.masses:
                         problems.append(f"Trip {i} contains {u}, which is not a supply unit.")
@@ -269,9 +307,8 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
             self.budget_reserve = round(full_extraction_cost * .35)
 
         def draw_multi_wing(
-            self, plan=None, abandoned=None, show_labels=True,
-                      only_trips=None, title="Weighted Multi-Wing Facility"
-            ):
+            self, plan=None, abandoned=None, show_labels=True, title="Weighted Multi-Wing Facility"
+        ):
             COL_BG = '#F5F7FA'
             COL_GRID = '#C8D0DC'
             COL_WALL = '#44546A'
@@ -281,9 +318,11 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
             COL_JUNCTION = '#7A1E2C'
             COL_DROPPED = '#AEB6C2'
 
-            TRIP_COLOURS = ['#6D28D9', '#1E40AF', '#DB2777', '#059669', '#EA580C',
-                            '#0891B2', '#9333EA', '#65A30D', '#E11D48', '#2563EB',
-                            '#C026D3', '#0D9488', '#F59E0B', '#4F46E5', '#BE123C']
+            TRIP_COLOURS = [
+                '#6D28D9', '#1E40AF', '#DB2777', '#059669', '#EA580C',
+                '#0891B2', '#9333EA', '#65A30D', '#E11D48', '#2563EB',
+                '#C026D3', '#0D9488', '#F59E0B', '#4F46E5', '#BE123C'
+            ]
 
             GAP = 1  # grid-unit gap between wings in the visualisation
 
@@ -324,68 +363,127 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                     ax.plot([ox, ox + self.WING_COLS], [r, r], color=COL_GRID, lw=0.3, zorder=1)
 
                 for (c1, r1), (c2, r2), data in wing.edges(data=True):
-                    ax.plot([ox + c1 + 0.5, ox + c2 + 0.5], [r1 + 0.5, r2 + 0.5],
-                            color=cost_color(data.get('weight', 1)), lw=corr_lw,
-                            alpha=corr_alpha, solid_capstyle='round', zorder=2)
+                    ax.plot(
+                        [ox + c1 + 0.5, ox + c2 + 0.5], [r1 + 0.5, r2 + 0.5],
+                        color=cost_color(data.get('weight', 1)), lw=corr_lw,
+                        alpha=corr_alpha, solid_capstyle='round', zorder=2
+                        )
 
                 for c in range(self.WING_COLS):
                     for r in range(self.WING_ROWS):
                         if c + 1 < self.WING_COLS and not wing.has_edge((c, r), (c + 1, r)):
-                            ax.plot([ox + c + 1, ox + c + 1], [r, r + 1],
-                                    color=COL_WALL, lw=1.4, zorder=3)
+                            ax.plot(
+                                [ox + c + 1, ox + c + 1], [r, r + 1],
+                                color=COL_WALL, lw=1.4, zorder=3
+                                )
                         if r + 1 < self.WING_ROWS and not wing.has_edge((c, r), (c, r + 1)):
-                            ax.plot([ox + c, ox + c + 1], [r + 1, r + 1],
-                                    color=COL_WALL, lw=1.4, zorder=3)
+                            ax.plot(
+                                [ox + c, ox + c + 1], [r + 1, r + 1],
+                                color=COL_WALL, lw=1.4, zorder=3
+                                )
 
-                ax.add_patch(plt.Rectangle((ox, 0), self.WING_COLS, self.WING_ROWS, fill=False,
-                                           edgecolor=COL_WALL, lw=2.2, zorder=4))
+                ax.add_patch(
+                    plt.Rectangle(
+                        (ox, 0), self.WING_COLS, self.WING_ROWS, fill=False,
+                        edgecolor=COL_WALL, lw=2.2, zorder=4
+                        )
+                    )
                 model_names = ['Uniform', 'Depth-based', 'Randomised', 'Randomised']
                 model_lbl = model_names[w] if w < len(model_names) else 'Randomised'
-                ax.text(ox + self.WING_COLS / 2, self.WING_ROWS + 0.55, f"Wing {self.wing_names[w]}",
-                        ha='center', va='bottom', fontsize=9, fontweight='bold',
-                        color='#0B1F3B', zorder=8)
-                ax.text(ox + self.WING_COLS / 2, self.WING_ROWS + 0.15, f"({model_lbl})", ha='center',
-                        va='bottom', fontsize=7, color='#44546A', zorder=8)
+                ax.text(
+                    ox + self.WING_COLS / 2, self.WING_ROWS + 0.55, f"Wing {self.wing_names[w]}",
+                    ha='center', va='bottom', fontsize=9, fontweight='bold',
+                    color='#0B1F3B', zorder=8
+                    )
+                ax.text(
+                    ox + self.WING_COLS / 2, self.WING_ROWS + 0.15, f"({model_lbl})", ha='center',
+                    va='bottom', fontsize=7, color='#44546A', zorder=8
+                    )
 
             # ---- inter-wing junctions ----
             for (w1, c1, r1), (w2, c2, r2) in self.junctions:
                 x1, y1 = xoff(w1) + c1 + 0.5, r1 + 0.5
                 x2, y2 = xoff(w2) + c2 + 0.5, r2 + 0.5
-                ax.plot([x1, x2], [y1, y2], color=COL_JUNCTION, lw=2.0,
-                        linestyle='--', alpha=0.8, zorder=5)
+                ax.plot(
+                    [x1, x2], [y1, y2], color=COL_JUNCTION, lw=2.0,
+                    linestyle='--', alpha=0.8, zorder=5
+                    )
                 ax.plot(x1, y1, 'o', ms=8, color=COL_JUNCTION, zorder=6)
                 ax.plot(x2, y2, 'o', ms=8, color=COL_JUNCTION, zorder=6)
 
             # ---- shuttle trips, drawn along the real corridor route ----
             trip_of = {}
-            drawn_trips = 0
-            if plan:
-                _wanted = set(only_trips) if only_trips else None
-                for i, trip in enumerate(plan):
-                    if _wanted is not None and (i + 1) not in _wanted:
-                        continue
-                    drawn_trips += 1
-                    col = TRIP_COLOURS[i % len(TRIP_COLOURS)]
-                    for u in trip:
-                        trip_of[u] = col
-                    stops = [self.entry] + list(trip) + [self.entry]
-                    for a, b in zip(stops, stops[1:]):
-                        seg = self.path[a][b]
-                        xs = [xoff(n[0]) + n[1] + 0.5 for n in seg]
-                        ys = [n[2] + 0.5 for n in seg]
+            trip_count = 0
+            curr_supply_locations = self.supplies.copy()
+            if plan and len(plan) > 0:
+                i = 0
+                curr_loc = self.entry
+                curr_trip = []
+                total_energy_cost = 0
+                curr_supplies = []
+                trip_first_supply = None
+                col = TRIP_COLOURS[trip_count % len(TRIP_COLOURS)]
+                while i < len(plan):
+                    curr = plan[i]
+                    trip_of[curr] = col
+                    if isinstance(curr, str):
+                        if curr == "pickup":
+                            index = curr_supply_locations.index(curr_loc)
+                            while index in curr_supplies:
+                                index = curr_supply_locations.index(curr_loc, index + 1)
+                            curr_supplies.append(index)
+                            if trip_first_supply is None:
+                                trip_first_supply = curr_loc
+                        else:
+                            curr_supply_locations[curr_supplies.pop()] = curr_loc
+                    else:
+                        mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
+                        total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
+                        xs = [xoff(n[0]) + n[1] + 0.5 for n in [curr_loc, curr]]
+                        ys = [n[2] + 0.5 for n in [curr_loc, curr]]
                         # white underlay keeps overlapping routes legible
-                        ax.plot(xs, ys, color='white', lw=6.4, alpha=0.85, zorder=6,
-                                solid_capstyle='round')
-                        ax.plot(xs, ys, color=col, lw=3.6, alpha=0.95, zorder=7,
-                                solid_capstyle='round')
-                    # number the trip at its first collection point
-                    if trip:
-                        _f = trip[0]
-                        ax.text(xoff(_f[0]) + _f[1] + 0.5, _f[2] + 0.5, str(i + 1),
+                        ax.plot(
+                            xs, ys, color='white', lw=6.4, alpha=0.85, zorder=6,
+                            solid_capstyle='round'
+                        )
+                        ax.plot(
+                            xs, ys, color=col, lw=3.6, alpha=0.95, zorder=7,
+                            solid_capstyle='round'
+                        )
+                        curr_loc = curr
+                        curr_trip.append(curr)
+
+                    if curr == self.entry or curr == self.exit_a or curr == self.exit_b:
+                        # number the trip at its first collection point
+
+                        if trip_first_supply:
+                            ax.text(
+                                xoff(trip_first_supply[0]) + trip_first_supply[1] + 0.5, trip_first_supply[2] + 0.5, total_energy_cost,
                                 ha='center', va='center', fontsize=6.5,
                                 fontweight='bold', color='white', zorder=13,
-                                bbox=dict(boxstyle='circle,pad=0.16', fc=col,
-                                          ec='white', lw=0.7))
+                                bbox=dict(
+                                    boxstyle='circle,pad=0.16', fc=col,
+                                    ec='white', lw=0.7
+                                )
+                            )
+
+                        trip_first_supply = None
+                        trip_count += 1
+                        curr_trip = [self.entry]
+                        col = TRIP_COLOURS[trip_count % len(TRIP_COLOURS)]
+
+                    i += 1
+
+                col = TRIP_COLOURS[(trip_count - 1) % len(TRIP_COLOURS)]
+                ax.text(
+                    xoff(curr_loc[0]) + curr_loc[1] + 0.5, curr_loc[2] + 0.5, total_energy_cost,
+                    ha='center', va='center', fontsize=6.5,
+                    fontweight='bold', color='white', zorder=13,
+                    bbox=dict(
+                        boxstyle='circle,pad=0.16', fc=col,
+                        ec='white', lw=0.7
+                    )
+                )
 
             # ---- supply units: star sized by mass ----
             abandoned = set(abandoned or [])
@@ -394,71 +492,111 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                 ox = xoff(ws)
                 x, y = ox + cs + 0.5, rs + 0.5
                 if u in abandoned:
-                    ax.plot(x, y, marker='x', ms=7, color=COL_DROPPED,
-                            markeredgewidth=1.8, zorder=9)
+                    ax.plot(
+                        x, y, marker='x', ms=7, color=COL_DROPPED,
+                        markeredgewidth=1.8, zorder=9
+                        )
                 else:
-                    ax.plot(x, y, marker='*', markersize=mass_size(self.masses[u]),
-                            color=trip_of.get(u, COL_SUPPLY),
-                            markeredgecolor='white' if u in trip_of else COL_ENTRY,
-                            markeredgewidth=0.8, zorder=9)
+                    ax.plot(
+                        x, y, marker='*', markersize=mass_size(self.masses[u]),
+                        color=trip_of.get(u, COL_SUPPLY),
+                        markeredgecolor='white' if u in trip_of else COL_ENTRY,
+                        markeredgewidth=0.8, zorder=9
+                        )
                 if show_labels:
-                    ax.text(x + 0.30, y + 0.22,
-                            f"S{i + 1}", fontsize=5.2, color=COL_WALL, zorder=10)
-                    ax.text(x + 0.30, y - 0.42,
-                            f"m{self.masses[u]}/p{self.values[u]}", fontsize=4.6,
-                            color='#6B7480', zorder=10)
+                    ax.text(
+                        x + 0.30, y + 0.22,
+                        f"S{i + 1}", fontsize=5.2, color=COL_WALL, zorder=10
+                        )
+                    ax.text(
+                        x + 0.30, y - 0.42,
+                        f"m{self.masses[u]}/p{self.values[u]}", fontsize=4.6,
+                        color='#6B7480', zorder=10
+                        )
 
             # ---- shaft (the Memo 01 entry, now the extraction point) and exits ----
             we, ce, re = self.entry
-            ax.add_patch(plt.Circle((xoff(we) + ce + 0.5, re + 0.5), 0.34,
-                                    color=COL_ENTRY, zorder=11))
-            ax.text(xoff(we) + ce + 0.5, re + 0.5, 'S', ha='center', va='center',
-                    fontsize=7, color='white', fontweight='bold', zorder=12)
+            ax.add_patch(
+                plt.Circle(
+                    (xoff(we) + ce + 0.5, re + 0.5), 0.34,
+                    color=COL_ENTRY, zorder=11
+                    )
+                )
+            ax.text(
+                xoff(we) + ce + 0.5, re + 0.5, 'S', ha='center', va='center',
+                fontsize=7, color='white', fontweight='bold', zorder=12
+                )
 
             for lbl, (wx, cx, rx) in zip(['A', 'B'], [self.exit_a, self.exit_b]):
-                ax.add_patch(plt.Circle((xoff(wx) + cx + 0.5, rx + 0.5), 0.3,
-                                        color=COL_EXIT, zorder=11))
-                ax.text(xoff(wx) + cx + 0.5, rx + 0.5, lbl, ha='center', va='center',
-                        fontsize=6, color='white', fontweight='bold', zorder=12)
+                ax.add_patch(
+                    plt.Circle(
+                        (xoff(wx) + cx + 0.5, rx + 0.5), 0.3,
+                        color=COL_EXIT, zorder=11
+                        )
+                    )
+                ax.text(
+                    xoff(wx) + cx + 0.5, rx + 0.5, lbl, ha='center', va='center',
+                    fontsize=6, color='white', fontweight='bold', zorder=12
+                    )
 
             # ---- corridor-cost colourbar (unchanged from Memo 02) ----
-            sm = plt.cm.ScalarMappable(cmap=WEIGHT_CMAP,
-                                       norm=mcolors.Normalize(vmin=1, vmax=5))
+            sm = plt.cm.ScalarMappable(
+                cmap=WEIGHT_CMAP,
+                norm=mcolors.Normalize(vmin=1, vmax=5)
+                )
             sm.set_array([])
             cbar = fig.colorbar(sm, ax=ax, fraction=0.018, pad=0.02)
-            cbar.set_label('Corridor cost  w(e)' + ('  (muted)' if showing_plan else ''),
-                           fontsize=8, color='#0B1F3B')
+            cbar.set_label(
+                'Corridor cost  w(e)' + ('  (muted)' if showing_plan else ''),
+                fontsize=8, color='#0B1F3B'
+                )
             cbar.set_ticks([1, 2, 3, 4, 5])
             cbar.ax.tick_params(labelsize=7)
 
             # ---- legend ----
             handles = [
-                plt.Line2D([], [], marker='o', ls='', ms=7, color=COL_ENTRY,
-                           label='S  extraction shaft (Memo 01 entry)'),
-                plt.Line2D([], [], marker='o', ls='', ms=6, color=COL_EXIT,
-                           label='A / B  exits'),
-                plt.Line2D([], [], marker='*', ls='', ms=9, color=COL_SUPPLY,
-                           markeredgecolor=COL_ENTRY, label='supply unit  (size = mass)'),
-                plt.Line2D([], [], marker='x', ls='', ms=7, color=COL_DROPPED,
-                           label='abandoned'),
-                plt.Line2D([], [], ls='--', lw=2, color=COL_JUNCTION,
-                           label='inter-wing junction'),
+                plt.Line2D(
+                    [], [], marker='o', ls='', ms=7, color=COL_ENTRY,
+                    label='S  extraction shaft (Memo 01 entry)'
+                    ),
+                plt.Line2D(
+                    [], [], marker='o', ls='', ms=6, color=COL_EXIT,
+                    label='A / B  exits'
+                    ),
+                plt.Line2D(
+                    [], [], marker='*', ls='', ms=9, color=COL_SUPPLY,
+                    markeredgecolor=COL_ENTRY, label='supply unit  (size = mass)'
+                    ),
+                plt.Line2D(
+                    [], [], marker='x', ls='', ms=7, color=COL_DROPPED,
+                    label='abandoned'
+                    ),
+                plt.Line2D(
+                    [], [], ls='--', lw=2, color=COL_JUNCTION,
+                    label='inter-wing junction'
+                    ),
             ]
             if plan:
-                _lbl = (f'shuttle trips ({drawn_trips} of {len(plan)} shown)'
-                        if only_trips else
-                        f'shuttle trips ({len(plan)}, numbered at first pickup)')
-                handles.append(plt.Line2D([], [], lw=4, color=TRIP_COLOURS[0],
-                                          label=_lbl))
-            ax.legend(handles=handles, loc='upper center', bbox_to_anchor=(0.5, -0.02),
-                      ncol=3, fontsize=7, framealpha=0.9, borderpad=0.6)
+                _lbl = f'shuttle trips ({trip_count}, numbered at first pickup)'
+                handles.append(
+                    plt.Line2D(
+                        [], [], lw=4, color=TRIP_COLOURS[0],
+                        label=_lbl
+                        )
+                    )
+            ax.legend(
+                handles=handles, loc='upper center', bbox_to_anchor=(0.5, -0.02),
+                ncol=3, fontsize=7, framealpha=0.9, borderpad=0.6
+                )
 
             ax.set_xlim(-0.5, total_w + 0.5)
             ax.set_ylim(-1.0, self.WING_ROWS + 1.4)
             ax.set_aspect('equal')
             ax.axis('off')
-            ax.set_title(title, fontsize=11, fontweight='bold',
-                         color='#0B1F3B', pad=10)
+            ax.set_title(
+                title, fontsize=11, fontweight='bold',
+                color='#0B1F3B', pad=10
+                )
             plt.tight_layout()
 
             return fig
@@ -474,7 +612,7 @@ def _(mo, np, re):
             self.raw_pseudocode = open(fp, encoding="utf-8").read()
             self.full_pseudocode = self._parse_pseudocode(self.raw_pseudocode)
 
-        def get_fn_fancy(self, name: str, font_size: int = 12, numbered: bool = False, *, start_offset: int = 0, start_offset_function_name_prefix: bool=True, end_offset: int = 0, start_elipsis=True, end_elipsis=True):
+        def get_fn_fancy(self, name: str, font_size: int = 12, numbered: bool = False, *, start_offset: int = 0, start_offset_function_name_prefix: bool = True, end_offset: int = 0, start_elipsis=True, end_elipsis=True):
             start = self.raw_pseudocode.find(f"PROCEDURE {name}(")
             if start == -1:
                 start = self.raw_pseudocode.find(f"FUNCTION {name}(")
@@ -501,17 +639,16 @@ def _(mo, np, re):
                 rf"""
         <div style="font-family: monospace; font-size: {font_size}px; white-space: pre-wrap;">{res}</div>
         """
-                )
-
+            )
 
         def get_lines_fancy(self, start: int, stop: int, font_size: int = 12, numbered: bool = False):
             return mo.md(
                 rf"""
         <div style="font-family: monospace; font-size: {font_size}px; white-space: pre-wrap;">{self.get_lines(start, stop, numbered)}</div>
         """
-                )
+            )
 
-        def get_lines(self, start: int, stop: int, numbered: bool, *, start_number_offset: int=0, first_not_numbered: bool=True):
+        def get_lines(self, start: int, stop: int, numbered: bool, *, start_number_offset: int = 0, first_not_numbered: bool = True):
             if numbered:
                 splits = self.full_pseudocode.split('<br>')[start:stop]
                 pad = int(np.ceil(np.log10(len(splits))))
@@ -616,7 +753,6 @@ def _(mo, np, re):
             return res
 
     pseudocode_explorer = PseudocodeExplorer("memo2/raw_pseudocode.txt")
-
 
     pseudocode_explorer_old = PseudocodeExplorer("memo1a1/raw_pseudocode.txt")
     return
@@ -809,9 +945,8 @@ def algorithm_resource_note(mo):
 
 
 @app.cell
-def algorithm_explorer_controls(facility_drawer, mo, sys):
-    sys.path.append('../AlgosSat')
-    from memo1a1 import memo1a_algorithm
+def algorithm_explorer_controls(facility_drawer, mo):
+    import memo3_algorithm
 
     _exits = {facility_drawer.exit_a, facility_drawer.exit_b}
     _supplies = set(facility_drawer.supplies)
@@ -820,7 +955,7 @@ def algorithm_explorer_controls(facility_drawer, mo, sys):
 
     @mo.cache
     def ember_rescue_cached():
-        return [facility_drawer.entry]
+        return memo3_algorithm.ember_rescue(facility_drawer.get_abstracted_graph(), facility_drawer.entry, {facility_drawer.exit_a, facility_drawer.exit_b}, facility_drawer.supplies, facility_drawer.masses, facility_drawer.values, {}, set(), facility_drawer.budget)
 
     _path = ember_rescue_cached()
 
@@ -858,26 +993,36 @@ def algorithm_explorer_controls_and_info(
         else:
             return (u, v) in facility_drawer.junctions or (v, u) in facility_drawer.junctions
 
+    _collected_supplies, _used_budget = facility_drawer.get_collected_supplies_and_budget(_path[:path_len.value])
+
     mo.vstack(
         [
             mo.hstack(
                 [
                     mo.stat(
-                        label="Complete Path length",
+                        label="Total instructions",
                         value=f"{len(_path) - 1} steps"
-                        ),
+                    ),
                     mo.stat(
                         label="Supplies collected",
-                        value=f"{len([None for u in _path[:path_len.value] if u in _supplies])}/{len(_supplies)}"
-                        ),
+                        value=f"{len(_collected_supplies)}/{len(facility_drawer.supplies)}"
+                    ),
+                    mo.stat(
+                        label="Supply priority collected",
+                        value=f"{sum(facility_drawer.values[s] for s in _collected_supplies)}/{sum(facility_drawer.values[s] for s in facility_drawer.supplies)}"
+                    ),
+                    mo.stat(
+                        label="Budget used",
+                        value=f"{_used_budget}/{facility_drawer.budget}"
+                    ),
                     mo.stat(
                         label="Ends at exit",
                         value="✅ Yes" if _path[-1] in _exits else "❌ No"
-                        ),
+                    ),
                     mo.stat(
                         label="All moves valid",
-                        value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value)) else "❌ No"
-                        )
+                        value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value) if not isinstance(_path[i], str) and not isinstance(_path[i + 1], str)) else "❌ No"
+                    )
                 ], gap=1, wrap=True
             ),
             path_len
@@ -887,8 +1032,12 @@ def algorithm_explorer_controls_and_info(
 
 
 @app.cell
-def algorithm_explorer(facility_drawer):
-    facility_drawer.draw_multi_wing() # ember_rescue_cached()[:path_len.value + 1]
+def algorithm_explorer(ember_rescue_cached, facility_drawer, path_len):
+    _path = ember_rescue_cached()
+
+    _collected_supplies, _ = facility_drawer.get_collected_supplies_and_budget(_path)
+
+    facility_drawer.draw_multi_wing(plan=ember_rescue_cached()[:path_len.value + 1], abandoned={s for s in facility_drawer.supplies if s not in _collected_supplies})
     return
 
 
@@ -902,9 +1051,11 @@ def appendix(mo):
 
 @app.cell
 def references(mo):
-    mo.md(f"""
+    mo.md(
+        f"""
     ## 7.1 References\n{open("memo2/references.txt", "r", encoding="utf-8").read()}
-    """)
+    """
+        )
     return
 
 

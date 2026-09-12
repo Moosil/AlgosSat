@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.1"
+__generated_with = "0.24.2"
 app = marimo.App(width="medium", app_title="Memo3", css_file="../custom.css")
 
 
@@ -107,13 +107,13 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                         curr_loc = curr
                         curr_trip.append(curr)
 
-                    if curr == self.entry or curr == self.exit_a or curr == self.exit_b:
-                        # number the trip at its first collection point
-
-                        curr_trip = [self.entry]
+                        if curr == self.entry or curr == self.exit_a or curr == self.exit_b:
+                            # number the trip at its first collection point
+    
+                            curr_trip = [self.entry]
 
                     i += 1
-
+        
             return [self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry], total_energy_cost
 
         def _setup_multi_wing_facility(self, seed):
@@ -960,9 +960,9 @@ def algorithm_explorer_controls(facility_drawer, mo):
     _path = ember_rescue_cached()
 
     path_len = mo.ui.slider(
-        value=0,
+        value=len(_path),
         start=0,
-        stop=len(_path) - 1,
+        stop=len(_path),
         step=1,
         label="Step (drag to walk through the facility)",
         full_width=True,
@@ -1021,7 +1021,7 @@ def algorithm_explorer_controls_and_info(
                     ),
                     mo.stat(
                         label="All moves valid",
-                        value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value) if not isinstance(_path[i], str) and not isinstance(_path[i + 1], str)) else "❌ No"
+                        value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value - 1) if not isinstance(_path[i], str) and not isinstance(_path[i + 1], str)) else "❌ No"
                     )
                 ], gap=1, wrap=True
             ),
@@ -1051,11 +1051,9 @@ def appendix(mo):
 
 @app.cell
 def references(mo):
-    mo.md(
-        f"""
+    mo.md(f"""
     ## 7.1 References\n{open("memo2/references.txt", "r", encoding="utf-8").read()}
-    """
-        )
+    """)
     return
 
 

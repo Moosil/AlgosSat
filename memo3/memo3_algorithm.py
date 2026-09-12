@@ -212,18 +212,50 @@ def knapsack_supplies(
             )
 
         """collect supplies in sack on the way back"""
-        sack_items = [supplies[supplies_in_junction[s]] for s in sack]
-        for p in reversed(prevs):
-            if p in sack_items:
-                res.append(p)
+        sack_items = {supplies[supplies_in_junction[s]]: supplies_in_junction[s] for s in sack}
+        curr_weight = 0
+        curr_extra_supplies = []
+
+        for i in range(len(prevs) - 1, -1, -1):
+            c_prevs = prevs[i]
+            if c_prevs in sack_items:
+                supply_i = sack_items[c_prevs]
+                w = supply_weights[supply_i]
+                drop_i = 1
+                while curr_weight + w > 5:
+                    drop_supply_i = curr_extra_supplies.pop()
+                    p_prevs = prevs[i - drop_i]
+                    res.append(p_prevs)
+                    res.append("drop")
+                    curr_weight -= supply_weights[drop_supply_i]
+                    supplies[drop_supply_i] = p_prevs
+                    drop_i += 1
+
+                curr_weight += w
+                res.append(c_prevs)
                 res.append("pickup")
+            elif c_prevs in supplies:
+                supply_i = supplies.index(c_prevs)
+                w = supply_weights[supply_i]
+                if curr_weight + w <= 5:
+                    curr_weight += w
+                    res.append(c_prevs)
+                    res.append("pickup")
+                    curr_extra_supplies.append(supply_i)
 
         res.append(entry)
         for s in sack:
+            i = supplies_in_junction[s]
             # order matters
-            total_weight -= supply_weights[supplies_in_junction[s]]
-            supplies[supplies_in_junction[s]] = None
+            total_weight -= supply_weights[i]
+            supplies[i] = None
             supplies_in_junction.pop(s)
+            res.append("drop")
+        for s in curr_extra_supplies:
+            # order matters
+            total_weight -= supply_weights[s]
+            supplies[s] = None
+            supplies_in_junction.remove(s)
             res.append("drop")
 
 
@@ -470,7 +502,7 @@ def ember_rescue(
     supply_wing_paths = get_supply_wing_paths(G, reduced_supplies, pair_paths[entry])
 
     print(f"supply candidates: {reduced_supplies}")
-    print(f"number of weight 1 supplies: {len(list(filter(lambda x: supply_weights[x] == 1, reduced_supplies)))}")
+    print(f"number of supplies: {len(reduced_supplies)}")
     next_v = list(flat_G.neighbors(entry))[0]
     supply_weight_idx = [supply_weights[s] for s in reduced_supplies]
     super_path = clear_branch(
@@ -481,7 +513,7 @@ def ember_rescue(
     res = []
     prev_pos = entry
     prev_wing = get_which_wing(G, prev_pos)
-    for i in range(len(super_path) - 1):
+    for i in range(len(super_path)):
         curr = super_path[i]
         if isinstance(curr, str):
             res.append(curr)

@@ -375,9 +375,11 @@ def test_facilities():
                 print(f"not correct {seed} with {len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) > 5])} over-carries")
             curr["budget"] = budget
             curr["used budget"] = sum(used_budget)
-            curr["excess budget ratio"] = (budget - sum(used_budget)) / budget
+            curr["excess budget"] = budget - sum(used_budget)
+            curr["excess budget ratio"] = curr["excess budget"] / curr["used budget"]
             curr["priority"] = sum(facility.values[s] for s in facility.supplies)
             curr["collected priority"] = sum(facility.values[s] for s in collected_supplies)
+            curr["collected priority percent"] = curr["collected priority"] / curr["priority"]
             curr["vertices"] = sum(w_j.number_of_nodes() for w_j in abs_graph[0])
             curr["edges"] = sum(w_j.number_of_edges() for w_j in abs_graph[0])
             curr["junctions"] = len(abs_graph[1])
@@ -390,7 +392,7 @@ def test_facilities():
             pr.disable()
 
     with open(file_name, "w", encoding="utf-8", newline='') as f:
-        row_names = ["seed", "time", "collected supplies 1", "collected supplies 2", "collected supplies 3", "trip collected 0", "trip collected 1", "trip collected 2", "trip collected 3", "trip collected 4", "trip collected 5", "budget", "used budget", "excess budget ratio", "priority", "collected priority", "vertices", "edges", "junctions", "wings", "exits"]
+        row_names = ["seed", "time", "collected supplies 1", "collected supplies 2", "collected supplies 3", "trip collected 0", "trip collected 1", "trip collected 2", "trip collected 3", "trip collected 4", "trip collected 5", "budget", "used budget", "excess budget", "excess budget ratio", "priority", "collected priority", "collected priority percent", "vertices", "edges", "junctions", "wings", "exits"]
         writer = csv.writer(f)
         writer.writerow(row_names)
         writer.writerows([[r[n] for n in row_names] for r in data])
@@ -405,7 +407,7 @@ if __name__ == "__main__":
         )
         match test_id:
             case "1":
-                test_seed(10_012_461)  # 10012696)
+                test_seed(10012699)  # 10012696)
                 break
             case "2":
                 test_facilities()

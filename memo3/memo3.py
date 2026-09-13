@@ -15,6 +15,7 @@ def imports():
     import numpy as np
     import re
 
+    plt.rcParams['figure.dpi'] = 600
     return itertools, mcolors, mo, np, nx, plt, random, re
 
 
@@ -110,7 +111,7 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                             trip_move_supplies.append({})
                             trip_costs.append(total_energy_cost - sum(trip_costs))
                             next_append = False
-    
+
                         mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
                         total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
                         curr_loc = curr
@@ -933,7 +934,7 @@ def algorithm_resource(facility_drawer, mo):
     _supply_map = {i: hash(i) for i in facility_drawer.supplies}
     _budget = facility_drawer.budget
 
-    _trials = 10
+    _trials = 1
 
     def _get_runtime(trials: int = 1) -> float:
         if trials < 1:
@@ -1127,12 +1128,6 @@ def algorithm_explorer(
     _path = ember_rescue_cached()
 
     facility_drawer.draw_multi_wing(plan=_path[:path_len.value + 1], highlight_trip=highlight_trip.value - 1 if highlight_trip.value != highlight_trip.stop else None)
-    return
-
-
-@app.cell
-def _(facility_drawer):
-    facility_drawer.draw_multi_wing()
     return
 
 

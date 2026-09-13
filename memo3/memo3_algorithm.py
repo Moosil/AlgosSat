@@ -5,10 +5,7 @@ from typing import Generator, Iterable
 
 import networkx as nx
 
-
-class VertexT:
-    pass
-
+VertexT = tuple[int, int, int]
 
 WingT = nx.Graph
 
@@ -187,14 +184,24 @@ def flatten_graph(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]]) -> nx.Grap
 
 
 def reduce_supplies(
-    supplies: set[VertexT], supply_weights: dict[VertexT, int], supply_priorities: dict[VertexT, int],
-    entry_to_supply_distances: dict[VertexT, int], energy_cap: int
+    g, supplies: set[VertexT], supply_weights: dict[VertexT, int], supply_priorities: dict[VertexT, int],
+    entry_paths: dict[VertexT, list[VertexT]], budget: int
 ) -> list[VertexT]:
+    supply_distances = {v: get_path_length(g, entry_paths[v]) for v in supplies}
     supplies_ordered = list(supplies)
 
+    def get_weight_cost(weight: int) -> int:
+        if weight >= 3:
+            return int(4 * weight + 2 * 3.5)
+        if weight == 2:
+            return int(4 * weight + 2 * 2.5)
+        if weight == 1:
+            return int(4 * weight + 2 * 2.5)
+        raise RuntimeError(f"invalid weight")
+
     ks, tot = knapsack(
-        energy_cap, [supply_priorities[u] for u in supplies_ordered],
-        [(supply_weights[u] + 2) * entry_to_supply_distances[u] for u in supplies_ordered]
+        4 * budget, [supply_priorities[u] for u in supplies_ordered],
+        [get_weight_cost(supply_weights[u]) * supply_distances[u] for u in supplies_ordered]
     )
 
     return [supplies_ordered[i] for i in ks]
@@ -403,7 +410,6 @@ def clear_branch(
                         break
                 assert added, f"no supply with weight {weight} and priority {priority} was found in {vertex_to_collect[curr_pos]} (at {curr_pos})"
 
-
             res.pop(i)
 
             i -= 1
@@ -495,11 +501,21 @@ def get_supply_wing_paths(
     return res
 
 
+def get_supplies_to_collect(
+    supplies: set[VertexT], vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID]
+) -> set[VertexT]:
+    return supplies.difference(
+        (s for s in supplies if vertex_to_supply_id[s] in found_supply_ids)
+    )
+
+
 def ember_rescue(
     G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: VertexT, exits: set[VertexT],
     supplies: set[VertexT], supply_weights: dict[VertexT, int], supply_priorities: dict[VertexT, int],
     vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID], energy_amount: int
 ):
+    supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids)
+
     flat_G = flatten_graph(G)
     entry_prevs = dijkstra(flat_G, entry)
     entry_paths = {v: reconstruct_path(entry_prevs, v) for v in supplies}
@@ -516,7 +532,7 @@ def ember_rescue(
             exit_run_cost = curr_cost
 
     """knapsack problem on the possible runs"""
-    reduced_supplies = reduce_supplies(supplies, supply_weights, supply_priorities, {v: get_path_length(flat_G, entry_paths[v]) for v in supplies}, energy_amount - exit_run_cost)
+    reduced_supplies = reduce_supplies(flat_G, supplies, supply_weights, supply_priorities, entry_paths, energy_amount - exit_run_cost)
 
     supply_wing_paths = get_supply_wing_paths(G, reduced_supplies, entry_paths)
 

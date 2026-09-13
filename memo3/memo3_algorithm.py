@@ -388,7 +388,6 @@ def clear_branch(
             i -= 1
 
         if curr_pos != end_branch_pos and curr_pos != entry:
-            orig_res = res.copy()
             for j in range(len(res) - i - 1):
                 _, weight, priority = res.pop(i + 1)
                 added = False

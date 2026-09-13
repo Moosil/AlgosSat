@@ -87,11 +87,12 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
             curr_supply_locations = self.supplies.copy()
             total_energy_cost = 0
             trip_supplies = []
+            trip_costs = []
             trip_move_supplies = [{}]
+            next_append = False
             if plan and len(plan) > 0:
                 i = 0
                 curr_loc = self.entry
-                curr_trip = []
                 curr_supplies = []
                 while i < len(plan):
                     curr = plan[i]
@@ -101,23 +102,26 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                     elif curr[0] == -1:
                         supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2], curr_supplies))[-1]
                         curr_supplies.remove(supply_index)
-                        trip_move_supplies[len(trip_supplies)][supply_index] = curr_loc
+                        trip_move_supplies[-1][supply_index] = curr_loc
                         curr_supply_locations[supply_index] = curr_loc
                     else:
+                        if next_append:
+                            trip_supplies.append(set(self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry).difference(s for trip_s in trip_supplies for s in trip_s))
+                            trip_move_supplies.append({})
+                            trip_costs.append(total_energy_cost - sum(trip_costs))
+                            next_append = False
+    
                         mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
                         total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
                         curr_loc = curr
-                        curr_trip.append(curr)
 
                         if curr == self.entry or i == len(plan) - 1:
                             # number the trip at its first collection point
-                            trip_supplies.append(set(self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry).difference(s for trip_s in trip_supplies for s in trip_s))
-                            trip_move_supplies.append({})
-                            curr_trip = [self.entry]
+                            next_append = True
 
                     i += 1
-
-            return [self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry], total_energy_cost, trip_supplies, trip_move_supplies
+            trip_costs.append(total_energy_cost - sum(trip_costs))
+            return [self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry], trip_costs, trip_supplies, trip_move_supplies
 
         def _setup_multi_wing_facility(self, seed):
             int_seed = int(seed)
@@ -1033,6 +1037,7 @@ def algorithm_explorer_controls_and_info(
             return (u, v) in facility_drawer.junctions or (v, u) in facility_drawer.junctions
 
     _collected_supplies, _used_budget, _trip_supplies, _ = facility_drawer.get_plan_info(_path[:path_len.value])
+    _used_budget = sum(_used_budget)
     # _collected_supplies, _used_budget, _trip_supplies = [], 1e9, []
 
     highlight_trip = mo.ui.slider(
@@ -1082,13 +1087,15 @@ def algorithm_explorer_controls_and_info(
     return (highlight_trip,)
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(ember_rescue_cached, facility_drawer, highlight_trip, mo):
     _path = ember_rescue_cached()
-    _, _, _trip_supplies, _trip_move_supplies = facility_drawer.get_plan_info(_path)
+    _, _trip_costs, _trip_supplies, _trip_move_supplies = facility_drawer.get_plan_info(_path)
     # _trip_supplies, _trip_move_supplies = [], [{}]
 
-    _ordered = list(i for i, n in _trip_move_supplies[highlight_trip.value - 1].items() if n != facility_drawer.entry)
+    _ordered = []
+    if highlight_trip.value != highlight_trip.stop:
+        _ordered = list(i for i, n in _trip_move_supplies[highlight_trip.value - 1].items() if n != facility_drawer.entry)
 
     def join_and(l: list):
         if not isinstance(l, list):
@@ -1100,10 +1107,12 @@ def _(ember_rescue_cached, facility_drawer, highlight_trip, mo):
         return f"{", ".join(str(s) for s in l[:-1])} and {l[-1]}"
 
     mo.md(fr"""
-    {f"Collecting supplies at {join_and(_trip_supplies[highlight_trip.value])}" if highlight_trip.value != highlight_trip.stop - 1 else ""}
-    {f"\nWeights: {join_and([facility_drawer.masses[s] for s in _trip_supplies[highlight_trip.value]])}" if highlight_trip.value != highlight_trip.stop - 1 else ""}
+    {f"Collecting supplies at {join_and(_trip_supplies[highlight_trip.value - 1])}" if highlight_trip.value != highlight_trip.stop - 1 else ""}
+    {f"\nWeights: {join_and([facility_drawer.masses[s] for s in _trip_supplies[highlight_trip.value - 1]])}" if highlight_trip.value != highlight_trip.stop - 1 else ""}
 
     {f"Moving suppl{"ies" if len(_ordered) > 1 else "y"} at {join_and([facility_drawer.supplies[i] for i in _ordered])} to {join_and([_trip_move_supplies[highlight_trip.value - 1][i] for i in _ordered])}" if len(_ordered) > 0 else ""}
+
+    Trip cost: {_trip_costs[highlight_trip.value - 1]}
     """) if highlight_trip.value != highlight_trip.stop else None
     return
 

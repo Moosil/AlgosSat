@@ -194,7 +194,7 @@ def reduce_supplies(
 
     ks, tot = knapsack(
         energy_cap, [supply_priorities[u] for u in supplies_ordered],
-        [(supply_weights[u] + 1 + (1 if supply_weights[u] >= 3 else 0)) * entry_to_supply_distances[u] for u in supplies_ordered]
+        [(supply_weights[u] + 2) * entry_to_supply_distances[u] for u in supplies_ordered]
     )
 
     return [supplies_ordered[i] for i in ks]
@@ -214,15 +214,17 @@ def knapsack_supplies(supplies: list[VertexT], supply_weights: list[int], supply
             sack_items[supplies[supplies_in_junction[s]]].append(supplies_in_junction[s])
         curr_sack_weight = 0
         curr_extra_supplies = []
+        collecting_strays = False
         for i in range(len(prevs) - 1, -1, -1):
             curr_pos = prevs[i]
             if curr_pos in sack_items:
+                collecting_strays = True
                 for supply_index in sack_items[curr_pos]:
                     curr_w = supply_weights[supply_index]
                     drop_count = 1
                     while curr_sack_weight + curr_w > 5:
                         del_supply_index = curr_extra_supplies.pop()
-                        del_pos = prevs[i - drop_count]
+                        del_pos = prevs[i + drop_count]
                         res.append(del_pos)
                         res.append((-1, supply_weights[del_supply_index], supply_priorities[del_supply_index]))
                         curr_sack_weight -= supply_weights[del_supply_index]
@@ -232,7 +234,7 @@ def knapsack_supplies(supplies: list[VertexT], supply_weights: list[int], supply
                     curr_sack_weight += curr_w
                     res.append(curr_pos)
                     res.append((-2, supply_weights[supply_index], supply_priorities[supply_index]))
-            elif curr_pos in supplies:
+            elif collecting_strays and curr_pos in supplies and supplies.index(curr_pos) in supplies_in_junction:
                 supply_index = supplies.index(curr_pos)
                 curr_weight = supply_weights[supply_index]
                 if curr_sack_weight + curr_weight <= 5:
@@ -360,7 +362,7 @@ def clear_branch(
         clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, prevs, inter_wing_path, supply_paths, end_branch_pos, res)
 
     end_branch_degree = orig_wing.degree[end_branch_pos]
-    if end_branch_degree == 3:
+    if end_branch_degree >= 3:
         for n in orig_wing.neighbors(end_branch_pos):
             if n == prev:
                 continue
@@ -499,52 +501,39 @@ def ember_rescue(
     vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID], energy_amount: int
 ):
     flat_G = flatten_graph(G)
-    salient = list(supplies) + [entry] + list(exits)
-    prevs = {v: dijkstra(flat_G, v) for v in salient}
-    pair_paths = {u: {v: reconstruct_path(prevs[u], v) for v in salient if v != u} for u in salient}
-    pair_distances = {u: {v: get_path_length(flat_G, pair_paths[u][v]) for v in salient if v != u} for u in salient}
+    entry_prevs = dijkstra(flat_G, entry)
+    entry_paths = {v: reconstruct_path(entry_prevs, v) for v in supplies}
 
-    exit_run = reconstruct_path(prevs[entry], list(exits)[0])
+    exit_run = reconstruct_path(entry_prevs, list(exits)[0])
     exit_run_cost = get_path_length(flat_G, exit_run)
     for ex in exits:
         if ex == exit_run[-1]:
             continue
-        curr = reconstruct_path(prevs[entry], ex)
+        curr = reconstruct_path(entry_prevs, ex)
         curr_cost = get_path_length(flat_G, curr)
         if curr_cost < exit_run_cost:
             exit_run = curr
             exit_run_cost = curr_cost
 
     """knapsack problem on the possible runs"""
-    reduced_supplies = reduce_supplies(supplies, supply_weights, supply_priorities, pair_distances[entry], energy_amount - exit_run_cost)
+    reduced_supplies = reduce_supplies(supplies, supply_weights, supply_priorities, {v: get_path_length(flat_G, entry_paths[v]) for v in supplies}, energy_amount - exit_run_cost)
 
-    supply_wing_paths = get_supply_wing_paths(G, reduced_supplies, pair_paths[entry])
+    supply_wing_paths = get_supply_wing_paths(G, reduced_supplies, entry_paths)
 
     # print(f"supply candidates: {reduced_supplies}")
     # print(f"number of supplies: {len(reduced_supplies)}")
     super_path = clear_branch(G, entry, entry, list(flat_G.neighbors(entry))[0], get_which_wing(G, entry), [entry], supply_wing_paths, [supply_weights[s] for s in reduced_supplies], [supply_priorities[s] for s in reduced_supplies], reduced_supplies, tuple())
     res = []
     prev_pos = entry
-    prev_wing = get_which_wing(G, prev_pos)
     for i in range(len(super_path)):
         curr = super_path[i]
         if curr[0] < 0:
             res.append(curr)
         else:
-            curr_wing = get_which_wing(G, curr)
-            if curr_wing == prev_wing:
-                res += dijkstra_to(curr_wing, prev_pos, curr)[1:]
-            else:
-                res += dijkstra_to(flat_G, prev_pos, curr)[1:]
-                prev_wing = get_which_wing(G, curr)
-
+            res += dijkstra_to(flat_G, prev_pos, curr)[1:]
             prev_pos = curr
 
     if prev_pos != entry:
-        e_wing = get_which_wing(G, entry)
-        if e_wing == prev_wing:
-            res += dijkstra_to(e_wing, prev_pos, entry)[1:]
-        else:
-            res += dijkstra_to(flat_G, prev_pos, entry)[1:]
+        res += dijkstra_to(flat_G, prev_pos, entry)[1:]
     res += exit_run[1:]
     return res

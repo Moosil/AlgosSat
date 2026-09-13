@@ -61,39 +61,36 @@ class GraphDrawer:
         curr_supply_locations = self.supplies.copy()
         total_energy_cost = 0
         trip_supplies = []
+        trip_costs = []
         trip_move_supplies = [{}]
         if plan and len(plan) > 0:
             i = 0
             curr_loc = self.entry
-            curr_trip = []
             curr_supplies = []
             while i < len(plan):
                 curr = plan[i]
                 if curr[0] == -2:
                     supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2] and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
                     curr_supplies.append(supply_index)
-                    # print(f"picking up supply at {curr_loc}: supply {supply_index}")
                 elif curr[0] == -1:
                     supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2], curr_supplies))[-1]
                     curr_supplies.remove(supply_index)
                     trip_move_supplies[len(trip_supplies)][supply_index] = curr_loc
                     curr_supply_locations[supply_index] = curr_loc
-                    # print(f"dropping off supply at {curr_loc}: supply {supply_index}")
                 else:
                     mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
                     total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
                     curr_loc = curr
-                    curr_trip.append(curr)
 
                     if curr == self.entry or i == len(plan) - 1:
                         # number the trip at its first collection point
                         trip_supplies.append(set(self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry).difference(s for trip_s in trip_supplies for s in trip_s))
                         trip_move_supplies.append({})
-                        curr_trip = [self.entry]
+                        trip_costs.append(total_energy_cost - sum(trip_costs))
 
                 i += 1
 
-        return [self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry], total_energy_cost, trip_supplies, trip_move_supplies
+        return [self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry], trip_costs, trip_supplies, trip_move_supplies
 
     def _setup_multi_wing_facility(self, seed):
         int_seed = int(seed)
@@ -377,8 +374,8 @@ def test_facilities():
             if len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) > 5]) > 0:
                 print(f"not correct {seed} with {len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) > 5])} over-carries")
             curr["budget"] = budget
-            curr["used budget"] = used_budget
-            curr["excess budget ratio"] = (budget - used_budget) / budget
+            curr["used budget"] = sum(used_budget)
+            curr["excess budget ratio"] = (budget - sum(used_budget)) / budget
             curr["priority"] = sum(facility.values[s] for s in facility.supplies)
             curr["collected priority"] = sum(facility.values[s] for s in collected_supplies)
             curr["vertices"] = sum(w_j.number_of_nodes() for w_j in abs_graph[0])
@@ -408,7 +405,7 @@ if __name__ == "__main__":
         )
         match test_id:
             case "1":
-                test_seed( 10012977 )#10012696)
+                test_seed(10_012_461)  # 10012696)
                 break
             case "2":
                 test_facilities()

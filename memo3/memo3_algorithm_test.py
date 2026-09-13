@@ -70,10 +70,7 @@ class GraphDrawer:
             while i < len(plan):
                 curr = plan[i]
                 if curr[0] == -2:
-                    try:
-                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2] and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
-                    except:
-                        pass
+                    supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2] and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
                     curr_supplies.append(supply_index)
                     # print(f"picking up supply at {curr_loc}: supply {supply_index}")
                 elif curr[0] == -1:
@@ -411,7 +408,7 @@ if __name__ == "__main__":
         )
         match test_id:
             case "1":
-                test_seed(10_012_008)#10012696)
+                test_seed( 10012977 )#10012696)
                 break
             case "2":
                 test_facilities()

@@ -194,7 +194,7 @@ def reduce_supplies(
 
     ks, tot = knapsack(
         energy_cap, [supply_priorities[u] for u in supplies_ordered],
-        [(supply_weights[u] + 1) * entry_to_supply_distances[u] for u in supplies_ordered]
+        [(supply_weights[u] + 2) * entry_to_supply_distances[u] for u in supplies_ordered]
     )
 
     return [supplies_ordered[i] for i in ks]
@@ -212,7 +212,7 @@ def knapsack_supplies(supplies: list[VertexT], supply_weights: list[int], supply
         sack_items = defaultdict(list)
         for s in sack:
             sack_items[supplies[supplies_in_junction[s]]].append(supplies_in_junction[s])
-        total_weight = 0
+        curr_sack_weight = 0
         curr_extra_supplies = []
         for i in range(len(prevs) - 1, -1, -1):
             curr_pos = prevs[i]
@@ -220,23 +220,23 @@ def knapsack_supplies(supplies: list[VertexT], supply_weights: list[int], supply
                 for supply_index in sack_items[curr_pos]:
                     curr_w = supply_weights[supply_index]
                     drop_count = 1
-                    while total_weight + curr_w > 5:
+                    while curr_sack_weight + curr_w > 5:
                         del_supply_index = curr_extra_supplies.pop()
                         del_pos = prevs[i - drop_count]
                         res.append(del_pos)
                         res.append((-1, supply_weights[del_supply_index], supply_priorities[del_supply_index]))
-                        total_weight -= supply_weights[del_supply_index]
+                        curr_sack_weight -= supply_weights[del_supply_index]
                         supplies[del_supply_index] = del_pos
                         drop_count += 1
 
-                    total_weight += curr_w
+                    curr_sack_weight += curr_w
                     res.append(curr_pos)
                     res.append((-2, supply_weights[supply_index], supply_priorities[supply_index]))
             elif curr_pos in supplies:
                 supply_index = supplies.index(curr_pos)
                 curr_weight = supply_weights[supply_index]
-                if total_weight + curr_weight <= 5:
-                    total_weight += curr_weight
+                if curr_sack_weight + curr_weight <= 5:
+                    curr_sack_weight += curr_weight
                     res.append(curr_pos)
                     res.append((-2, supply_weights[supply_index], supply_priorities[supply_index]))
                     curr_extra_supplies.append(supply_index)
@@ -247,9 +247,11 @@ def knapsack_supplies(supplies: list[VertexT], supply_weights: list[int], supply
             # order matters
             supplies[s] = (0, -1, -1)
             supplies_in_junction.pop(i)
+            total_weight -= supply_weights[s]
             res.append((-1, supply_weights[s], supply_priorities[s]))
         for s in curr_extra_supplies:
             supplies[s] = (0, -1, -1)
+            total_weight -= supply_weights[s]
             res.append((-1, supply_weights[s], supply_priorities[s]))
 
 
@@ -292,7 +294,7 @@ def clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, p
                     supplies_in_junction = [s for s in supply_paths[new_inter_wing_path] if
                                             supplies[s] is not None and supplies[s] == junction_other]
 
-                    knapsack_supplies(supplies, supply_weights, supply_priorities, supplies_in_junction, entry, prevs, res)
+                    knapsack_supplies(supplies, supply_weights, supply_priorities, supplies_in_junction, entry, prevs + [junction_other], res)
 
                     if len(supplies_in_junction) > 0:
                         storage = []
@@ -364,7 +366,6 @@ def clear_branch(
                 continue
             branch_res = clear_branch(G, entry, end_branch_pos, n, orig_wing, prevs.copy(), supply_paths, supply_weights, supply_priorities, supplies, inter_wing_path)
             if len(branch_res) > 0:
-                res.append(end_branch_pos)
                 res += branch_res
 
     supply_to_collect = list(
@@ -415,7 +416,6 @@ def clear_branch(
                         supply_index = vertex_to_collect[curr_pos][j]
                         if supply_weights[supply_index] == weight and supply_priorities[supply_index] == priority:
                             storage.append(supply_index)
-                            vertex_to_collect[curr_pos].pop(j)
                             added = True
                             break
                     assert added, f"no supply with weight {weight} and priority {priority} was found in {vertex_to_collect[curr_pos]} (at {curr_pos})"

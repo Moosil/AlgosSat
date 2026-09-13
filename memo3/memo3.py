@@ -95,17 +95,14 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                 curr_supplies = []
                 while i < len(plan):
                     curr = plan[i]
-                    if isinstance(curr, str):
-                        if curr == "pickup":
-                            index = curr_supply_locations.index(curr_loc)
-                            while index in curr_supplies:
-                                assert curr_loc in curr_supply_locations[index + 1:], f"{curr_loc} isn't in {curr_supply_locations} after {index}\ncurr_supplies: {curr_supplies}"
-                                index = curr_supply_locations.index(curr_loc, index + 1)
-                            curr_supplies.append(index)
-                        else:
-                            move_supply = curr_supplies.pop()
-                            trip_move_supplies[len(trip_supplies)][move_supply] = curr_loc
-                            curr_supply_locations[move_supply] = curr_loc
+                    if curr[0] == -2:
+                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2] and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
+                        curr_supplies.append(supply_index)
+                    elif curr[0] == -1:
+                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2], curr_supplies))[-1]
+                        curr_supplies.remove(supply_index)
+                        trip_move_supplies[len(trip_supplies)][supply_index] = curr_loc
+                        curr_supply_locations[supply_index] = curr_loc
                     else:
                         mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
                         total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
@@ -435,16 +432,15 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                 while i < len(plan):
                     curr = plan[i]
                     trip_of[curr] = col
-                    if isinstance(curr, str):
-                        if curr == "pickup":
-                            index = curr_supply_locations.index(curr_loc)
-                            while index in curr_supplies:
-                                index = curr_supply_locations.index(curr_loc, index + 1)
-                            curr_supplies.append(index)
-                            if trip_first_supply is None:
-                                trip_first_supply = curr_loc
-                        else:
-                            curr_supply_locations[curr_supplies.pop()] = curr_loc
+                    if curr[0] == -2:
+                        index = curr_supply_locations.index(curr_loc)
+                        while index in curr_supplies:
+                            index = curr_supply_locations.index(curr_loc, index + 1)
+                        curr_supplies.append(index)
+                        if trip_first_supply is None:
+                            trip_first_supply = curr_loc
+                    elif curr[0] == -1:
+                        curr_supply_locations[curr_supplies.pop()] = curr_loc
                     else:
                         mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
                         total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
@@ -1075,7 +1071,7 @@ def algorithm_explorer_controls_and_info(
                     ),
                     mo.stat(
                         label="All moves valid",
-                        value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value - 1) if not isinstance(_path[i], str) and not isinstance(_path[i + 1], str)) else "❌ No"
+                        value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value - 1) if _path[i][0] >= 0 and _path[i + 1][0] >= 0) else "❌ No"
                     )
                 ], gap=1, wrap=True
             ),
@@ -1104,7 +1100,8 @@ def _(ember_rescue_cached, facility_drawer, highlight_trip, mo):
         return f"{", ".join(str(s) for s in l[:-1])} and {l[-1]}"
 
     mo.md(fr"""
-    Collecting supplies at {join_and(_trip_supplies[highlight_trip.value - 1])}
+    {f"Collecting supplies at {join_and(_trip_supplies[highlight_trip.value])}" if highlight_trip.value != highlight_trip.stop - 1 else ""}
+    {f"\nWeights: {join_and([facility_drawer.masses[s] for s in _trip_supplies[highlight_trip.value]])}" if highlight_trip.value != highlight_trip.stop - 1 else ""}
 
     {f"Moving suppl{"ies" if len(_ordered) > 1 else "y"} at {join_and([facility_drawer.supplies[i] for i in _ordered])} to {join_and([_trip_move_supplies[highlight_trip.value - 1][i] for i in _ordered])}" if len(_ordered) > 0 else ""}
     """) if highlight_trip.value != highlight_trip.stop else None

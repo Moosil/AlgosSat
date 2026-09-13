@@ -1,6 +1,7 @@
 import csv
 import itertools
 import random
+import traceback
 
 import networkx as nx
 from tqdm import trange
@@ -68,20 +69,19 @@ class GraphDrawer:
             curr_supplies = []
             while i < len(plan):
                 curr = plan[i]
-                if isinstance(curr, str):
-                    if curr == "pickup":
-                        # print(f"picking up supply at {curr_loc}")
-                        index = curr_supply_locations.index(curr_loc)
-                        while index in curr_supplies:
-                            assert curr_loc in curr_supply_locations[index + 1:], f"{curr_loc} isn't in {curr_supply_locations} after {index}\ncurr_supplies: {curr_supplies}"
-                            index = curr_supply_locations.index(curr_loc, index + 1)
-                        curr_supplies.append(index)
-                        # print(f"picked up supply {index}")
-                    else:
-                        move_supply = curr_supplies.pop()
-                        # print(f"dropping off supply at {curr_loc}: supply {move_supply}")
-                        trip_move_supplies[len(trip_supplies)][move_supply] = curr_loc
-                        curr_supply_locations[move_supply] = curr_loc
+                if curr[0] == -2:
+                    try:
+                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2] and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
+                    except:
+                        pass
+                    curr_supplies.append(supply_index)
+                    # print(f"picking up supply at {curr_loc}: supply {supply_index}")
+                elif curr[0] == -1:
+                    supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2], curr_supplies))[-1]
+                    curr_supplies.remove(supply_index)
+                    trip_move_supplies[len(trip_supplies)][supply_index] = curr_loc
+                    curr_supply_locations[supply_index] = curr_loc
+                    # print(f"dropping off supply at {curr_loc}: supply {supply_index}")
                 else:
                     mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
                     total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
@@ -339,51 +339,64 @@ def test_seed(seed: int):
 
 
 def test_facilities():
+    import cProfile, pstats
+    from pstats import SortKey
+    pr = cProfile.Profile()
+
     file_name = "data_facility.csv"
-    TRIALS = 10000
+    TRIALS = 1000
     data = []
-    for i in trange(10012007, 10012007 + TRIALS):
-        curr = {}
+    for seed in trange(10012007, 10012007 + TRIALS):
+        try:
+            curr = {}
 
-        facility = GraphDrawer(i)
+            facility = GraphDrawer(seed)
 
-        abs_graph = facility.get_abstracted_graph()
-        entry = facility.entry
-        exits = {facility.exit_a, facility.exit_b}
-        supplies = set(facility.supplies)
-        masses = facility.masses
-        values = facility.values
-        supply_map = {i: hash(i) for i in facility.supplies}
-        budget = facility.budget
+            abs_graph = facility.get_abstracted_graph()
+            entry = facility.entry
+            exits = {facility.exit_a, facility.exit_b}
+            supplies = set(facility.supplies)
+            masses = facility.masses
+            values = facility.values
+            supply_map = {i: hash(i) for i in facility.supplies}
+            budget = facility.budget
+            pr.enable()
+            res = memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget)
+            pr.disable()
+            ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
 
-        import cProfile, pstats
-        from pstats import SortKey
-        pr = cProfile.Profile()
-        pr.enable()
-        res = memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget)
-        pr.disable()
-        ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
-
-        collected_supplies, used_budget, trip_collected_supplies, trip_moved_supplies = facility.get_plan_info(res)
-        curr["time"] = ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3]
-        curr["collected_supplies_3"] = len([s for s in collected_supplies if facility.masses[s] == 3])
-        curr["collected_supplies_2"] = len([s for s in collected_supplies if facility.masses[s] == 2])
-        curr["collected_supplies_1"] = len([s for s in collected_supplies if facility.masses[s] == 1])
-        curr["trip_collected_2"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 2])
-        curr["trip_collected_3"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 3])
-        curr["trip_collected_4"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 3])
-        curr["trip_collected_5"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 5])
-        curr["budget"] = budget
-        curr["priority"] = sum(facility.values[s] for s in collected_supplies)
-        curr["vertices"] = sum(w_j.number_of_nodes() for w_j in abs_graph[0])
-        curr["edges"] = sum(w_j.number_of_edges() for w_j in abs_graph[0])
-        curr["junctions"] = len(abs_graph[1])
-        curr["wings"] = len(abs_graph[0])
-        curr["exits"] = 2
-        data.append(curr)
+            collected_supplies, used_budget, trip_collected_supplies, trip_moved_supplies = facility.get_plan_info(res)
+            curr["seed"] = seed
+            curr["time"] = ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3]
+            curr["collected supplies 1"] = len([s for s in collected_supplies if facility.masses[s] == 1])
+            curr["collected supplies 2"] = len([s for s in collected_supplies if facility.masses[s] == 2])
+            curr["collected supplies 3"] = len([s for s in collected_supplies if facility.masses[s] == 3])
+            curr["trip collected 0"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 0])
+            curr["trip collected 1"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 1])
+            curr["trip collected 2"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 2])
+            curr["trip collected 3"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 3])
+            curr["trip collected 4"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 3])
+            curr["trip collected 5"] = len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) == 5])
+            if len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) > 5]) > 0:
+                print(f"not correct {seed} with {len([t for t in trip_collected_supplies if sum(facility.masses[s] for s in t) > 5])} over-carries")
+            curr["budget"] = budget
+            curr["used budget"] = used_budget
+            curr["excess budget ratio"] = (budget - used_budget) / budget
+            curr["priority"] = sum(facility.values[s] for s in facility.supplies)
+            curr["collected priority"] = sum(facility.values[s] for s in collected_supplies)
+            curr["vertices"] = sum(w_j.number_of_nodes() for w_j in abs_graph[0])
+            curr["edges"] = sum(w_j.number_of_edges() for w_j in abs_graph[0])
+            curr["junctions"] = len(abs_graph[1])
+            curr["wings"] = len(abs_graph[0])
+            curr["exits"] = 2
+            data.append(curr)
+        except Exception as e:
+            print(f"failed {seed} with exception {e}")
+            print(traceback.format_exc())
+            pr.disable()
 
     with open(file_name, "w", encoding="utf-8", newline='') as f:
-        row_names = ["time", "collected_supplies_3", "collected_supplies_2", "collected_supplies_1", "trip_collected_2", "trip_collected_3", "trip_collected_4", "trip_collected_5", "budget", "priority", "vertices", "edges", "junctions", "wings", "exits"]
+        row_names = ["seed", "time", "collected supplies 1", "collected supplies 2", "collected supplies 3", "trip collected 0", "trip collected 1", "trip collected 2", "trip collected 3", "trip collected 4", "trip collected 5", "budget", "used budget", "excess budget ratio", "priority", "collected priority", "vertices", "edges", "junctions", "wings", "exits"]
         writer = csv.writer(f)
         writer.writerow(row_names)
         writer.writerows([[r[n] for n in row_names] for r in data])
@@ -398,7 +411,7 @@ if __name__ == "__main__":
         )
         match test_id:
             case "1":
-                test_seed(28122020 + 75)
+                test_seed(10_012_008)#10012696)
                 break
             case "2":
                 test_facilities()

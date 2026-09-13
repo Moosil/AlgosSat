@@ -194,7 +194,7 @@ def reduce_supplies(
 
     ks, tot = knapsack(
         energy_cap, [supply_priorities[u] for u in supplies_ordered],
-        [(supply_weights[u] + 2) * entry_to_supply_distances[u] for u in supplies_ordered]
+        [(supply_weights[u] + 1 + (1 if supply_weights[u] >= 3 else 0)) * entry_to_supply_distances[u] for u in supplies_ordered]
     )
 
     return [supplies_ordered[i] for i in ks]
@@ -523,7 +523,6 @@ def ember_rescue(
     # print(f"supply candidates: {reduced_supplies}")
     # print(f"number of supplies: {len(reduced_supplies)}")
     super_path = clear_branch(G, entry, entry, list(flat_G.neighbors(entry))[0], get_which_wing(G, entry), [entry], supply_wing_paths, [supply_weights[s] for s in reduced_supplies], [supply_priorities[s] for s in reduced_supplies], reduced_supplies, tuple())
-    res = super_path
     res = []
     prev_pos = entry
     prev_wing = get_which_wing(G, prev_pos)

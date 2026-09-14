@@ -1,0 +1,181 @@
+PROCEDURE knapsack(cap: Integer, val: List[Integer], cost: List[Integer]) -> Tuple[List[Integer], Integer]:
+    dp <- []
+    old_res <- []
+    new_res <- []
+    FOR i <- 0 TO cap DO
+        push(dp, 0)
+        push(old_res, [])
+        push(new_res, [])
+    END FOR
+
+    FOR i <- 1 TO length(cost) DO
+        FOR j <- 0 TO cap - cost[i] - 1 DO
+            j_idx <- cap - j
+            curr <- dp[j_idx - cost[i]] + val[i]
+            IF dp[j_idx] < curr THEN
+                dp[j_idx] <- curr
+                new_res[j] <- [i]
+                FOR EACH k IN old_res[j_idx - cost[i]] DO
+                    push(new_res[j], k)
+                END FOR
+            END IF
+        END FOR
+
+        old_res <- new_res
+    END FOR
+
+    RETURN old_res[cap], dp[cap]
+END PROCEDURE
+
+PROCEDURE get_path_length(g: Graph, path: List[Vertex]) -> Positive Integer or 0
+    IF length(path) <= 1 THEN
+	    RETURN 0
+    END IF
+    res <- 0
+    FOR i <- 1 TO length(path) - 1 DO
+        res <- res + get_edge_weight(g, path[i], path[i + 1])
+    END FOR
+    RETURN res
+END PROCEDURE
+
+PROCEDURE get_which_wing(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], vertex: Vertex) -> Graph
+    FOR EACH wing IN G[0] DO
+        IF element_of(get_vertices(g), vertex) THEN
+            RETURN g
+        END IF
+    END FOR
+    RAISE InputError
+END PROCEDURE
+
+PROCEDURE get_other_junction(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], vertex: Vertex) -> Vertex
+    FOR EACH v in G[1] DO
+        IF v[0] == vertex THEN
+            RETURN v[1]
+        END IF
+        IF v[1] == vertex THEN
+            RETURN v[0]
+        END IF
+    END FOR
+    RETURN vertex
+END PROCEDURE
+
+PROCEDURE reconstruct_path(prev: Map[Vertex, Vertex], sink: Vertex) -> List[Vertex]
+    res <- [sink]
+    WHILE has(prev, curr) DO
+        curr <- prev[curr]
+        push(res, curr)
+    END WHILE
+    RETURN reverse(res)
+END PROCEDURE
+
+PROCEDURE dijkstra(g: Graph, source: Vertex) -> Map[Vertex, Vertex]
+    res <- empty Map
+    dist <- Map with ∞ FOR EACH vertex IN get_vertices(g); dist[source] <- 0
+    prev <- empty Map
+
+    pq <- empty Priority Queue
+    FOR EACH vertex IN get_vertices(g) DO
+        enqueue(pq, vertex, dist[vertex])
+    END FOR
+    WHILE length(pq) > 0 DO
+        u <- extract_min(pq)
+
+        FOR EACH v IN get_neighbours(g, u) DO
+            w <- get_edge_weight(g, u, v)
+            IF dist[u] + w < dist[v] THEN
+                prev[v] <- u
+                dist[v] <- dist[u] + w
+                update_priority(pq, v, dist[v])
+            END IF
+        END FOR
+    END WHILE
+    RETURN prev
+END PROCEDURE
+
+PROCEDURE dijkstra_to(g: Graph, source: Vertex, sink: Vertex) -> List[Vertex]
+    res <- empty Map
+    dist <- Map with ∞ FOR EACH vertex IN get_vertices(g); dist[source] <- 0
+    prev <- empty Map
+
+    pq <- empty Priority Queue
+    FOR EACH vertex IN get_vertices(g) DO
+        enqueue(pq, vertex, dist[vertex])
+    END FOR
+    WHILE length(pq) > 0 DO
+        u <- extract_min(pq)
+
+        IF u == sink THEN
+            RETURN reconstruct_path(prev, sink)
+        END IF
+
+        FOR EACH v IN get_neighbours(g, u) DO
+            w <- get_edge_weight(g, u, v)
+            IF dist[u] + w < dist[v] THEN
+                prev[v] <- u
+                dist[v] <- dist[u] + w
+                update_priority(pq, v, dist[v])
+            END IF
+        END FOR
+    END WHILE
+    RAISE InputError
+END PROCEDURE
+
+PROCEDURE flatten_graph(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]]) -> Graph
+    res <- empty Graph
+    FOR EACH wing IN G[0] DO
+        FOR EACH v IN get_vertices(wing) DO
+            add_vertex(res, v)
+        END FOR
+        FOR EACH e IN get_edges(wing) DO
+            add_edge(res, e[0], e[1], get_edge_weight(wing, e[0], e[1]))
+        END FOR
+    END FOR
+    FOR EACH e IN G[1] DO
+        add_edge(res, e[0], e[1], 1)
+    END FOR
+END PROCEDURE
+
+PROCEDURE get_weight_cost(weight: Integer) -> Integer
+    IF weight == 1 THEN
+        RETURN 4 * weight + 5
+    END IF
+    IF weight == 2 THEN
+        RETURN 4 * weight + 5
+    END IF
+    IF weight == 3:
+        RETURN 4 * weight + 7
+    END IF
+    IF weight == 4:
+        RETURN 4 * weight + 8
+    END IF
+    IF weight >= 5:
+        RETURN 4 * weight + 8
+    END IF
+    RAISE InputError
+END PROCEDURE
+
+PROCEDURE reduce_supplies(g: Graph, supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], entry_paths: Map[Vertex, List[Vertex]], budget: Integer) -> List[Vertex]
+    supply_value_ordered <- []
+    supply_cost_ordered <- []
+    supplies_ordered <- []
+    FOR EACH v IN supplies DO
+        push(supply_value_ordered, supply_value[v])
+        push(supply_cost_ordered, get_path_length(g, entry_paths[v]) * get_weight_cost(supply_weight[v]))
+        push(supplies_ordered, v)
+    END FOR
+
+    res <- []
+    FOR EACH i IN knapsack(4 * budget, supply_value_ordered, supply_cost_ordered) DO
+        push(res, supplies_ordered[i])
+    END FOR
+    RETURN res
+END PROCEDURE
+
+PROCEDURE get_curr_pos(res: List[Vertex], orig: Vertex) -> Vertex
+    n <- length(res)
+    IF n == 0 THEN
+        RETURN orig
+    END IF
+    RETURN res[n]
+END PROCEDURE
+

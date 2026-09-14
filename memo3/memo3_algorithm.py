@@ -1,7 +1,5 @@
 import heapq
-import itertools
 from collections import defaultdict
-from typing import Generator, Iterable
 
 import networkx as nx
 
@@ -67,14 +65,6 @@ def get_which_wing(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], vertex: V
         if vertex in g.nodes:
             return g
     raise ValueError(f"vertex {vertex} is not in any graph in G")
-
-
-def get_vertices_in_wing(wing: WingT, vertices: Iterable[VertexT]) -> Generator[VertexT]:
-    return (v for v in vertices if v in wing.nodes)
-
-
-def get_junctions_in_wing(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], wing: WingT) -> Generator[VertexT]:
-    return get_vertices_in_wing(wing, itertools.chain(*G[1]))
 
 
 def get_other_junction(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], j: VertexT):

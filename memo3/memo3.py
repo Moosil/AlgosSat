@@ -847,9 +847,11 @@ def _(mo):
 
     We will designate source vertex $s \in V$, the set of sink vertices $X \subseteq V$, and the set of supply vertices $S \subseteq V$, each representing the entry, exit, and supply unit-containing sectors respectively.
 
-    To abstract the supply weights and priorities, we will have $\delta: S \to \mathbb{N}$ and $p: S \to \mathbb{Z}$ represent functions mapping each supply to a weight and priority repectively.
+    To abstract the supply weights and priorities, we will have $\delta: S \to \mathbb{N}$ and $p: S \to \mathbb{N}$ represent functions mapping each supply to a weight and priority repectively.
 
-    We will have $A$ be an list representing CRUDY-1's supply unit storage, which contains `SupplyID`s of each supply it is carrying, function $M: S \to \text{SupplyID}$ mapping each supply vertex to its `SupplyID`, and set $F$ be the set of found `SupplyID`s. When a supply is collected, it will be added to $A$, and $A_\text{new}$ will be returned.
+    Mapping $M: S \to \text{SupplyID}$ will mapp each supply vertex to its `SupplyID`, and set $F$ be the set of found `SupplyID`s.
+
+    Finally, we will take the budget $B$ represent CRUDY-1's limited budget.
 
     We will be designing an algorithm to traverse meta-graph $G$, from $s$ to an $x$, returning an ordered sequence of vertices representing which vertices CRUDY-1 will travel through, an ordered sequence of integers which tells CRUDY-1 to traverse normally (0), pick up a supply (1), or drop off a supply (2+) with a specific index, and a ordered sequence of `SupplyID`s representing each supply CRUDY-1 has brought to the entry.
     """)
@@ -860,7 +862,7 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 2.1 Signature specification:
-    $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{List}[\text{SupplyID}] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \to \text{List}[\text{Vertex}] \times \text{List}[\text{Boolean}] \times \text{List}[\text{SupplyID}]$
+    $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{List}[\text{SupplyID}] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \times \mathbb{N} \to \text{List}[\text{Vertex}] \times \text{List}[\mathbb{N}]$
     """)
     return
 
@@ -871,18 +873,11 @@ def output_constraints(mo):
     ## 2.2 Output Constraints
     The algorithm's 3 outputs:
     - $W$, an ordered sequence of vertices (List)
-    - $B$, an ordered sequence of booleans (List)
-    - an ordered sequence of `SupplyID`s (List)
+    - $A$, an ordered sequence of 3-tuples of natural numbers (List)
 
+    The first value of each index $A$ should be 2 iff there is a supply below CRUDY-1 at that point in the walk, 3 iff there is a empty sector below CRUDY-1 at that point in the walk, and 1 otherwise. The second and third values are the picked-up supply's weight and priority respectively.
 
-    Each index $B$ should only be 1 if a supply is at the sector CRUDY-1 is at that part of the walk and should only be greater than 1 if CRUDY-1 has a supply in that slot _and_ the sector CRUDY-1 is in is empty.
-
-    $\forall v \in W, v \in V$, $v_1 = s$, and $v_n \in X$. It should aim to collect the greatest total supply priority possible under the energy constraints: $\displaystyle\sum_{i = 0}^{|W|} \begin{cases}
-      p(W[i]) & B[i] \land (W[i] \in S) \\
-      0 & \text{otherwise}
-    \end{cases}$.
-
-    The ordered sequence of `SupplyID`s should contain exact all $M(v)$ for each $v \in W$.
+    $\forall v \in W, v \in V$, $v_1 = s$, and $v_n \in X$. It should aim to collect the greatest total supply priority possible under the energy constraints.
     """)
     return
 
@@ -901,7 +896,49 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _():
+def _(mo):
+    mo.md(
+        r"""
+            ## 2.4 Revised Algorithm
+            the TL;DR of this algorithm is "DFS on $G$, clearing between each non-3-degree vertex recursively, bring back supplies when total weight on backtrack $\geq 5$".
+        
+            The algorithm first, like the previous algorithm, determines which supplies have already been collected using $F$ and $M$, removing them from $S$. It will then flatten $G$ to a single graph and run Dijkstra's algorithm from $s$. It will find the shortest path to an exit vertex in $X$ and save that cost in a variable. After which it will run a knapsack problem on the supplies' weights and priorities with a budget equal to $B$ minus that exit run distance, with tuned supply costs based on empirical data. It will then, for each supply get which junctions it should go through to reach them.
+        
+            Then it reaches the main body of the algorithm, which clears all supplies from a branch of the tree by clearing supplies on a stretch between the current vertex, $u$, and a new vertex $v: \deg_+(v) \geq 3 \vee \deg_+(v) = 1$ and then recursively calling it on each neighbour of $v$.
+        
+            While going between $u$ and $v$, it will check if any of those vertices between are junctions, in which case it calls a procedure to clear the connecting wings, if any supplies could be on that junction path or further junctions paths.
+        
+            When it has cleared supplies between $u$ and $v$, it will check if the path to the last point of inter-wing transit or to the entry otherwise has total supply weight $\geq 5$, in which case it will run a knapsack dp algorithm on those supplies and take back those supplies to the entrance. After that, it will bring back and drop all supplies between $v$ and $u$ to $u$ and before $u$.
+        
+            Supply droppings is an integral part of this algorithm, and its advantages and the margin to which its better will be discussed later.
+        
+            Some further optimisations have been made, but they will be discussed later.
+            """
+        )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    # TODO add more here on each point? need to check criterion
+    mo.md(
+        r"""
+            # 3 Algorithm Quality
+            ## 3.1 Efficiency
+            The revised algorithm is much more efficient that memo 2's algorithm, running in $O(n^k), k \in N$ for $n$ being the worst-case variable and $k$ being independent of $n$, compared with memo 2's $O(n^2 2^n)$ complexity. This latter complexity is intractable and would not work on the larger supply count in the updated situation.
+        
+            The algorithm proposed in this memo could be more efficient, but would come with tradeoffs
+        
+            ## 3.2 Coherence
+            Not really sure what to put here
+        
+            ## 3.3 Fitness for purpose
+            Due to the heuristic nature of the algorithm, a memo 2-like exact algorithm will arrive at a better solution than this memo's algorithm. This of course comes at the cost of efficiency, and difficulty to encapsulate all features of the problem: multiple-trips, trip-dependent supply collection costs and dropping supplies, into an exact algorithm, which is why a heuristic algorithm is more fit for purpose than an exact algorithm like memo 2's
+        
+            ## 3.4 Counter-example
+            ???
+            """
+        )
     return
 
 

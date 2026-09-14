@@ -338,7 +338,7 @@ def test_facilities():
     pr = cProfile.Profile()
 
     file_name = "data_facility.csv"
-    TRIALS = 1000
+    TRIALS = 10000
     data = []
     for seed in trange(10012007, 10012007 + TRIALS):
         try:

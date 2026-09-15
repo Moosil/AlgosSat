@@ -152,7 +152,7 @@ PROCEDURE get_weight_cost(weight: Integer) -> Integer
     RAISE InputError
 END PROCEDURE
 
-PROCEDURE reduce_supplies(g: Graph, supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], entry_paths: Map[Vertex, List[Vertex]], budget: Integer) -> List[Vertex]
+PROCEDURE get_reduced_supplies(g: Graph, supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], entry_paths: Map[Vertex, List[Vertex]], budget: Integer) -> List[Vertex]
     supply_value_ordered <- []
     supply_cost_ordered <- []
     supplies_ordered <- []
@@ -189,16 +189,11 @@ PROCEDURE get_other_junction(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], v
     RETURN vertex
 END PROCEDURE
 
-PROCEDURE get_supplies_to_collect(supplies: Set[Vertex], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: Set[SupplyID], supply_storage: Array[SupplyID, 5]) -> Set[Supply]
-    dont_collect_supply_ids <- found_supply_ids
-    FOR EACH supply IN supply_storage DO
-        dont_collect_supply_ids <- union(dont_collect_supply_ids, {supply})
-    END FOR
-
+PROCEDURE get_supplies_to_collect(supplies: Set[Vertex], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: Set[SupplyID]) -> Set[Supply]
     res <- ∅
     FOR EACH supply IN supplies DO
-        IF NOT element_of(dont_collect_supply_ids, vertex_to_supply_id[supply]) THEN
-            res <- union(res, {supply})
+        IF NOT element_of(found_supply_ids, vertex_to_supply_id[supply]) THEN
+            add(res, supply)
         END IF
     END FOR
     RETURN res
@@ -579,6 +574,61 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
     RETURN res
 END PROCEDURE
 
-ALGORITHM ember_rescue() -> List[Tuple[Vertex, Integer, Integer, Integer]]
+ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, exits: Set[Vertex], supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: set[SupplyID]) -> List[Tuple[Vertex, Integer, Integer, Integer]]
+    supplies <- get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids)
 
+    flat_G <- flatten_graph(G)
+    entry_prevs <- dijkstra(flat_G, entry)
+    entry_paths <- {}
+    FOR EACH v IN supplies DO
+        entry_paths[v] <- reconstruct_path(entry_prevs, v)
+    END FOR
+
+    exit_run <- []
+    exit_run_cost <- -1
+    FOR EACH e IN exits DO
+        curr <- reconstruct_path(entry_prevs, e)
+        curr_cost <- get_path_length(flat_G, curr)
+        IF curr_cost < exit_run_cost OR exit_run_cost == -1 THEN
+            exit_run <- curr
+            exit_run_cost <- curr_cost
+        END IF
+    END FOR
+
+    reduced_supplies <- get_reduced_supplies(flat_G, supplies, supply_weight, supply_value, entry_paths, energy_amount - exit_run_cost)
+
+    supply_wing_paths <- get_supply_wing_paths(G, reduced_supplies, entry_paths)
+
+    entry_wing <- get_which_wing(G, entry)
+    supply_weight_ordered <- []
+    supply_value_ordered <- []
+    FOR EACH s IN reduced_supplies DO
+        push(supply_weight_ordered, supply_weight[s])
+        push(supply_value_ordered, supply_value[s])
+    END FOR
+
+    res <- []
+    prev_pos <- entry
+    FOR EACH n IN get_neighbours(flat_G, entry) DO
+        FOR EACH i IN clear_branch(G, entry, entry, n, entry_wing, [entry], reduced_supplies, supply_weight_ordered, supply_value_ordered, supply_wing_paths, []) DO
+            curr_pos <- i[0]
+            IF curr_pos != prev_pos THEN
+                FOR EACH v IN dijkstra_to(flat_G, prev_pos, curr_pos) DO
+                    push(res, (v, 1, 0, 0))
+                END FOR
+                prev_pos <- curr_pos
+            END FOR
+            push(res, i)
+        END FOR
+    END FOR
+
+    IF prev_pos != entry THEN
+        FOR EACH v IN dijkstra_to(flat_G, prev_pos, entry) DO
+            push(res, (v, 1, 0, 0))
+        END FOR
+    END IF
+    FOR EACH v IN exit_run DO
+        push(res, (v, 1, 0, 0))
+    END FOR
+    RETURN res
 END ALGORITHM

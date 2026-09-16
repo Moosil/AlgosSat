@@ -35,11 +35,11 @@ std::vector<Graph::VertexT> reconstruct_path(
 	const std::unordered_map<Graph::VertexT, Graph::VertexT>& prev,
 	Graph::VertexT                                            sink);
 
-std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > dijkstra(
+std::unordered_map<Graph::VertexT, Graph::VertexT> dijkstra(
 	const Graph&   g,
 	Graph::VertexT source);
 
-std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > dijkstra_to(
+std::vector<Graph::VertexT> dijkstra_to(
 	const Graph&   g,
 	Graph::VertexT source,
 	Graph::VertexT sink);

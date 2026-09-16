@@ -10,12 +10,13 @@ PROCEDURE knapsack(cap: Integer, val: List[Integer], cost: List[Integer]) -> Tup
 
     FOR i <- 1 TO length(cost) DO
         j <- cap + 1
-        WHILE j > cost[i] DO
-            curr <- dp[j - cost[i]] + val[i]
+        cost_i <- cost[i];
+        WHILE j > cost_i DO
+            curr <- dp[j - cost_i] + val[i]
             IF dp[j] < curr THEN
                 dp[j] <- curr
                 new_res[j] <- [i]
-                FOR EACH k IN old_res[j - cost[i]] DO
+                FOR EACH k IN old_res[j - cost_i] DO
                     push_back(new_res[j], k)
                 END FOR
             END IF
@@ -25,7 +26,7 @@ PROCEDURE knapsack(cap: Integer, val: List[Integer], cost: List[Integer]) -> Tup
         old_res <- new_res
     END FOR
 
-    RETURN old_res[cap], dp[cap]
+    RETURN (old_res[cap], dp[cap])
 END PROCEDURE
 
 PROCEDURE get_path_length(g: Graph, path: List[Vertex]) -> Positive Integer or 0
@@ -48,9 +49,9 @@ PROCEDURE get_which_wing(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], verte
     RAISE InputError
 END PROCEDURE
 
-PROCEDURE find(l: List, v, start: Integer) -> Integer
+PROCEDURE find(l: List, x, start: Integer) -> Integer
     FOR i <- start TO length(l) DO
-        IF l[i] == v THEN
+        IF l[i] == x THEN
             RETURN i
         END IF
     END FOR
@@ -67,7 +68,6 @@ PROCEDURE reconstruct_path(prev: Map[Vertex, Vertex], sink: Vertex) -> List[Vert
 END PROCEDURE
 
 PROCEDURE dijkstra(g: Graph, source: Vertex) -> Map[Vertex, Vertex]
-    res <- empty Map
     dist <- Map with ∞ FOR EACH vertex IN get_vertices(g); dist[source] <- 0
     prev <- empty Map
 
@@ -91,7 +91,6 @@ PROCEDURE dijkstra(g: Graph, source: Vertex) -> Map[Vertex, Vertex]
 END PROCEDURE
 
 PROCEDURE dijkstra_to(g: Graph, source: Vertex, sink: Vertex) -> List[Vertex]
-    res <- empty Map
     dist <- Map with ∞ FOR EACH vertex IN get_vertices(g); dist[source] <- 0
     prev <- empty Map
 
@@ -131,6 +130,7 @@ PROCEDURE flatten_graph(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]]) -> Gra
     FOR EACH e IN G[1] DO
         add_edge(res, e[0], e[1], 1)
     END FOR
+    RETURN res
 END PROCEDURE
 
 PROCEDURE get_weight_cost(weight: Integer) -> Integer
@@ -143,50 +143,39 @@ PROCEDURE get_weight_cost(weight: Integer) -> Integer
     IF weight == 3:
         RETURN 4 * weight + 7
     END IF
-    IF weight == 4:
-        RETURN 4 * weight + 8
-    END IF
-    IF weight >= 5:
+    IF weight >= 4:
         RETURN 4 * weight + 8
     END IF
     RAISE InputError
 END PROCEDURE
 
-PROCEDURE get_reduced_supplies(g: Graph, supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], entry_paths: Map[Vertex, List[Vertex]], budget: Integer) -> List[Vertex]
+PROCEDURE get_reduced_supplies(g: Graph, supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], entry_path: Map[Vertex, List[Vertex]], budget: Integer) -> List[Vertex]
     supply_value_ordered <- []
     supply_cost_ordered <- []
     supplies_ordered <- []
     FOR EACH v IN supplies DO
         push_back(supply_value_ordered, supply_value[v])
-        push_back(supply_cost_ordered, get_path_length(g, entry_paths[v]) * get_weight_cost(supply_weight[v]))
+        push_back(supply_cost_ordered, get_path_length(g, entry_path[v]) * get_weight_cost(supply_weight[v]))
         push_back(supplies_ordered, v)
     END FOR
 
     res <- []
-    FOR EACH i IN knapsack(4 * budget, supply_value_ordered, supply_cost_ordered) DO
+    FOR EACH i IN knapsack(4 * budget, supply_value_ordered, supply_cost_ordered)[0] DO
         push_back(res, supplies_ordered[i])
     END FOR
     RETURN res
 END PROCEDURE
 
-PROCEDURE get_curr_pos(res: List[Vertex], orig: Vertex) -> Vertex
-    n <- length(res)
-    IF n == 0 THEN
-        RETURN orig
-    END IF
-    RETURN res[n]
-END PROCEDURE
-
-PROCEDURE get_other_junction(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], vertex: Vertex) -> Vertex
-    FOR EACH v in G[1] DO
-        IF v[0] == vertex THEN
-            RETURN v[1]
+PROCEDURE get_other_junction(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], v: Vertex) -> Vertex
+    FOR EACH je in G[1] DO
+        IF je[0] == v THEN
+            RETURN je[1]
         END IF
-        IF v[1] == vertex THEN
-            RETURN v[0]
+        IF je[1] == v THEN
+            RETURN je[0]
         END IF
     END FOR
-    RETURN vertex
+    RETURN v
 END PROCEDURE
 
 PROCEDURE get_supplies_to_collect(supplies: Set[Vertex], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: Set[SupplyID]) -> Set[Supply]

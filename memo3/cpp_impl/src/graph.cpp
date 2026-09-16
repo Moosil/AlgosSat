@@ -92,7 +92,7 @@ std::vector<std::tuple<Graph::VertexT, Graph::VertexT, Graph::WeightT> > Graph::
 }
 
 std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(VertexT source) const {
-	std::unordered_map<VertexT, WeightT>               dist;
+	std::unordered_map<VertexT, WeightT> dist;
 	for (const auto& v : get_vertices()) {
 		dist[v] = std::numeric_limits<WeightT>::max();
 	}
@@ -108,7 +108,7 @@ std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(Ver
 			continue;
 		}
 
-		for (const auto& [v, w] : g.get_neighbors(u)) {
+		for (const auto& [v, w] : get_neighbors(u)) {
 			if (dist[u] + w < dist[v]) {
 				prev[v] = u;
 				dist[v] = dist[u] + w;
@@ -117,7 +117,7 @@ std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(Ver
 		}
 	}
 
-	std::unordered_map<VertexT, std::vector<VertexT>> res{};
+	std::unordered_map<VertexT, std::vector<VertexT> > res{};
 	for (const auto& v : get_vertices()) {
 		res[v] = reconstruct_path(prev, v);
 	}
@@ -128,7 +128,9 @@ std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(const VertexT s
 	return sssp_dist(source, sssp(source));
 }
 
-std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(const VertexT source, const std::unordered_map<VertexT, std::vector<VertexT>> paths) const {
+std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(
+	const VertexT                                            source,
+	const std::unordered_map<VertexT, std::vector<VertexT> > paths) const {
 	std::unordered_map<VertexT, std::size_t> res{};
 	for (const auto& [k, p] : paths) {
 		res[k] = 0;

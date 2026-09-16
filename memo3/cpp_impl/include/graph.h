@@ -33,19 +33,21 @@ public:
 
 	[[nodiscard]] std::vector<VertexT> get_vertices() const;
 
-	[[nodiscard]] std::vector<std::tuple<VertexT, VertexT, WeightT>> get_edges() const;
+	[[nodiscard]] std::vector<std::tuple<VertexT, VertexT, WeightT> > get_edges() const;
 
-	[[nodiscard]] std::unordered_map<VertexT, std::vector<VertexT>> sssp(VertexT source) const;
+	[[nodiscard]] std::unordered_map<VertexT, std::vector<VertexT> > sssp(VertexT source) const;
 
 	[[nodiscard]] std::unordered_map<VertexT, std::size_t> sssp_dist(VertexT source) const;
 
-	[[nodiscard]] std::unordered_map<VertexT, std::size_t> sssp_dist(VertexT source, std::unordered_map<VertexT, std::vector<VertexT>> paths) const;
+	[[nodiscard]] std::unordered_map<VertexT, std::size_t> sssp_dist(
+		VertexT                                            source,
+		std::unordered_map<VertexT, std::vector<VertexT> > paths) const;
 
 	void update();
 
 private:
 	std::unordered_map<VertexT, std::unordered_map<VertexT, int> > adj;
-	std::unordered_set<VertexT> inactive;
+	std::unordered_set<VertexT>                                    inactive;
 
-	static std::vector<VertexT> reconstruct_path(const std::unordered_map<VertexT, VertexT>& prev,	VertexT                                            sink)
+	static std::vector<VertexT> reconstruct_path(const std::unordered_map<VertexT, VertexT>& prev, VertexT sink);
 };

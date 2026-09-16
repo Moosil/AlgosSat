@@ -5,14 +5,15 @@
 #include <print>
 #include <ranges>
 
-Facility::Facility(const int seed) : flat_graph{}, rng(seed) {
+Facility::Facility(const int seed):
+	flat_graph{},
+	rng(seed) {
 	std::size_t wing_count = 2 + (seed % 3);
 	for (Graph::VertexT i = 0; i < wing_count; ++i) {
 		wings.push_back(build_wing(WING_COLS, WING_ROWS, i));
 	}
 
-	Graph::VertexT no_supply_wing = 3;
-	{
+	Graph::VertexT no_supply_wing = 3; {
 		std::uniform_int_distribution<Graph::VertexT> dist_wings(0, static_cast<Graph::VertexT>(wing_count) - 1);
 		if (wing_count >= 3) {
 			no_supply_wing = dist_wings(rng);
@@ -87,14 +88,15 @@ Facility::Facility(const int seed) : flat_graph{}, rng(seed) {
 	for (const auto& [u, v, _] : wings[1].get_edges()) {
 		Graph::VertexT u_low = static_cast<uint16_t>(u);
 		Graph::VertexT v_low = static_cast<uint16_t>(v);
-		std::size_t u_col = u_low / WING_ROWS;
-		std::size_t v_col = v_low / WING_ROWS;
+		std::size_t    u_col = u_low / WING_ROWS;
+		std::size_t    v_col = v_low / WING_ROWS;
 		wings[1].set_edge_weight(u, v, 1 + static_cast<Graph::WeightT>(std::max(u_col, v_col)) / 3);
 	}
 	if (wing_count >= 3) {
 		std::uniform_int_distribution<Graph::WeightT> dist_weight(1, 5);
 		for (std::size_t i = 2; i < wing_count; ++i) {
-			for (auto& wing = wings[i]; const auto& [u, v, _] : wing.get_edges()) {
+			for (auto&       wing = wings[i];
+			     const auto& [u, v, _] : wing.get_edges()) {
 				wing.set_edge_weight(u, v, dist_weight(rng));
 			}
 		}
@@ -110,14 +112,12 @@ Facility::Facility(const int seed) : flat_graph{}, rng(seed) {
 	}
 	for (const auto& [u, v] : junctions) {
 		flat_graph.add_edge(u, v, 1);
-	}
-
-	{
+	} {
 		std::uniform_int_distribution<std::size_t> dist_weight(1, 3);
 		std::uniform_int_distribution<std::size_t> dist_value(1, 5);
 		for (const auto& s : supplies) {
 			weight[s] = dist_weight(rng);
-			value[s] = dist_value(rng);
+			value[s]  = dist_value(rng);
 		}
 
 		for (const auto& v : supplies) {
@@ -133,12 +133,17 @@ Graph::VertexT Facility::get_vertex(const std::size_t wing, const std::size_t co
 	return row + col * WING_ROWS | (wing << 16);
 }
 
+std::array<Graph::VertexT, 3> Facility::get_vertex_tuple(const Graph::VertexT v) {
+	const auto low = static_cast<uint16_t>(v);
+	return {v >> 16, low / WING_COLS, low % WING_COLS};
+}
+
 void Facility::carve(Graph& g, const Graph::VertexT u, std::unordered_set<Graph::VertexT>& visited) {
 	visited.insert(u);
-	Graph::VertexT u_low = static_cast<uint16_t>(u);
+	Graph::VertexT              u_low = static_cast<uint16_t>(u);
 	std::vector<Graph::VertexT> neighbours;
-	Graph::VertexT row = u_low % WING_ROWS;
-	Graph::VertexT col = u_low / WING_ROWS;
+	Graph::VertexT              row = u_low % WING_ROWS;
+	Graph::VertexT              col = u_low / WING_ROWS;
 	if (row != 0) {
 		neighbours.push_back(u - 1);
 	}
@@ -162,8 +167,8 @@ void Facility::carve(Graph& g, const Graph::VertexT u, std::unordered_set<Graph:
 
 Graph Facility::build_wing(const uint16_t columns, const uint16_t rows, const Graph::VertexT vertex_prefix) {
 	std::unordered_set<Graph::VertexT> visited;
-	Graph res;
-	Graph::VertexT vertex_prefix_shifted = vertex_prefix << 16;
+	Graph                              res;
+	Graph::VertexT                     vertex_prefix_shifted = vertex_prefix << 16;
 	for (uint16_t i = 0; i < columns; ++i) {
 		for (uint16_t j = 0; j < rows; ++j) {
 			res.add_vertex(i * rows + j | vertex_prefix_shifted);
@@ -175,11 +180,11 @@ Graph Facility::build_wing(const uint16_t columns, const uint16_t rows, const Gr
 }
 
 std::size_t Facility::trip_cost(const std::vector<Graph::VertexT>& trip) {
-	std::size_t res = 0;
-	std::size_t load = 0;
+	std::size_t    res  = 0;
+	std::size_t    load = 0;
 	Graph::VertexT prev = entry;
 	for (const auto& v : trip) {
-		res += (1 + load) * dist[prev][v];
+		res  += (1 + load) * dist[prev][v];
 		load += weight[v];
 		prev = v;
 	}
@@ -198,7 +203,7 @@ std::size_t Facility::exit_leg() {
 	return res;
 }
 
-std::size_t Facility::plan_cost(const std::vector<std::vector<Graph::VertexT>>& plan) {
+std::size_t Facility::plan_cost(const std::vector<std::vector<Graph::VertexT> >& plan) {
 	std::size_t res = 0;
 	for (const auto& t : plan) {
 		res += trip_cost(t);
@@ -211,42 +216,42 @@ std::vector<Graph::VertexT> Facility::best_order(const std::vector<Graph::Vertex
 		return units;
 	}
 
-	std::size_t min_cost = -1;
+	std::size_t                 min_cost = -1;
 	std::vector<Graph::VertexT> best;
 	for (std::size_t i = 0; i < units.size(); ++i) {
-		std::vector curr = {units[i]};
+		std::vector                 curr     = {units[i]};
 		std::vector<Graph::VertexT> instance = units;
 		instance.erase(instance.begin() + static_cast<std::vector<Graph::VertexT>::difference_type>(i));
 		curr.append_range(best_order(instance));
 		if (const std::size_t curr_cost = trip_cost(curr);
 			curr_cost < min_cost) {
 			min_cost = curr_cost;
-			best = curr;
+			best     = curr;
 		}
 	}
 	return best;
 }
 
-std::vector<std::vector<Graph::VertexT>> Facility::exemplar_a_nearest_fill(
+std::vector<std::vector<Graph::VertexT> > Facility::exemplar_a_nearest_fill(
 	const std::vector<Graph::VertexT>& pool,
 	std::size_t                        budget) {
-	auto remaining = pool;
-	std::vector<std::vector<Graph::VertexT>> plan{};
-	std::size_t spent = 0;
-	std::size_t exit_leg_cost = exit_leg();
+	auto                                      remaining = pool;
+	std::vector<std::vector<Graph::VertexT> > plan{};
+	std::size_t                               spent         = 0;
+	const std::size_t                         exit_leg_cost = exit_leg();
 
 	while (!remaining.empty()) {
 		std::vector<Graph::VertexT> trip{};
-		Graph::VertexT prev = entry;
-		std::size_t load = 0;
+		Graph::VertexT              prev = entry;
+		std::size_t                 load = 0;
 		while (true) {
-			Graph::VertexT* to_add = nullptr;
-			std::size_t min_dist = -1;
+			Graph::VertexT* to_add   = nullptr;
+			std::size_t     min_dist = -1;
 			for (auto& v : remaining) {
 				if (std::ranges::contains(trip, v) && load + weight[v] <= CAPACITY) {
 					if (!to_add || dist[prev][v] < min_dist) {
 						min_dist = dist[prev][v];
-						to_add = &v;
+						to_add   = &v;
 					}
 				}
 			}
@@ -260,7 +265,7 @@ std::vector<std::vector<Graph::VertexT>> Facility::exemplar_a_nearest_fill(
 		if (trip.empty()) {
 			break;
 		}
-		trip = best_order(trip);
+		trip                   = best_order(trip);
 		const std::size_t cost = trip_cost(trip);
 		if (spent + cost + exit_leg_cost > budget) {
 			break;
@@ -275,7 +280,10 @@ std::vector<std::vector<Graph::VertexT>> Facility::exemplar_a_nearest_fill(
 }
 
 void Facility::set_budget() {
-	const auto full_plan = exemplar_a_nearest_fill(supplies | std::ranges::to<std::vector>(), std::numeric_limits<std::size_t>::max());
+	const auto full_plan = exemplar_a_nearest_fill(
+		supplies | std::ranges::to<std::vector>(),
+		std::numeric_limits<std::size_t>::max()
+	);
 	const auto full_extraction_cost = plan_cost(full_plan);
-	full_budget = full_extraction_cost;
+	full_budget                     = full_extraction_cost;
 }

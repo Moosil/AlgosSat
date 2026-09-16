@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <random>
 #include <vector>
 
@@ -11,26 +12,30 @@ public:
 			return v.first * 31 + v.second;
 		}
 	};
-	static constexpr Graph::VertexT WING_COLS = 10;
-	static constexpr Graph::VertexT WING_ROWS = 10;
-	static constexpr std::size_t SUPPLY_COUNT = 50;
-	static constexpr std::size_t CAPACITY = 5;
 
-	std::vector<Graph> wings;
-	Graph flat_graph;
-	std::unordered_set<std::pair<Graph::VertexT, Graph::VertexT>, pair_hash> junctions;
-	std::unordered_set<Graph::VertexT> exits;
-	std::unordered_set<Graph::VertexT> supplies;
-	std::unordered_map<Graph::VertexT, std::size_t> weight;
-	std::unordered_map<Graph::VertexT, std::size_t> value;
-	std::unordered_map<Graph::VertexT, std::unordered_map<Graph::VertexT, std::size_t>> dist;
-	std::unordered_map<Graph::VertexT, std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT>>> path;
-	const Graph::VertexT entry{0};
-	std::size_t full_budget;
+	static constexpr Graph::VertexT WING_COLS    = 10;
+	static constexpr Graph::VertexT WING_ROWS    = 10;
+	static constexpr std::size_t    SUPPLY_COUNT = 50;
+	static constexpr std::size_t    CAPACITY     = 5;
+
+	std::vector<Graph>                                                                                    wings;
+	Graph                                                                                                 flat_graph;
+	std::unordered_set<std::pair<Graph::VertexT, Graph::VertexT>, pair_hash>                              junctions;
+	std::unordered_set<Graph::VertexT>                                                                    exits;
+	std::unordered_set<Graph::VertexT>                                                                    supplies;
+	std::unordered_map<Graph::VertexT, std::size_t>                                                       weight;
+	std::unordered_map<Graph::VertexT, std::size_t>                                                       value;
+	std::unordered_map<Graph::VertexT, std::unordered_map<Graph::VertexT, std::size_t> >                  dist;
+	std::unordered_map<Graph::VertexT, std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > > path;
+	const Graph::VertexT                                                                                  entry{0};
+	std::size_t                                                                                           full_budget;
 
 	explicit Facility(int seed);
 
 	static Graph::VertexT get_vertex(std::size_t wing, std::size_t col, std::size_t row);
+
+	static std::array<Graph::VertexT, 3> get_vertex_tuple(const Graph::VertexT v);
+
 private:
 	std::default_random_engine rng;
 
@@ -42,11 +47,11 @@ private:
 
 	std::size_t exit_leg();
 
-	std::size_t plan_cost(const std::vector<std::vector<Graph::VertexT>>& plan);
+	std::size_t plan_cost(const std::vector<std::vector<Graph::VertexT> >& plan);
 
 	std::vector<Graph::VertexT> best_order(const std::vector<Graph::VertexT>& units);
 
-	std::vector<std::vector<Graph::VertexT>> exemplar_a_nearest_fill(
+	std::vector<std::vector<Graph::VertexT> > exemplar_a_nearest_fill(
 		const std::vector<Graph::VertexT>& pool,
 		std::size_t                        budget);
 

@@ -1,19 +1,20 @@
 #pragma once
 #include <algorithm>
+#include <map>
 #include <unordered_map>
 
+#include "complexity.h"
 #include "facility.h"
 #include "graph.h"
 
 using SupplyID = int;
 
-using Facility_ADT = std::pair<std::vector<Graph>, std::unordered_set<std::pair<Graph::VertexT, Graph::VertexT>,
-	Facility::pair_hash> >;
+using Facility_ADT = std::pair<std::vector<Graph>, std::set<std::pair<Graph::VertexT, Graph::VertexT> > >;
 
 std::tuple<std::vector<std::size_t>, std::size_t> knapsack(
-	std::size_t              cap,
-	std::vector<std::size_t> val,
-	std::vector<std::size_t> cost);
+	std::size_t                     cap,
+	const std::vector<std::size_t>& val,
+	const std::vector<std::size_t>& cost);
 
 Graph::WeightT get_path_length(const Graph& wing, const std::vector<Graph::VertexT>& path);
 
@@ -22,12 +23,16 @@ std::size_t get_which_wing(
 	Graph::VertexT      v);
 
 template<typename T>
-long long find(std::vector<T> l, T x, const std::size_t start) {
+long long find(const std::vector<T>& l, const T& x, const std::size_t start) {
+	Complexity::operation_counter += Complexity::for_outer + 1;
 	for (std::size_t i = start; i < l.size(); ++i) {
+		Complexity::operation_counter += Complexity::for_inner + Complexity::if_ + 2;
 		if (l[i] == x) {
+			Complexity::operation_counter += Complexity::return_;
 			return static_cast<long long>(i);
 		}
 	}
+	Complexity::operation_counter += Complexity::return_;
 	return -1;
 }
 
@@ -61,11 +66,11 @@ Graph::VertexT get_other_junction(const Facility_ADT& G, Graph::VertexT v);
 std::vector<Graph::VertexT> get_supplies_to_collect(
 	const std::unordered_set<Graph::VertexT>&           supplies,
 	const std::unordered_map<Graph::VertexT, SupplyID>& vertex_to_supply_id,
-	std::unordered_set<SupplyID>&                       found_supply_ids);
+	const std::unordered_set<SupplyID>&                 found_supply_ids);
 
-std::unordered_map<std::vector<Graph::VertexT>, std::unordered_set<std::size_t> > get_supply_wing_paths(
+std::map<std::vector<Graph::VertexT>, std::unordered_set<size_t> > get_supply_wing_paths(
 	const Facility_ADT&                                              G,
-	std::vector<Graph::VertexT>                                      supplies,
+	const std::vector<Graph::VertexT>&                               supplies,
 	std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > entry_to_supply);
 
 void knapsack_supplies(

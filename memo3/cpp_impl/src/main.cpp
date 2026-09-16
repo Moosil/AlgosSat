@@ -41,8 +41,8 @@ int main() {
 		auto path = ember_rescue(
 			std::make_pair(facility.wings, facility.junctions),
 			facility.entry,
-			facility.supplies,
 			facility.exits,
+			facility.supplies,
 			facility.weight,
 			facility.value,
 			vertex_to_supply_id,

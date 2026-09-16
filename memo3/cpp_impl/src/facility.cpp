@@ -1,12 +1,11 @@
 #include "facility.h"
 
-#include <assert.h>
+#include <cassert>
 #include <numeric>
 #include <print>
 #include <ranges>
 
 Facility::Facility(const int seed):
-	flat_graph{},
 	rng(seed) {
 	std::size_t wing_count = 2 + (seed % 3);
 	for (Graph::VertexT i = 0; i < wing_count; ++i) {
@@ -130,7 +129,7 @@ Facility::Facility(const int seed):
 }
 
 Graph::VertexT Facility::get_vertex(const std::size_t wing, const std::size_t col, const std::size_t row) {
-	return row + col * WING_ROWS | (wing << 16);
+	return static_cast<Graph::VertexT>(row + col * WING_ROWS | (wing << 16));
 }
 
 std::array<Graph::VertexT, 3> Facility::get_vertex_tuple(const Graph::VertexT v) {
@@ -140,10 +139,8 @@ std::array<Graph::VertexT, 3> Facility::get_vertex_tuple(const Graph::VertexT v)
 
 void Facility::carve(Graph& g, const Graph::VertexT u, std::unordered_set<Graph::VertexT>& visited) {
 	visited.insert(u);
-	Graph::VertexT              u_low = static_cast<uint16_t>(u);
+	const auto                  [wing, col, row] = get_vertex_tuple(u);
 	std::vector<Graph::VertexT> neighbours;
-	Graph::VertexT              row = u_low % WING_ROWS;
-	Graph::VertexT              col = u_low / WING_ROWS;
 	if (row != 0) {
 		neighbours.push_back(u - 1);
 	}
@@ -168,14 +165,13 @@ void Facility::carve(Graph& g, const Graph::VertexT u, std::unordered_set<Graph:
 Graph Facility::build_wing(const uint16_t columns, const uint16_t rows, const Graph::VertexT vertex_prefix) {
 	std::unordered_set<Graph::VertexT> visited;
 	Graph                              res;
-	Graph::VertexT                     vertex_prefix_shifted = vertex_prefix << 16;
 	for (uint16_t i = 0; i < columns; ++i) {
 		for (uint16_t j = 0; j < rows; ++j) {
-			res.add_vertex(i * rows + j | vertex_prefix_shifted);
+			res.add_vertex(get_vertex(vertex_prefix, j, i));
 		}
 	}
 
-	carve(res, vertex_prefix_shifted, visited);
+	carve(res, get_vertex(vertex_prefix, 0, 0), visited);
 	return res;
 }
 
@@ -233,20 +229,18 @@ std::vector<Graph::VertexT> Facility::best_order(const std::vector<Graph::Vertex
 }
 
 std::vector<std::vector<Graph::VertexT> > Facility::exemplar_a_nearest_fill(
-	const std::vector<Graph::VertexT>& pool,
-	std::size_t                        budget) {
+	const std::vector<Graph::VertexT>& pool) {
 	auto                                      remaining = pool;
 	std::vector<std::vector<Graph::VertexT> > plan{};
-	std::size_t                               spent         = 0;
-	const std::size_t                         exit_leg_cost = exit_leg();
+	std::size_t                               spent = 0;
 
 	while (!remaining.empty()) {
 		std::vector<Graph::VertexT> trip{};
 		Graph::VertexT              prev = entry;
 		std::size_t                 load = 0;
 		while (true) {
-			Graph::VertexT* to_add   = nullptr;
-			std::size_t     min_dist = -1;
+			const Graph::VertexT* to_add   = nullptr;
+			std::size_t           min_dist = -1;
 			for (auto& v : remaining) {
 				if (std::ranges::contains(trip, v) && load + weight[v] <= CAPACITY) {
 					if (!to_add || dist[prev][v] < min_dist) {
@@ -267,10 +261,7 @@ std::vector<std::vector<Graph::VertexT> > Facility::exemplar_a_nearest_fill(
 		}
 		trip                   = best_order(trip);
 		const std::size_t cost = trip_cost(trip);
-		if (spent + cost + exit_leg_cost > budget) {
-			break;
-		}
-		spent += cost;
+		spent                  += cost;
 		plan.push_back(trip);
 		for (const auto& v : trip) {
 			remaining.erase(std::ranges::find(remaining, v));
@@ -281,8 +272,7 @@ std::vector<std::vector<Graph::VertexT> > Facility::exemplar_a_nearest_fill(
 
 void Facility::set_budget() {
 	const auto full_plan = exemplar_a_nearest_fill(
-		supplies | std::ranges::to<std::vector>(),
-		std::numeric_limits<std::size_t>::max()
+		supplies | std::ranges::to<std::vector>()
 	);
 	const auto full_extraction_cost = plan_cost(full_plan);
 	full_budget                     = full_extraction_cost;

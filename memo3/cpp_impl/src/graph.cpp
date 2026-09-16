@@ -1,5 +1,7 @@
 #include "graph.h"
 
+#include <algorithm>
+#include <queue>
 #include <ranges>
 #include <stdexcept>
 
@@ -75,8 +77,8 @@ std::vector<Graph::VertexT> Graph::get_vertices() const {
 	return res;
 }
 
-std::vector<std::tuple<Graph::VertexT, Graph::VertexT, Graph::WeightT>> Graph::get_edges() const {
-	std::vector<std::tuple<VertexT, VertexT, WeightT>> res{};
+std::vector<std::tuple<Graph::VertexT, Graph::VertexT, Graph::WeightT> > Graph::get_edges() const {
+	std::vector<std::tuple<VertexT, VertexT, WeightT> > res{};
 	for (const auto u : adj | std::views::keys) {
 		if (!inactive.contains(u)) {
 			for (const auto& [v, w] : get_neighbors(u)) {
@@ -84,6 +86,54 @@ std::vector<std::tuple<Graph::VertexT, Graph::VertexT, Graph::WeightT>> Graph::g
 					res.emplace_back(u, v, w);
 				}
 			}
+		}
+	}
+	return res;
+}
+
+std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(VertexT source) const {
+	std::unordered_map<VertexT, WeightT>               dist;
+	for (const auto& v : get_vertices()) {
+		dist[v] = std::numeric_limits<WeightT>::max();
+	}
+	dist[source] = 0;
+	std::unordered_map<VertexT, VertexT>              prev;
+	std::priority_queue<std::pair<WeightT, VertexT> > pq;
+	pq.emplace(0, source);
+
+	while (!pq.empty()) {
+		const auto [d, u] = pq.top();
+		pq.pop();
+		if (dist[u] < -d) {
+			continue;
+		}
+
+		for (const auto& [v, w] : g.get_neighbors(u)) {
+			if (dist[u] + w < dist[v]) {
+				prev[v] = u;
+				dist[v] = dist[u] + w;
+				pq.emplace(-dist[v], v);
+			}
+		}
+	}
+
+	std::unordered_map<VertexT, std::vector<VertexT>> res{};
+	for (const auto& v : get_vertices()) {
+		res[v] = reconstruct_path(prev, v);
+	}
+	return res;
+}
+
+std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(const VertexT source) const {
+	return sssp_dist(source, sssp(source));
+}
+
+std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(const VertexT source, const std::unordered_map<VertexT, std::vector<VertexT>> paths) const {
+	std::unordered_map<VertexT, std::size_t> res{};
+	for (const auto& [k, p] : paths) {
+		res[k] = 0;
+		for (std::size_t i = 0; i < p.size() - 1; ++i) {
+			res[k] += get_edge_weight(p[i], p[i + 1]);
 		}
 	}
 	return res;
@@ -101,4 +151,14 @@ void Graph::update() {
 	}
 
 	inactive.clear();
+}
+
+std::vector<Graph::VertexT> Graph::reconstruct_path(const std::unordered_map<VertexT, VertexT>& prev, VertexT sink) {
+	std::vector res = {sink};
+	while (prev.contains(sink)) {
+		sink = prev.at(sink);
+		res.push_back(sink);
+	}
+	std::ranges::reverse(res);
+	return res;
 }

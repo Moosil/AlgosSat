@@ -18,9 +18,10 @@ std::tuple<std::vector<std::size_t>, std::size_t> knapsack(
 
 Graph::WeightT get_path_length(const Graph& wing, const std::vector<Graph::VertexT>& path);
 
-std::size_t get_which_wing(
+const Graph& get_which_wing(
 	const Facility_ADT& G,
-	Graph::VertexT      v);
+	Graph::VertexT      v
+);
 
 template<typename T>
 long long find(const std::vector<T>& l, const T& x, const std::size_t start) {
@@ -75,11 +76,11 @@ std::map<std::vector<Graph::VertexT>, std::unordered_set<size_t> > get_supply_wi
 
 void knapsack_supplies(
 	std::vector<Graph::VertexT>&                                                     supplies,
-	std::vector<std::size_t>                                                         supply_weight,
-	std::vector<std::size_t>                                                         supply_value,
-	std::vector<std::size_t>                                                         supplies_in_junction,
+	const std::vector<std::size_t>&                                                  supply_weight,
+	const std::vector<std::size_t>&                                                  supply_value,
+	std::vector<std::size_t>&                                                        supplies_in_junction,
 	Graph::VertexT                                                                   entry,
-	std::vector<Graph::VertexT>                                                      backtrack,
+	const std::vector<Graph::VertexT>&                                               backtrack,
 	std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> >& res);
 
 void clear_junction_path(
@@ -90,22 +91,22 @@ void clear_junction_path(
 	std::vector<Graph::VertexT>                                                      supplies,
 	std::vector<std::size_t>                                                         supply_weight,
 	std::vector<std::size_t>                                                         supply_value,
-	std::unordered_map<Graph::VertexT, std::unordered_set<Graph::VertexT> >&         supply_path,
-	std::vector<Graph::VertexT>                                                      inter_wing_path,
+	std::map<std::vector<Graph::VertexT>, std::unordered_set<Graph::VertexT> >&      supply_path,
+	const std::vector<Graph::VertexT>&                                               inter_wing_path,
 	std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> >& res);
 
 std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > clear_branch(
-	const Facility_ADT&                                                      G,
-	Graph::VertexT                                                           entry,
-	Graph::VertexT                                                           orig,
-	Graph::VertexT                                                           branch,
-	const Graph&                                                             orig_wing,
-	std::vector<Graph::VertexT>                                              backtrack,
-	std::vector<Graph::VertexT>                                              supplies,
-	std::vector<std::size_t>                                                 supply_weight,
-	std::vector<std::size_t>                                                 supply_value,
-	std::unordered_map<Graph::VertexT, std::unordered_set<Graph::VertexT> >& supply_path,
-	std::vector<Graph::VertexT>                                              inter_wing_path);
+	const Facility_ADT&                                                         G,
+	Graph::VertexT                                                              entry,
+	Graph::VertexT                                                              orig,
+	Graph::VertexT                                                              branch,
+	const Graph&                                                                orig_wing,
+	std::vector<Graph::VertexT>                                                 backtrack,
+	std::vector<Graph::VertexT>                                                 supplies,
+	std::vector<std::size_t>                                                    supply_weight,
+	std::vector<std::size_t>                                                    supply_value,
+	std::map<std::vector<Graph::VertexT>, std::unordered_set<Graph::VertexT> >& supply_path,
+	std::vector<Graph::VertexT>                                                 inter_wing_path);
 
 std::vector<Graph::VertexT> ember_rescue(
 	const Facility_ADT&                                    G,

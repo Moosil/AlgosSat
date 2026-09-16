@@ -32,7 +32,7 @@ std::tuple<std::vector<std::size_t>, std::size_t> knapsack(
 		Complexity::operation_counter += Complexity::for_inner + 4;
 		std::size_t j                 = cap;
 		const auto  cost_i            = cost[i];
-		Complexity::operation_counter += Complexity::while_outer;
+		Complexity::operation_counter += Complexity::while_outer + 1;
 		while (j >= cost_i) {
 			Complexity::operation_counter += 5;
 			const auto curr               = dp[j - cost_i] + val[i];
@@ -74,16 +74,16 @@ Graph::WeightT get_path_length(const Graph& wing, const std::vector<Graph::Verte
 	return res;
 }
 
-std::size_t get_which_wing(
+const Graph& get_which_wing(
 	const Facility_ADT&  G,
 	const Graph::VertexT v
 ) {
 	Complexity::operation_counter += Complexity::for_outer + 1;
-	for (std::size_t i = 0; i < G.first.size(); ++i) {
+	for (const auto& g : G.first) {
 		Complexity::operation_counter += Complexity::for_inner + Complexity::if_ + 2;
-		if (G.first[i].contains(v)) {
+		if (g.contains(v)) {
 			Complexity::operation_counter += Complexity::return_;
-			return i;
+			return g;
 		}
 	}
 	throw std::runtime_error("Imaginary vertex in get_which_wing");
@@ -95,7 +95,7 @@ std::vector<Graph::VertexT> reconstruct_path(
 ) {
 	Complexity::operation_counter += 1 + Complexity::braced_init;
 	std::vector res               = {sink};
-	Complexity::operation_counter += Complexity::while_outer;
+	Complexity::operation_counter += Complexity::while_outer + 1;
 	while (prev.contains(sink)) {
 		Complexity::operation_counter += Complexity::while_inner + 1 + 3;
 		sink                          = prev.at(sink);
@@ -130,7 +130,7 @@ std::unordered_map<Graph::VertexT, Graph::VertexT> dijkstra(
 	std::priority_queue<std::pair<Graph::WeightT, Graph::VertexT> > pq;
 	pq.emplace(0, source);
 
-	Complexity::operation_counter += Complexity::while_outer;
+	Complexity::operation_counter += Complexity::while_outer + 2;
 	while (!pq.empty()) {
 		const auto [d, u] = pq.top();
 		pq.pop();
@@ -176,7 +176,7 @@ std::vector<Graph::VertexT> dijkstra_to(const Graph& g, const Graph::VertexT sou
 	std::priority_queue<std::pair<Graph::WeightT, Graph::VertexT> > pq;
 	pq.emplace(0, source);
 
-	Complexity::operation_counter += Complexity::while_outer;
+	Complexity::operation_counter += Complexity::while_outer + 2;
 	while (!pq.empty()) {
 		const auto [d, u] = pq.top();
 		pq.pop();
@@ -362,6 +362,287 @@ std::map<std::vector<Graph::VertexT>, std::unordered_set<std::size_t> > get_supp
 
 	Complexity::operation_counter += Complexity::return_;
 	return res;
+}
+
+void knapsack_supplies(
+	std::vector<Graph::VertexT>&                                                     supplies,
+	const std::vector<std::size_t>&                                                  supply_weight,
+	const std::vector<std::size_t>&                                                  supply_value,
+	std::vector<std::size_t>&                                                        supplies_in_junction,
+	const Graph::VertexT                                                             entry,
+	const std::vector<Graph::VertexT>&                                               backtrack,
+	std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> >& res) {
+	Complexity::operation_counter         += 3 + Complexity::for_outer;
+	std::size_t              total_weight = 0;
+	std::vector<std::size_t> in_junction_weight{};
+	in_junction_weight.reserve(supplies_in_junction.size());
+	std::vector<std::size_t> in_junction_value{};
+	in_junction_value.reserve(supplies_in_junction.size());
+
+	for (const auto& s_idx : supplies_in_junction) {
+		Complexity::operation_counter += Complexity::for_inner + 5;
+		total_weight                  += supply_weight.at(s_idx);
+		in_junction_weight.push_back(supply_weight.at(s_idx));
+		in_junction_value.push_back(supply_value.at(s_idx));
+	}
+
+	Complexity::operation_counter += Complexity::while_outer + 1;
+	while (total_weight >= 5) {
+		Complexity::operation_counter += Complexity::while_inner + 1;
+		auto sack                     = knapsack(5, in_junction_weight, in_junction_value);
+
+		Complexity::operation_counter += Complexity::for_outer + 2;
+		std::unordered_map<Graph::VertexT, std::vector<std::size_t> > sack_items{};
+		for (const auto& ij_idx : std::get<0>(sack)) {
+			Complexity::operation_counter += 4 + Complexity::if_ + 1;
+			const auto in_junction_idx    = supplies_in_junction[ij_idx];
+			if (const auto curr_supply = supplies[in_junction_idx];
+				sack_items.contains(curr_supply)) {
+				Complexity::operation_counter += 2;
+				sack_items[curr_supply].push_back(in_junction_idx);
+			} else {
+				Complexity::operation_counter += 1 + Complexity::braced_init;
+				sack_items[curr_supply]       = {in_junction_idx};
+			}
+		}
+
+		std::vector<std::size_t> extra_supplies{}; {
+			Complexity::operation_counter += 5 + Complexity::while_outer + 1;
+			std::size_t total_sack_weight = 0;
+			bool        collecting_strays = false;
+			long long   i                 = static_cast<long long>(backtrack.size()) - 1;
+			while (i >= 0) {
+				Complexity::operation_counter += 1 + Complexity::while_inner + 2 + Complexity::if_ + 1;
+				if (auto curr_pos = backtrack.at(i);
+					sack_items.contains(curr_pos)) {
+					Complexity::operation_counter += 2 + Complexity::for_outer;
+					collecting_strays             = true;
+					for (const auto& s_idx : sack_items[curr_pos]) {
+						Complexity::operation_counter += Complexity::for_inner + 3 + Complexity::while_outer + 2;
+						auto        w                 = supply_weight.at(s_idx);
+						std::size_t drop_count        = 1;
+						while (total_sack_weight + w > 5) {
+							Complexity::operation_counter += Complexity::for_inner + 16 + Complexity::braced_init +
+									Complexity::while_outer;
+							auto del_s_idx = extra_supplies.back();
+							extra_supplies.pop_back();
+							auto del_pos = backtrack.at(i + drop_count);
+							while (find(supplies, del_pos, 0) != -1) {
+								Complexity::operation_counter += Complexity::while_inner + 1 + 5;
+								++drop_count;
+								del_pos = backtrack.at(i + drop_count);
+							}
+							auto del_w = supply_weight[del_s_idx];
+							res.emplace_back(del_pos, 2, del_w, supply_value[del_s_idx]);
+							total_sack_weight   -= del_w;
+							supplies[del_s_idx] = del_pos;
+							++drop_count;
+						}
+						Complexity::operation_counter += 4 + Complexity::braced_init;
+						total_sack_weight             += w;
+						res.emplace_back(curr_pos, 3, w, supply_value[s_idx]);
+					}
+				} else {
+					Complexity::operation_counter += Complexity::if_;
+					if (collecting_strays) {
+						Complexity::operation_counter += 1 + Complexity::while_outer + 1;
+						std::size_t s_idx             = find(supplies, curr_pos, 0);
+						while (s_idx != -1) {
+							Complexity::operation_counter += Complexity::while_inner + 1 + Complexity::if_;
+							if (find(supplies_in_junction, s_idx, 0) != -1) {
+								Complexity::operation_counter += 2 + 2 + Complexity::if_;
+								if (const auto w = supply_weight.at(s_idx);
+									total_sack_weight + w <= 5) {
+									Complexity::operation_counter += Complexity::braced_init + 3;
+									res.emplace_back(curr_pos, 3, w, supply_value[s_idx]);
+									extra_supplies.push_back(s_idx);
+								}
+							}
+							Complexity::operation_counter += 1;
+							s_idx                         = find(supplies, curr_pos, 0);
+						}
+					}
+				}
+				Complexity::operation_counter += 2;
+				--i;
+			}
+		}
+
+		Complexity::operation_counter += 1 + Complexity::for_outer;
+		for (const auto& i : std::get<0>(sack)) {
+			Complexity::operation_counter += Complexity::for_inner + 10 + Complexity::braced_init;
+			const std::size_t s_idx       = supplies_in_junction[i];
+			supplies[s_idx]               = entry;
+			supplies_in_junction.erase(supplies_in_junction.begin() + static_cast<long long>(i));
+			auto w       = supply_weight.at(s_idx);
+			total_weight -= w;
+			res.emplace_back(entry, 2, w, supply_value[s_idx]);
+		}
+		for (const auto& s_idx : extra_supplies) {
+			Complexity::operation_counter += Complexity::for_inner + 7 + Complexity::braced_init;
+			supplies[s_idx]               = entry;
+			auto w                        = supply_weight.at(s_idx);
+			total_weight                  -= w;
+			res.emplace_back(entry, 2, w, supply_value[s_idx]);
+		}
+	}
+}
+
+void clear_junction_path(
+	const Facility_ADT&                                                              G,
+	const Graph::VertexT                                                             entry,
+	const Graph::VertexT                                                             curr,
+	const std::vector<Graph::VertexT>&                                               backtrack,
+	std::vector<Graph::VertexT>&                                                     supplies,
+	const std::vector<std::size_t>&                                                  supply_weight,
+	const std::vector<std::size_t>&                                                  supply_value,
+	std::map<std::vector<Graph::VertexT>, std::unordered_set<Graph::VertexT> >&      supply_path,
+	const std::vector<Graph::VertexT>&                                               inter_wing_path,
+	std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> >& res) {
+	Complexity::operation_counter += 1 + 1 + Complexity::if_;
+	const auto junction_other     = get_other_junction(G, curr);
+	if (junction_other == curr) {
+		Complexity::operation_counter += Complexity::return_;
+		return;
+	}
+
+	Complexity::operation_counter += 3;
+	auto new_inter_wing_path      = inter_wing_path;
+	new_inter_wing_path.push_back(curr);
+	new_inter_wing_path.push_back(junction_other);
+
+	Complexity::operation_counter += 1 + 1 + Complexity::for_outer;
+	bool worth_doing              = true;
+	for (const auto& k : supply_path | std::views::keys) {
+		Complexity::operation_counter += Complexity::for_inner + 1 + Complexity::for_outer;
+		for (std::size_t i = 0; i < new_inter_wing_path.size(); ++i) {
+			Complexity::operation_counter += Complexity::for_inner + Complexity::if_ + 3;
+			if (k.at(i) != new_inter_wing_path.at(i)) {
+				Complexity::operation_counter += 1 + Complexity::break_;
+				worth_doing                   = false;
+				break;
+			}
+		}
+	}
+
+	Complexity::operation_counter += Complexity::if_;
+	if (worth_doing) {
+		Complexity::operation_counter += 6 + Complexity::braced_init + Complexity::for_outer;
+		res.emplace_back(curr, 1, 0, 0);
+		auto curr_backtrack = backtrack;
+		curr_backtrack.push_back(junction_other);
+
+		const auto               wing = get_which_wing(G, junction_other);
+		std::vector<std::size_t> surviving_supplies{};
+		for (const Graph::VertexT n : wing.get_neighbors(junction_other) | std::views::keys) {
+			Complexity::operation_counter += 2 + Complexity::braced_init + Complexity::if_ + 2;
+			std::vector new_branch_prevs  = {junction_other};
+
+			if (const auto branch_res = clear_branch(
+					G,
+					entry,
+					junction_other,
+					n,
+					wing,
+					new_branch_prevs,
+					supplies,
+					supply_weight,
+					supply_value,
+					supply_path,
+					new_inter_wing_path
+				);
+				!branch_res.empty()) {
+				Complexity::operation_counter += 1 + Complexity::braced_init + Complexity::for_outer;
+				res.emplace_back(junction_other, 1, 0, 0);
+				for (const Graph::VertexT i : branch_res | std::views::elements<0>) {
+					Complexity::operation_counter += 2 + Complexity::braced_init + Complexity::for_inner;
+					res.emplace_back(i, 1, 0, 0);
+				}
+
+				Complexity::operation_counter += 1 + 1 + Complexity::for_outer;
+				std::vector<std::size_t> supplies_in_junction{};
+				for (const Graph::VertexT s_idx : supply_path.at(new_inter_wing_path)) {
+					Complexity::operation_counter += Complexity::for_inner + 5 + Complexity::if_;
+					if (supplies[s_idx] != entry && supplies[s_idx] == junction_other) {
+						Complexity::operation_counter += 1;
+						supplies_in_junction.push_back(s_idx);
+					}
+				}
+
+				knapsack_supplies(
+					supplies,
+					supply_weight,
+					supply_value,
+					supplies_in_junction,
+					entry,
+					curr_backtrack,
+					res
+				);
+
+				Complexity::operation_counter += 3 + Complexity::if_;
+				if (const auto supply_count = supplies_in_junction.size();
+					supply_count != 0) {
+					Complexity::operation_counter += 1 + Complexity::for_outer;
+					std::vector<std::size_t> storage{};
+					for (const auto& s_idx : supplies_in_junction) {
+						Complexity::operation_counter += Complexity::for_inner + 4 + Complexity::braced_init;
+						storage.push_back(s_idx);
+						res.emplace_back(junction_other, 3, supply_weight[s_idx], supply_value[s_idx]);
+					}
+
+					Complexity::operation_counter += 1 + Complexity::for_outer;
+					std::unordered_set<Graph::VertexT> supplies_set{};
+					supplies_set.reserve(supply_count);
+					for (const Graph::VertexT s : supplies) {
+						Complexity::operation_counter += Complexity::for_inner + 1;
+						supplies_set.insert(s);
+					}
+					Complexity::operation_counter += 4 + Complexity::while_outer + 3;
+					std::size_t i                 = backtrack.size() - 1;
+					std::size_t storage_len       = storage.size();
+					while (i > 1 && storage_len > 0) {
+						Complexity::operation_counter += Complexity::while_inner + 3 + 2 + Complexity::if_;
+						if (supplies_set.contains(backtrack[i])) {
+							Complexity::operation_counter += 12 + Complexity::braced_init;
+							std::size_t s_idx             = storage[storage_len];
+							storage.pop_back();
+							--storage_len;
+							supplies[s_idx] = backtrack[i];
+							res.emplace_back(backtrack[i], 2, supply_weight[s_idx], supply_value[s_idx]);
+							surviving_supplies.push_back(s_idx);
+						}
+					}
+
+					Complexity::operation_counter += 1 + Complexity::if_;
+					if (storage_len != 0) {
+						Complexity::operation_counter += 2 + Complexity::while_outer + 1;
+						Graph::VertexT curr_pos       = backtrack.front();
+						while (storage_len != 0) {
+							std::size_t s_idx = storage.back();
+							supplies[s_idx]   = curr_pos;
+							res.emplace_back(curr_pos, 2, supply_weight[s_idx], supply_value[s_idx]);
+							--storage_len;
+						}
+					}
+
+					Complexity::operation_counter += Complexity::if_ + 1;
+					if (supply_count >= 2) {
+						Complexity::operation_counter += 1 + Complexity::braced_init;
+						res.emplace_back(curr, 1, 0, 0);
+					}
+				}
+			}
+		}
+
+		knapsack_supplies(supplies, supply_weight, supply_value, surviving_supplies, entry, backtrack, res);
+
+		Complexity::operation_counter += Complexity::if_ + 1;
+		if (supply_path.contains(new_inter_wing_path)) {
+			Complexity::operation_counter += 5;
+			supply_path[inter_wing_path].insert_range(supply_path[new_inter_wing_path]);
+			supply_path.erase(new_inter_wing_path);
+		}
+	}
 }
 
 std::vector<Graph::VertexT> ember_rescue(

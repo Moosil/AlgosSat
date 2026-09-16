@@ -225,9 +225,10 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
     in_junction_weight <- []
     in_junction_value <- []
     FOR EACH s_idx IN supplies_in_junction DO
-        total_weight <- total_weight + supply_weight[s_idx]
+        curr_w <- supply_weight[s_idx]
+        total_weight <- total_weight + curr_w
         push_back(in_junction_value, supply_value[s_idx])
-        push_back(in_junction_value, supply_value[s_idx])
+        push_back(in_junction_weight, curr_w)
     END FOR
 
     WHILE total_weight >= 5 DO
@@ -235,17 +236,18 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
 
         sack_items <- {}
         FOR EACH ij_idx IN sack[0] DO
-            IF has(sack_items, supplies[supplies_in_junction[ij_idx]]) THEN
-                push_back(sack_items[supplies[supplies_in_junction[ij_idx]]], supplies_in_junctions[s])
+            in_junction_idx <- supplies_in_junction[ij_idx]
+            curr_supply <- supplies[in_junction_idx]
+            IF has(sack_items, curr_supply) THEN
+                push_back(sack_items[curr_supply], in_junction_idx)
             ELSE
-                sack_items[supplies[supplies_in_junction[ij_idx]]] <- [supplies_in_junctions[s]]
+                sack_items[curr_supply] <- [in_junction_idx]
             END IF
         END FOR
         total_sack_weight <- 0
         extra_supplies <- []
         collecting_strays <- False
-        bt_len <- length(backtrack)
-        i <- bt_len
+        i <- length(backtrack)
         WHILE i >= 1 DO
             curr_pos <- backtrack[i]
             IF has(sack_items, curr_pos) THEN
@@ -257,6 +259,10 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
                         del_s_idx <- extra_supplies[length(extra_supplies)]
                         pop_back(extra_supplies)
                         del_pos <- backtrack[i + drop_count]
+                        WHILE find(supplies, del_pos, 0) != -1 DO
+                            drop_count <- drop_count + 1
+                            del_pos <- backtrack[i + drop_count]
+                        END WHILE
                         del_w <- supply_weight[del_s_idx]
                         push_back(res, (del_pos, 2, del_w, supply_value[del_s_idx]))
                         total_sack_weight <- total_sack_weight - del_w
@@ -268,14 +274,19 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
                     push_back(res, (curr_pos, 3, w, supply_value[s_idx]))
                 END FOR
             ELSE
-                s_idx <- find(supplies, curr_pos, 0)
-                IF collecting_strays AND s_idx != -1 AND has(supplies_in_junction, s_idx) THEN
-                    w <- supply_weight[s_idx]
-                    IF total_sack_weight + w <= 5 THEN
-                        total_sack_weight <- total_sack_weight + w
-                        push_back(res, (curr_pos, 3, w, supply_value[s_idx]))
-                        push_back(extra_supplies, s_idx)
-                    END IF
+                IF collecting_strays THEN
+                    s_idx <- find(supplies, curr_pos, 0)
+                    WHILE s_idx != -1 DO
+                        IF find(supplies_in_junction, s_idx, 0) != -1 THEN
+                            w <- supply_weight[s_idx]
+                            IF total_sack_weight + w <= 5 THEN
+                                total_sack_weight <- total_sack_weight + w
+                                push_back(res, (curr_pos, 3, w, supply_value[s_idx]))
+                                push_back(extra_supplies, s_idx)
+                            END IF
+                        END IF
+                        s_idx <- find(supplies, curr_pos, s_idx)
+                    END WHILE
                 END IF
             END IF
             i <- i - 1
@@ -287,13 +298,13 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
             pop(supplies_in_junction, i) #TODO add push, push_back, pop, pop_back to ADTs: make in-place
             w <- supply_weight[s_idx]
             total_weight <- total_weight - w
-            push_back(instruction, (res, 2, w, supply_value[s_idx]))
+            push_back(res, (entry, 2, w, supply_value[s_idx]))
         END FOR
         FOR s_idx IN extra_supplies DO
             supplies[s_idx] <- entry
             w <- supply_weight[s_idx]
             total_weight <- total_weight - w
-            push_back(instruction, (res, 2, w, supply_value[s_idx]))
+            push_back(res, (entry, 2, w, supply_value[s_idx]))
         END FOR
     END WHILE
 END PROCEDURE
@@ -316,86 +327,83 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
                 BREAK
             END IF
         END FOR
+    END FOR
 
-        IF worth_doing THEN
-            push_back(res, (curr, 1, 0, 0))
-            curr_backtrack <- backtrack
-            push_back(curr_backtrack, junction_other)
+    IF worth_doing THEN
+        push_back(res, (curr, 1, 0, 0))
+        curr_backtrack <- backtrack
+        push_back(curr_backtrack, junction_other)
 
-            wing <- get_which_wing(G, junction_other)
-            surviving_supplies <- []
-            FOR EACH n IN get_neighbours(wing, junction_other) DO
-                new_branch_prevs <- [junction_other]
-                branch_res <- clear_branch(G, entry, junction_other, n, wing, new_branch_prevs, supply_path, supply_weight, supply_value, supplies, new_inter_wing_path)
+        wing <- get_which_wing(G, junction_other)
+        surviving_supplies <- []
+        FOR EACH n IN get_neighbours(wing, junction_other) DO
+            new_branch_backtrack <- [junction_other]
+            branch_res <- clear_branch(G, entry, junction_other, n, wing, new_branch_backtrack, supplies, supply_weight, supply_value, supply_path, new_inter_wing_path)
 
-                IF length(branch_res) != 0 THEN
-                    push_back(res, (junction_other, 1, 0, 0))
-                    FOR EACH i IN branch_res DO
-                        push_back(res, (i[0], 1, 0, 0))
+            IF length(branch_res) != 0 THEN
+                push_back(res, (junction_other, 1, 0, 0))
+                FOR EACH i IN branch_res DO
+                    push_back(res, (i[0], 1, 0, 0))
+                END FOR
+
+                supplies_in_junction <- []
+                FOR EACH s_idx in supply_path[new_inter_wing_path] DO
+                    IF supplies[s_idx] != entry AND supplies[s_idx] == junction_other THEN
+                        push_back(supplies_in_junction, s_idx)
+                    END IF
+                END FOR
+
+                knapsack_supplies(supplies, supply_weight, supply_value, supplies_in_junction, entry, curr_backtrack, res)
+
+                supply_count <- length(supplies_in_junction)
+                IF supply_count != 0 THEN
+                    storage <- []
+                    FOR EACH s_idx in supplies_in_junction DO
+                        push_back(storage, s_idx)
+                        push_back(res, (junction_other, 3, supply_weight[s_idx], supply_value[s_idx]))
                     END FOR
 
-                    supplies_in_junction <- []
-                    FOR EACH s_idx in supply_path[new_inter_wing_path] DO
-                        IF supplies[s_idx] != entry AND supplies[s_idx] == junction_other THEN
-                            push_back(supplies_in_junction, s_idx)
+
+                    supplies_set <- {}
+                    FOR EACH s IN supplies DO
+                        add(supplies_set, s) #TODO update ADTs
+                    END FOR
+                    i <- length(backtrack)
+                    storage_len <- length(storage)
+                    WHILE i >= 1 AND storage_len > 0 DO
+                        IF element_of(supplies_set, backtrack[i]) THEN
+                            s_idx <- storage[storage_len]
+                            pop_back(storage)
+                            storage_len <- storage_len - 1
+                            supplies[s_idx] <- backtrack[i]
+                            push_back(res, (backtrack[i], 2, supply_weight[s_idx], supply_value[s_idx]))
+                            push_back(surviving_supplies, s_idx)
                         END IF
-                    END FOR
+                        i <- i - 1
+                    END WHILE
 
-                    knapsack_supplies(supplies, supply_weights, supply_priorities, supplies_in_junction, entry, curr_backtrack, res)
-
-                    supply_count <- length(supplies_in_junction)
-                    IF supply_count != 0 THEN
-                        storage <- []
-                        FOR EACH s_idx in supplies_in_junction DO
-                            push_back(storage, s_idx)
-                            push_back(res, (junction_other, 3, supply_weight[s_idx], supply_value[s_idx]))
-                        END FOR
-
-
-                        supplies_set <- {}
-                        FOR EACH s IN supplies DO
-                            add(supplies_set, s) #TODO update ADTs
-                        END FOR
-                        i <- length(prevs)
-                        storage_len <- length(storage)
-                        WHILE i >= 1 AND storage_len > 0 DO
-                            IF element_of(supplies_set, backtrack[i]) THEN
-                                s_idx <- storage[storage_len]
-                                pop_back(storage)
-                                storage_len <- storage_len - 1
-                                supplies[s_idx] <- backtrack[i]
-                                push_back(res, (backtrack[i], 2, supply_weight[s_idx], supply_value[s_idx]))
-                                push_back(surviving_supplies, s_idx)
-                            END IF
-                            i <- i - 1
+                    IF storage_len != 0 THEN
+                        curr_pos <- backtrack[0]
+                        WHILE storage_len != 0 DO
+                            s_idx <- storage[storage_len]
+                            supplies[s_idx] = curr_backtrack
+                            push_back(res, (curr_backtrack, 2, supply_weight[s_idx], supply_value[s_idx]))
+                            storage_len <- storage_len - 1
                         END WHILE
+                    END IF
 
-                        IF i == -1 AND storage_len != 0 THEN
-                            curr_backtrack <- backtrack[0]
-                            WHILE storage_len >= 1 DO
-                                s_idx <- storage[storage_len]
-                                supplies[s_idx] = entry
-                                push_back(res, (backtrack[i], 2, supply_weight[s_idx], supply_value[s_idx]))
-                                storage_len <- storage_len - 1
-                            END WHILE
-                        END IF
-
-                        IF supply_count >= 2 THEN
-                            push_back(res, curr)
-                        END IF
+                    IF supply_count >= 2 THEN
+                        push_back(res, (curr, 1, 0, 0))
                     END IF
                 END IF
-            END FOR
-
-            knapsack_supplies(supplies, supply_weight, supply_value, surviving_supplies, entry, backtrack, res)
-
-            IF has(supply_path, new_inter_wing_path) THEN
-                supply_path[inter_wing_path] <- union(supply_path[inter_wing_path], supply_path[new_inter_wing_path])
-                remove(supply_path, new_inter_wing_path)
             END IF
-            RETURN
-        ELSE
-            worth_doing <- True
+        END FOR
+
+        knapsack_supplies(supplies, supply_weight, supply_value, surviving_supplies, entry, backtrack, res)
+
+        IF has(supply_path, new_inter_wing_path) THEN
+            supply_path[inter_wing_path] <- union(supply_path[inter_wing_path], supply_path[new_inter_wing_path])
+            remove(supply_path, new_inter_wing_path)
         END IF
     END FOR
 END PROCEDURE

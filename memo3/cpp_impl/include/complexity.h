@@ -1,19 +1,19 @@
 #pragma once
 
 class Complexity {
-
 public:
 	inline static std::size_t operation_counter;
 
-	static constexpr std::size_t return_ = 1;
-	static constexpr std::size_t if_ = 1;
-	static constexpr std::size_t braced_init = 1;
-	static constexpr std::size_t while_inner = 1; // n * 1
-	static constexpr std::size_t while_outer = 1; // + 1
-	static constexpr std::size_t for_inner = 1; // n * 1
-	static constexpr std::size_t for_outer = 1; // + 1
+	static constexpr std::size_t return_         = 1;
+	static constexpr std::size_t if_             = 1;
+	static constexpr std::size_t braced_init     = 1;
+	static constexpr std::size_t while_inner     = 1; // n * 1
+	static constexpr std::size_t while_outer     = 1; // + 1
+	static constexpr std::size_t for_inner       = 1; // n * 1
+	static constexpr std::size_t for_outer       = 1; // + 1
+	static constexpr std::size_t break_          = 1;
 	static constexpr std::size_t get_edge_weight = 1;
-	static constexpr std::size_t max = 3;
+	static constexpr std::size_t max             = 3;
 
 	static std::size_t get_neighbours([[maybe_unused]] std::size_t n) {
 		return 1;

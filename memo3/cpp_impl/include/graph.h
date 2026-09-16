@@ -5,7 +5,7 @@
 class Graph {
 public:
 	using VertexT = uint32_t;
-	using WeightT = int;
+	using WeightT = std::size_t;
 
 	Graph() = default;
 

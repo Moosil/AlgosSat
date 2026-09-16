@@ -203,8 +203,8 @@ PROCEDURE get_supply_wing_paths(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]]
         next <- curr_path[2]
         FOR i <- 1 TO length(curr_path) - 1 DO
             IF element_of(junctions, curr) AND next == get_other_junction(G, curr) THEN
-                push(junction_path, curr)
-                push(junction_path, next)
+                push_back(junction_path, curr)
+                push_back(junction_path, next)
             END IF
             curr <- next
             next <- curr_path[i + 2]
@@ -413,7 +413,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
 
     branch_pos <- branch
     prev <- orig
-    push(backtrack, branch_pos)
+    push_back(backtrack, branch_pos)
 
     clear_junction_path(G, entry, end_branch_pos, backtrack, supplies, supply_weight, supply_value, supply_path, inter_wing_path, res)
     neighbours <- get_neighbours(orig_wing, branch_pos)
@@ -428,7 +428,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
             branch_pos <- n[0]
         END IF
         neighbours <- get_neighbours(orig_wing, branch_pos)
-        push(backtrack, branch_pos)
+        push_back(backtrack, branch_pos)
 
         clear_junction_path(G, entry, end_branch_pos, backtrack, supplies, supply_weight, supply_value, supply_path, inter_wing_path, res)
     END WHILE
@@ -439,10 +439,10 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
             IF n != prev THEN
                 new_backtrack <- []
                 FOR EACH i IN backtrack DO
-                    push(new_backtrack, i)
+                    push_back(new_backtrack, i)
                 END FOR
                 FOR EACH i IN clear_branch(G, entry, end_branch_pos, n, orig_wing, new_backtrack, supplies, supply_weight, supply_value, supply_path, inter_wing_path) DO
-                    push(res, i)
+                    push_back(res, i)
                 END FOR
             END IF
         END FOR
@@ -456,7 +456,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
     supply_to_collect <- []
     FOR i <- 1 TO length(supplies) DO
         IF element_of(backtrack_set, supplies[i]) AND element_of(supply_path[inter_wing_path], i) THEN
-            push(supply_to_collect, i)
+            push_back(supply_to_collect, i)
         END IF
     END FOR
 
@@ -468,7 +468,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
     FOR EACH s_idx IN supply_to_collect DO
         v <- supplies[s_idx]
         IF has(vertex_to_collect, v) THEN
-            push(vertex_to_collect[v], s)
+            push_back(vertex_to_collect[v], s)
         ELSE
             vertex_to_collect[v] <- [s]
         END IF
@@ -489,7 +489,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
                 FOR k <- 1 TO candidates DO
                     s_idx <- candidates[k]
                     IF supply_weight[s_idx] == res_last[2] AND supply_value[s_idx] == res_last[3] THEN
-                        push(storage, s_idx)
+                        push_back(storage, s_idx)
                         pop(candidates, k)
                     END IF
                 END FOR
@@ -506,7 +506,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
                     FOR k <- 1 TO candidates DO
                         s_idx <- candidates[k]
                         IF supply_weight[s_idx] == res_last[2] AND supply_value[s_idx] == res_last[3] THEN
-                            push(storage, s_idx)
+                            push_back(storage, s_idx)
                             pop(candidates, k)
                         END IF
                     END FOR
@@ -530,8 +530,8 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
                 IF find(storage, curr_pos_supplies[j]) != -1 THEN
                     s_idx <- curr_pos_supplies[j]
                     pop(curr_pos_supplies, j)
-                    push(storage, s_idx)
-                    push(res, (curr_pos, 3, supply_weight[s_idx], supply_value[s_idx]))
+                    push_back(storage, s_idx)
+                    push_back(res, (curr_pos, 3, supply_weight[s_idx], supply_value[s_idx]))
                 END IF
                 j <- j - 1
             END WHILE
@@ -571,7 +571,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
     RETURN res
 END PROCEDURE
 
-ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, exits: Set[Vertex], supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: set[SupplyID]) -> List[Tuple[Vertex, Integer, Integer, Integer]]
+ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, exits: Set[Vertex], supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], budget: Integer, vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: set[SupplyID]) -> List[Tuple[Vertex, Integer, Integer, Integer]]
     supplies <- get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids)
 
     flat_G <- flatten_graph(G)
@@ -592,7 +592,7 @@ ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
         END IF
     END FOR
 
-    reduced_supplies <- get_reduced_supplies(flat_G, supplies, supply_weight, supply_value, entry_paths, energy_amount - exit_run_cost)
+    reduced_supplies <- get_reduced_supplies(flat_G, supplies, supply_weight, supply_value, entry_paths, budget - exit_run_cost)
 
     supply_wing_paths <- get_supply_wing_paths(G, reduced_supplies, entry_paths)
 
@@ -600,8 +600,8 @@ ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
     supply_weight_ordered <- []
     supply_value_ordered <- []
     FOR EACH s IN reduced_supplies DO
-        push(supply_weight_ordered, supply_weight[s])
-        push(supply_value_ordered, supply_value[s])
+        push_back(supply_weight_ordered, supply_weight[s])
+        push_back(supply_value_ordered, supply_value[s])
     END FOR
 
     res <- []
@@ -611,21 +611,26 @@ ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
             curr_pos <- i[0]
             IF curr_pos != prev_pos THEN
                 FOR EACH v IN dijkstra_to(flat_G, prev_pos, curr_pos) DO
-                    push(res, (v, 1, 0, 0))
+                    push_back(res, (v, 1, 0, 0))
                 END FOR
                 prev_pos <- curr_pos
             END FOR
-            push(res, i)
+            push_back(res, i)
         END FOR
     END FOR
 
     IF prev_pos != entry THEN
         FOR EACH v IN dijkstra_to(flat_G, prev_pos, entry) DO
-            push(res, (v, 1, 0, 0))
+            push_back(res, (v, 1, 0, 0))
         END FOR
     END IF
     FOR EACH v IN exit_run DO
-        push(res, (v, 1, 0, 0))
+        push_back(res, (v, 1, 0, 0))
     END FOR
+
+    FOR EACH s IN reduced_supplies DO
+        add(found_supply_ids, vertex_to_supply_id[s])
+    END FOR
+
     RETURN res
 END ALGORITHM

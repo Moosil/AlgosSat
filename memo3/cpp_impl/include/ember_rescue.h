@@ -64,15 +64,15 @@ std::vector<Graph::VertexT> get_reduced_supplies(
 
 Graph::VertexT get_other_junction(const Facility_ADT& G, Graph::VertexT v);
 
-std::vector<Graph::VertexT> get_supplies_to_collect(
+std::unordered_set<Graph::VertexT> get_supplies_to_collect(
 	const std::unordered_set<Graph::VertexT>&           supplies,
 	const std::unordered_map<Graph::VertexT, SupplyID>& vertex_to_supply_id,
 	const std::unordered_set<SupplyID>&                 found_supply_ids);
 
-std::map<std::vector<Graph::VertexT>, std::unordered_set<size_t> > get_supply_wing_paths(
-	const Facility_ADT&                                              G,
-	const std::vector<Graph::VertexT>&                               supplies,
-	std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > entry_to_supply);
+std::map<std::vector<Graph::VertexT>, std::unordered_set<Graph::VertexT> > get_supply_wing_paths(
+	const Facility_ADT&                                                     G,
+	const std::vector<Graph::VertexT>&                                      supplies,
+	const std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> >& entry_to_supply);
 
 void knapsack_supplies(
 	std::vector<Graph::VertexT>&                                                     supplies,
@@ -108,13 +108,14 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 	std::map<std::vector<Graph::VertexT>, std::unordered_set<Graph::VertexT> >& supply_path,
 	std::vector<Graph::VertexT>                                                 inter_wing_path);
 
-std::vector<Graph::VertexT> ember_rescue(
+std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > ember_rescue(
 	const Facility_ADT&                                    G,
 	Graph::VertexT                                         entry,
 	const std::unordered_set<Graph::VertexT>&              exits,
-	const std::unordered_set<Graph::VertexT>&              supplies,
+	std::unordered_set<Graph::VertexT>                     supplies,
 	const std::unordered_map<Graph::VertexT, std::size_t>& supply_weight,
 	const std::unordered_map<Graph::VertexT, std::size_t>& supply_value,
+	size_t                                                 budget,
 	const std::unordered_map<Graph::VertexT, SupplyID>&    vertex_to_supply_id,
 	std::unordered_set<SupplyID>                           found_supply_ids
 );

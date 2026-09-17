@@ -23,9 +23,15 @@ public:
 	std::unordered_map<Graph::VertexT, std::unordered_map<Graph::VertexT, std::size_t> >                  dist;
 	std::unordered_map<Graph::VertexT, std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > > path;
 	const Graph::VertexT                                                                                  entry{0};
-	std::size_t                                                                                           full_budget;
+	std::size_t                                                                                           full_budget{};
 
 	explicit Facility(int seed);
+
+	void print() const;
+
+	[[nodiscard]] std::tuple<std::vector<Graph::VertexT>, std::vector<size_t>, std::vector<std::unordered_set<
+		Graph::VertexT> > > get_plan_data(
+		const std::vector<std::tuple<Graph::VertexT, size_t, size_t, size_t> >& plan) const;
 
 	static Graph::VertexT get_vertex(std::size_t wing, std::size_t col, std::size_t row);
 

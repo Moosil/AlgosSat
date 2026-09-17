@@ -1,5 +1,6 @@
 #include <array>
 #include <barkeep.h>
+#include <print>
 #include <fstream>
 
 #include "ember_rescue.h"
@@ -8,7 +9,7 @@
 
 std::array<Graph::VertexT, 3> get_vertex_tuple(Graph::VertexT v);
 
-int main() {
+int do_trials() {
 	constexpr std::size_t TRIAL_TOTAL = 100;
 
 	std::size_t total{TRIAL_TOTAL};
@@ -29,8 +30,7 @@ int main() {
 	std::vector<std::string> data{};
 	data.reserve(total);
 
-	std::unordered_set<SupplyID> empty_set{};
-	#pragma omp parallel for
+	//#pragma omp parallel for
 	for (std::size_t trials = 0; trials < TRIAL_TOTAL; ++trials) {
 		Facility                                     facility{static_cast<int>(trials)};
 		std::unordered_map<Graph::VertexT, SupplyID> vertex_to_supply_id;
@@ -47,7 +47,7 @@ int main() {
 			facility.value,
 			static_cast<std::size_t>(round(static_cast<float>(facility.full_budget) * .6)),
 			vertex_to_supply_id,
-			empty_set
+			{}
 		);
 		std::size_t v = 0, e = 0;
 		for (const auto& wing : facility.wings) {
@@ -76,4 +76,55 @@ int main() {
 	bar->done();
 
 	return 0;
+}
+
+int test_one() {
+	Facility                                     facility{70};
+	std::unordered_map<Graph::VertexT, SupplyID> vertex_to_supply_id;
+	for (int        i = 1;
+	     const auto s : facility.supplies) {
+		vertex_to_supply_id[s] = ++i;
+	}
+	const auto budget = static_cast<std::size_t>(round(static_cast<float>(facility.full_budget) * .6));
+	auto       plan   = ember_rescue(
+		std::make_pair(facility.wings, facility.junctions),
+		facility.entry,
+		facility.exits,
+		facility.supplies,
+		facility.weight,
+		facility.value,
+		budget,
+		vertex_to_supply_id,
+		{}
+	);
+	for (const auto& [vertex, instruction, weight, value] : plan) {
+		const auto [w, c, r] = Facility::get_vertex_tuple(vertex);
+		std::println("(({}, {}, {}), {}, {}, {})", w, c, r, instruction, weight, value);
+	}
+
+	const auto& [supplies_collected, trip_costs, trip_supplies] = facility.get_plan_data(plan);
+
+	std::size_t budget_used = 0;
+	for (const std::size_t t : trip_costs) {
+		budget_used += t;
+	}
+
+	std::size_t value_collected = 0;
+	for (const Graph::VertexT v : supplies_collected) {
+		value_collected += facility.value.at(v);
+	}
+
+	std::size_t total_value = 0;
+	for (const Graph::VertexT v : facility.supplies) {
+		total_value += facility.value.at(v);
+	}
+
+	std::println("budget used: {}/{}", budget_used, budget);
+	std::println("supplies collected: {}/{}", supplies_collected.size(), facility.supplies.size());
+	std::println("value collected: {}/{}", value_collected, total_value);
+	return 0;
+}
+
+int main() {
+	return test_one();
 }

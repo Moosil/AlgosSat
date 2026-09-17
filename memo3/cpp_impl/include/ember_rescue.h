@@ -69,7 +69,7 @@ std::unordered_set<Graph::VertexT> get_supplies_to_collect(
 	const std::unordered_map<Graph::VertexT, SupplyID>& vertex_to_supply_id,
 	const std::unordered_set<SupplyID>&                 found_supply_ids);
 
-std::map<std::vector<Graph::VertexT>, std::unordered_set<Graph::VertexT> > get_supply_wing_paths(
+std::map<std::vector<Graph::VertexT>, std::unordered_set<size_t> > get_supply_wing_paths(
 	const Facility_ADT&                                                     G,
 	const std::vector<Graph::VertexT>&                                      supplies,
 	const std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> >& entry_to_supply);
@@ -87,26 +87,26 @@ void clear_junction_path(
 	const Facility_ADT&                                                              G,
 	Graph::VertexT                                                                   entry,
 	Graph::VertexT                                                                   curr,
-	std::vector<Graph::VertexT>                                                      backtrack,
-	std::vector<Graph::VertexT>                                                      supplies,
-	std::vector<std::size_t>                                                         supply_weight,
-	std::vector<std::size_t>                                                         supply_value,
-	std::map<std::vector<Graph::VertexT>, std::unordered_set<Graph::VertexT> >&      supply_path,
+	const std::vector<Graph::VertexT>&                                               backtrack,
+	std::vector<Graph::VertexT>&                                                     supplies,
+	const std::vector<std::size_t>&                                                  supply_weight,
+	const std::vector<std::size_t>&                                                  supply_value,
+	std::map<std::vector<Graph::VertexT>, std::unordered_set<size_t> >&              supply_path,
 	const std::vector<Graph::VertexT>&                                               inter_wing_path,
 	std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> >& res);
 
 std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > clear_branch(
-	const Facility_ADT&                                                         G,
-	Graph::VertexT                                                              entry,
-	Graph::VertexT                                                              orig,
-	Graph::VertexT                                                              branch,
-	const Graph&                                                                orig_wing,
-	std::vector<Graph::VertexT>                                                 backtrack,
-	std::vector<Graph::VertexT>                                                 supplies,
-	std::vector<std::size_t>                                                    supply_weight,
-	std::vector<std::size_t>                                                    supply_value,
-	std::map<std::vector<Graph::VertexT>, std::unordered_set<Graph::VertexT> >& supply_path,
-	std::vector<Graph::VertexT>                                                 inter_wing_path);
+	const Facility_ADT&                                                 G,
+	Graph::VertexT                                                      entry,
+	Graph::VertexT                                                      orig,
+	Graph::VertexT                                                      branch,
+	const Graph&                                                        orig_wing,
+	std::vector<Graph::VertexT>&                                        backtrack,
+	std::vector<Graph::VertexT>&                                        supplies,
+	const std::vector<std::size_t>&                                     supply_weight,
+	const std::vector<std::size_t>&                                     supply_value,
+	std::map<std::vector<Graph::VertexT>, std::unordered_set<size_t> >& supply_path,
+	const std::vector<Graph::VertexT>&                                  inter_wing_path);
 
 std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > ember_rescue(
 	const Facility_ADT&                                    G,

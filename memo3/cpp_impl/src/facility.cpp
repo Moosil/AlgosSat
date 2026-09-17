@@ -240,10 +240,10 @@ std::vector<std::vector<Graph::VertexT> > Facility::exemplar_a_nearest_fill(
 		std::size_t                 load = 0;
 		while (true) {
 			const Graph::VertexT* to_add   = nullptr;
-			std::size_t           min_dist = -1;
+			std::size_t           min_dist = std::numeric_limits<std::size_t>::max();
 			for (auto& v : remaining) {
-				if (std::ranges::contains(trip, v) && load + weight[v] <= CAPACITY) {
-					if (!to_add || dist[prev][v] < min_dist) {
+				if (!std::ranges::contains(trip, v) && load + weight[v] <= CAPACITY) {
+					if (dist[prev][v] < min_dist) {
 						min_dist = dist[prev][v];
 						to_add   = &v;
 					}

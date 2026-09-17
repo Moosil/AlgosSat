@@ -45,7 +45,7 @@ int main() {
 			facility.supplies,
 			facility.weight,
 			facility.value,
-			TODO,
+			static_cast<std::size_t>(round(static_cast<float>(facility.full_budget) * .6)),
 			vertex_to_supply_id,
 			empty_set
 		);

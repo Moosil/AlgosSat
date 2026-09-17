@@ -18,7 +18,7 @@ void Graph::add_edge(const VertexT u, const VertexT v, const WeightT w) {
 	adj[v][u] = w;
 }
 
-void Graph::set_edge_weight(VertexT u, VertexT v, WeightT w) {
+void Graph::set_edge_weight(const VertexT u, const VertexT v, const WeightT w) {
 	adj[u][v] = w;
 	adj[v][u] = w;
 }
@@ -43,8 +43,18 @@ Graph::WeightT Graph::get_edge_weight(const VertexT u, const VertexT v) const {
 	return adj.at(u).at(v);
 }
 
-std::unordered_map<Graph::VertexT, int> Graph::get_neighbors(const VertexT u) const {
-	std::unordered_map<VertexT, int> res{};
+std::vector<Graph::VertexT> Graph::get_neighbour_vertices(const VertexT u) const {
+	std::vector<VertexT> res{};
+	for (const auto& v : adj.at(u) | std::views::keys) {
+		if (!inactive.contains(v)) {
+			res.push_back(v);
+		}
+	}
+	return res;
+}
+
+std::unordered_map<Graph::VertexT, Graph::WeightT> Graph::get_neighbours(const VertexT u) const {
+	std::unordered_map<VertexT, WeightT> res{};
 	for (const auto& [v, w] : adj.at(u)) {
 		if (!inactive.contains(v)) {
 			res[v] = w;
@@ -55,7 +65,7 @@ std::unordered_map<Graph::VertexT, int> Graph::get_neighbors(const VertexT u) co
 
 std::size_t Graph::get_degree(const VertexT u) const {
 	std::size_t res{0};
-	for (const auto& v : get_neighbors(u) | std::views::keys) {
+	for (const auto& v : get_neighbours(u) | std::views::keys) {
 		if (!inactive.contains(v)) {
 			res++;
 		}
@@ -81,7 +91,7 @@ std::vector<std::tuple<Graph::VertexT, Graph::VertexT, Graph::WeightT> > Graph::
 	std::vector<std::tuple<VertexT, VertexT, WeightT> > res{};
 	for (const auto u : adj | std::views::keys) {
 		if (!inactive.contains(u)) {
-			for (const auto& [v, w] : get_neighbors(u)) {
+			for (const auto& [v, w] : get_neighbours(u)) {
 				if (!inactive.contains(v)) {
 					res.emplace_back(u, v, w);
 				}
@@ -108,7 +118,7 @@ std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(Ver
 			continue;
 		}
 
-		for (const auto& [v, w] : get_neighbors(u)) {
+		for (const auto& [v, w] : get_neighbours(u)) {
 			if (dist[u] + w < dist[v]) {
 				prev[v] = u;
 				dist[v] = dist[u] + w;
@@ -129,8 +139,8 @@ std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(const VertexT s
 }
 
 std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(
-	const VertexT                                            source,
-	const std::unordered_map<VertexT, std::vector<VertexT> > paths) const {
+	const VertexT                                             source,
+	const std::unordered_map<VertexT, std::vector<VertexT> >& paths) const {
 	std::unordered_map<VertexT, std::size_t> res{};
 	for (const auto& [k, p] : paths) {
 		res[k] = 0;

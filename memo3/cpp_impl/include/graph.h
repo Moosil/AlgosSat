@@ -25,7 +25,9 @@ public:
 
 	[[nodiscard]] WeightT get_edge_weight(VertexT u, VertexT v) const;
 
-	[[nodiscard]] std::unordered_map<VertexT, int> get_neighbors(VertexT u) const;
+	[[nodiscard]] std::vector<VertexT> get_neighbour_vertices(VertexT u) const;
+
+	[[nodiscard]] std::unordered_map<VertexT, WeightT> get_neighbours(VertexT u) const;
 
 	[[nodiscard]] std::size_t get_degree(VertexT u) const;
 
@@ -40,14 +42,14 @@ public:
 	[[nodiscard]] std::unordered_map<VertexT, std::size_t> sssp_dist(VertexT source) const;
 
 	[[nodiscard]] std::unordered_map<VertexT, std::size_t> sssp_dist(
-		VertexT                                            source,
-		std::unordered_map<VertexT, std::vector<VertexT> > paths) const;
+		VertexT                                                   source,
+		const std::unordered_map<VertexT, std::vector<VertexT> >& paths) const;
 
 	void update();
 
 private:
-	std::unordered_map<VertexT, std::unordered_map<VertexT, int> > adj;
-	std::unordered_set<VertexT>                                    inactive;
+	std::unordered_map<VertexT, std::unordered_map<VertexT, WeightT> > adj;
+	std::unordered_set<VertexT>                                        inactive;
 
 	static std::vector<VertexT> reconstruct_path(const std::unordered_map<VertexT, VertexT>& prev, VertexT sink);
 };

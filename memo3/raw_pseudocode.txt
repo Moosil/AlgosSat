@@ -222,20 +222,16 @@ END PROCEDURE
 
 PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer], supply_value: List[Integer], supplies_in_junction: List[Integer], entry: Vertex, backtrack: List[Vertex], res: List[Tuple[Vertex, Integer, Integer, Integer]]) -> NULL
     total_weight <- 0
-    in_junction_weight <- []
-    in_junction_value <- []
     FOR EACH s_idx IN supplies_in_junction DO
         total_weight <- total_weight + supply_weight[s_idx]
     END FOR
 
     WHILE total_weight >= 5 DO
         in_junction_weight <- []
-        in_junction_value <- []
         FOR EACH s_idx IN supplies_in_junction DO
-            push_back(in_junction_value, supply_value[s_idx])
             push_back(in_junction_weight, supply_weight[s_idx])
         END FOR
-        sack <- knapsack(5, in_junction_weight, in_junction_value)
+        sack <- knapsack(5, in_junction_weight, in_junction_weight)
 
         sack_items <- {}
         FOR EACH ij_idx IN sack[1] DO
@@ -262,7 +258,7 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
                         del_s_idx <- extra_supplies[length(extra_supplies)]
                         pop_back(extra_supplies)
                         del_pos <- backtrack[i + drop_count]
-                        WHILE find(supplies, del_pos, 0) != -1 DO
+                        WHILE del_pos != supplies[del_s_idx] && find(supplies, del_pos, 0) != -1 DO
                             drop_count <- drop_count + 1
                             del_pos <- backtrack[i + drop_count]
                         END WHILE
@@ -354,12 +350,12 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
             IF length(branch_res) != 0 THEN
                 push_back(res, (junction_other, 1, 0, 0))
                 FOR EACH i IN branch_res DO
-                    push_back(res, (i[1], 1, 0, 0))
+                    push_back(res, i)
                 END FOR
 
                 supplies_in_junction <- []
                 FOR EACH s_idx in supply_path[new_inter_wing_path] DO
-                    IF supplies[s_idx] != entry AND supplies[s_idx] == junction_other THEN
+                    IF supplies[s_idx] == junction_other THEN
                         push_back(supplies_in_junction, s_idx)
                     END IF
                 END FOR
@@ -504,6 +500,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
                         IF supply_weight[s_idx] == res_last[3] AND supply_value[s_idx] == res_last[4] THEN
                             push_back(storage, s_idx)
                             pop(candidates, k)
+                            BREAK
                         END IF
                         k <- k - 1
                     END WHILE
@@ -545,7 +542,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
             curr_pos_supplies <- vertex_to_collect[curr_pos]
             j <- length(curr_pos_supplies)
             WHILE j >= 1 DO
-                IF find(storage, curr_pos_supplies[j], 0) != -1 THEN
+                IF find(storage, curr_pos_supplies[j], 0) == -1 THEN
                     s_idx <- curr_pos_supplies[j]
                     pop(curr_pos_supplies, j)
                     push_back(storage, s_idx)

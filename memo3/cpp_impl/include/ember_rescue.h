@@ -28,7 +28,7 @@ long long find(const std::vector<T>& l, const T& x, const std::size_t start) {
 	Complexity::operation_counter += Complexity::for_outer + 1;
 	for (std::size_t i = start; i < l.size(); ++i) {
 		Complexity::operation_counter += Complexity::for_inner + Complexity::if_ + 2;
-		if (l[i] == x) {
+		if (l.at(i) == x) {
 			Complexity::operation_counter += Complexity::return_;
 			return static_cast<long long>(i);
 		}
@@ -52,15 +52,15 @@ std::vector<Graph::VertexT> dijkstra_to(
 
 Graph flatten_graph(const Facility_ADT& G);
 
-std::size_t get_weight_cost(std::size_t weight);
+std::size_t get_weight_cost(std::size_t weight, std::size_t path_length);
 
 std::vector<Graph::VertexT> get_reduced_supplies(
-	const Graph&                                                     g,
-	std::unordered_set<Graph::VertexT>                               supplies,
-	std::unordered_set<Graph::VertexT, std::size_t>                  supply_weight,
-	std::unordered_map<Graph::VertexT, std::size_t>                  supply_value,
-	std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > entry_path,
-	std::size_t                                                      budget);
+	const Graph&                                                            g,
+	const std::unordered_set<Graph::VertexT>&                               supplies,
+	const std::unordered_map<Graph::VertexT, std::size_t>&                  supply_weight,
+	const std::unordered_map<Graph::VertexT, std::size_t>&                  supply_value,
+	const std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> >& entry_path,
+	std::size_t                                                             budget);
 
 Graph::VertexT get_other_junction(const Facility_ADT& G, Graph::VertexT v);
 
@@ -117,5 +117,5 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 	const std::unordered_map<Graph::VertexT, std::size_t>& supply_value,
 	size_t                                                 budget,
 	const std::unordered_map<Graph::VertexT, SupplyID>&    vertex_to_supply_id,
-	std::unordered_set<SupplyID>                           found_supply_ids
+	const std::unordered_set<SupplyID>&                    found_supply_ids
 );

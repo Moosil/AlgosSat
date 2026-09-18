@@ -24,4 +24,5 @@ target_compile_options(${PROJECT_NAME} PUBLIC
 		"$<$<CONFIG:Release>:/Qfast_transcendentals>"
 		"/GA"
 		"/utf8"
+		"$<$<CONFIG:Debug>:/PROFILE>"
 )

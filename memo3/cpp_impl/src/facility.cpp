@@ -29,7 +29,7 @@ Facility::Facility(const int seed):
 		Graph::VertexT       u1 = get_vertex(i, WING_COLS - 1, r1);
 		Graph::VertexT       u2 = get_vertex(i + 1, 0, r1);
 		Graph::VertexT       v1 = get_vertex(i, WING_COLS - 1, r2);
-		Graph::VertexT       v2 = get_vertex(i, 0, r2);
+		Graph::VertexT       v2 = get_vertex(i + 1, 0, r2);
 		junctions.emplace(u1, u2);
 		junctions.emplace(v1, v2);
 
@@ -85,8 +85,8 @@ Facility::Facility(const int seed):
 	assert(supplies.size() == SUPPLY_COUNT);
 
 	for (const auto& [u, v, _] : wings[1].get_edges()) {
-		std::size_t u_col = std::get<1>(get_vertex_tuple(u));
-		std::size_t v_col = std::get<1>(get_vertex_tuple(v));
+		std::size_t u_col = std::get < 1 > (get_vertex_tuple(u));
+		std::size_t v_col = std::get < 1 > (get_vertex_tuple(v));
 		wings[1].set_edge_weight(u, v, 1 + static_cast<Graph::WeightT>(std::max(u_col, v_col)) / 3);
 	}
 	if (wing_count >= 3) {
@@ -128,7 +128,7 @@ Facility::Facility(const int seed):
 
 void Facility::print() const {
 	std::unordered_map<std::size_t, std::unordered_set<std::size_t> > junction_rows{};
-	for (const auto& j : junctions | std::views::elements<0>) {
+	for (const auto& j : junctions | std::views::elements < 0 >) {
 		const auto [w, c, r] = get_vertex_tuple(j);
 		junction_rows[w].insert(r);
 	}

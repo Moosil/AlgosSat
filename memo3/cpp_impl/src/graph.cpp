@@ -107,8 +107,8 @@ std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(Ver
 		dist[v] = std::numeric_limits<WeightT>::max();
 	}
 	dist[source] = 0;
-	std::unordered_map<VertexT, VertexT>              prev;
-	std::priority_queue<std::pair<WeightT, VertexT> > pq;
+	std::unordered_map<VertexT, VertexT>                prev;
+	std::priority_queue<std::pair<long long, VertexT> > pq;
 	pq.emplace(0, source);
 
 	while (!pq.empty()) {
@@ -122,7 +122,7 @@ std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(Ver
 			if (dist[u] + w < dist[v]) {
 				prev[v] = u;
 				dist[v] = dist[u] + w;
-				pq.emplace(-dist[v], v);
+				pq.emplace(-static_cast<long long>(dist[v]), v);
 			}
 		}
 	}

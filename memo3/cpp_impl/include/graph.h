@@ -42,14 +42,13 @@ public:
 	[[nodiscard]] std::unordered_map<VertexT, std::size_t> sssp_dist(VertexT source) const;
 
 	[[nodiscard]] std::unordered_map<VertexT, std::size_t> sssp_dist(
-		VertexT                                                   source,
 		const std::unordered_map<VertexT, std::vector<VertexT> >& paths) const;
 
 	void update();
 
 private:
-	std::unordered_map<VertexT, std::unordered_map<VertexT, WeightT> > adj;
-	std::unordered_set<VertexT>                                        inactive;
+	std::unordered_map<VertexT, std::vector<std::pair<VertexT, WeightT> > > adj;
+	std::unordered_set<VertexT>                                             inactive;
 
 	static std::vector<VertexT> reconstruct_path(const std::unordered_map<VertexT, VertexT>& prev, VertexT sink);
 };

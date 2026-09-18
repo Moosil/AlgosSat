@@ -119,7 +119,7 @@ Facility::Facility(const int seed):
 
 		for (const auto& v : supplies) {
 			path[v] = flat_graph.sssp(v);
-			dist[v] = flat_graph.sssp_dist(v, path[v]);
+			dist[v] = flat_graph.sssp_dist(path[v]);
 		}
 	}
 

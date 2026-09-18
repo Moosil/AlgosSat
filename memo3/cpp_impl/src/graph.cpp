@@ -14,13 +14,23 @@ void Graph::remove_vertex(const VertexT v) {
 }
 
 void Graph::add_edge(const VertexT u, const VertexT v, const WeightT w) {
-	adj[u][v] = w;
-	adj[v][u] = w;
+	adj.at(u).emplace_back(v, w);
+	adj.at(v).emplace_back(u, w);
 }
 
 void Graph::set_edge_weight(const VertexT u, const VertexT v, const WeightT w) {
-	adj[u][v] = w;
-	adj[v][u] = w;
+	for (auto& [x, x_w] : adj.at(u)) {
+		if (x == v) {
+			x_w = w;
+			break;
+		}
+	}
+	for (auto& [x, x_w] : adj.at(v)) {
+		if (x == u) {
+			x_w = w;
+			break;
+		}
+	}
 }
 
 bool Graph::contains(const VertexT v) const {
@@ -40,12 +50,17 @@ Graph::VertexT Graph::get_a_vertex() const {
 }
 
 Graph::WeightT Graph::get_edge_weight(const VertexT u, const VertexT v) const {
-	return adj.at(u).at(v);
+	for (const auto& [x, x_w] : adj.at(u)) {
+		if (x == v) {
+			return x_w;
+		}
+	}
+	throw std::runtime_error("Graph doesn't have edge between those vertices");
 }
 
 std::vector<Graph::VertexT> Graph::get_neighbour_vertices(const VertexT u) const {
 	std::vector<VertexT> res{};
-	for (const auto& v : adj.at(u) | std::views::keys) {
+	for (const auto& v : adj.at(u) | std::views::elements<0>) {
 		if (!inactive.contains(v)) {
 			res.push_back(v);
 		}
@@ -135,11 +150,10 @@ std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(Ver
 }
 
 std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(const VertexT source) const {
-	return sssp_dist(source, sssp(source));
+	return sssp_dist(sssp(source));
 }
 
 std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(
-	const VertexT                                             source,
 	const std::unordered_map<VertexT, std::vector<VertexT> >& paths) const {
 	std::unordered_map<VertexT, std::size_t> res{};
 	for (const auto& [k, p] : paths) {
@@ -157,8 +171,14 @@ void Graph::update() {
 	}
 
 	for (auto& n : adj | std::views::values) {
-		for (const auto vertex : inactive) {
-			n.erase(vertex);
+		for (auto i = n.begin(); i != n.end(); ++i) {
+			const VertexT u = std::get<0>(*i);
+			for (const auto v : inactive) {
+				if (v == u) {
+					n.erase(i);
+					break;
+				}
+			}
 		}
 	}
 

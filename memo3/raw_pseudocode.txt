@@ -60,11 +60,60 @@ END PROCEDURE
 
 PROCEDURE reconstruct_path(prev: Map[Vertex, Vertex], sink: Vertex) -> List[Vertex]
     res <- [sink]
+    curr <- sink
     WHILE has(prev, curr) DO
         curr <- prev[curr]
         push_back(res, curr)
     END WHILE
     RETURN reverse(res)
+END PROCEDURE
+
+PROCEDURE reconstruct_path_to(prev: Map[Vertex, Vertex], source: Vertex, sink: Vertex) -> List[Vertex]
+    left_path <- [source]
+    right_path <- [sink]
+    left <- source
+    right <- sink
+
+    WHILE has(prev, left) OR has(prev, right) DO
+        IF has(prev, left) THEN
+            left <- prev[left]
+            push(left_path, left)
+        END IF
+
+        IF has(prev, right) THEN
+            right <- prev[right]
+            push(right_path, right)
+        END IF
+
+        FOR i <- 1 TO length(left_path) DO
+            IF right = left_path[i] THEN
+                res <- []
+                FOR j <- 1 TO i DO
+                    push(res, left_path[j])
+                END FOR
+
+                FOR j <- 1 TO length(right_path) DO
+                    push(res, right_path[1 + length(right_path) - j])
+                END FOR
+                RETURN res
+            END IF
+        END FOR
+
+        FOR i <- 1 TO length(right_path) DO
+            IF left = right_path[i] THEN
+                res <- []
+                FOR j <- 1 TO length(left_path) DO
+                    push(res, left_path[j])
+                END FOR
+
+                FOR j <- 1 TO i DO
+                    push(res, right_path[1 + i - j])
+                END FOR
+                RETURN res
+            END IF
+        END FOR
+    END WHILE
+    RAISE InputError
 END PROCEDURE
 
 PROCEDURE dijkstra(g: Graph, source: Vertex) -> Map[Vertex, Vertex]
@@ -90,33 +139,6 @@ PROCEDURE dijkstra(g: Graph, source: Vertex) -> Map[Vertex, Vertex]
     RETURN prev
 END PROCEDURE
 
-PROCEDURE dijkstra_to(g: Graph, source: Vertex, sink: Vertex) -> List[Vertex]
-    dist <- Map with ∞ FOR EACH vertex IN get_vertices(g); dist[source] <- 0
-    prev <- empty Map
-
-    pq <- empty Priority Queue
-    FOR EACH vertex IN get_vertices(g) DO
-        enqueue(pq, vertex, dist[vertex])
-    END FOR
-    WHILE length(pq) > 0 DO
-        u <- extract_min(pq)
-
-        IF u == sink THEN
-            RETURN reconstruct_path(prev, sink)
-        END IF
-
-        FOR EACH v IN get_neighbours(g, u) DO
-            w <- get_edge_weight(g, u, v)
-            IF dist[u] + w < dist[v] THEN
-                prev[v] <- u
-                dist[v] <- dist[u] + w
-                update_priority(pq, v, dist[v])
-            END IF
-        END FOR
-    END WHILE
-    RAISE InputError
-END PROCEDURE
-
 PROCEDURE flatten_graph(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]]) -> Graph
     res <- empty Graph
     FOR EACH wing IN G[1] DO
@@ -135,16 +157,16 @@ END PROCEDURE
 
 PROCEDURE get_weight_cost(weight: Integer, path_len: Integer) -> Integer
     IF weight == 1 THEN
-        RETURN ceil((weight + 5 / 4) * path_len)
+        RETURN ceil((weight + 5 / 4) * path_len / 4)
     END IF
     IF weight == 2 THEN
-        RETURN ceil((weight + 5 / 4) * path_len)
+        RETURN ceil((weight + 5 / 4) * path_len / 4)
     END IF
     IF weight == 3:
-        RETURN ceil((weight + 7 / 4) * path_len)
+        RETURN ceil((weight + 7 / 4) * path_len / 4)
     END IF
     IF weight >= 4:
-        RETURN (weight + 2) * path_len
+        RETURN ceil((weight + 2) * path_len / 4)
     END IF
     RAISE InputError
 END PROCEDURE
@@ -160,7 +182,7 @@ PROCEDURE get_reduced_supplies(g: Graph, supplies: Set[Vertex], supply_weight: M
     END FOR
 
     res <- []
-    FOR EACH i IN knapsack(budget, supply_value_ordered, supply_cost_ordered)[1] DO
+    FOR EACH i IN knapsack(ceil(budget / 4), supply_value_ordered, supply_cost_ordered)[1] DO
         push_back(res, supplies_ordered[i])
     END FOR
     RETURN res
@@ -590,16 +612,16 @@ ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
     supplies <- get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids)
 
     flat_G <- flatten_graph(G)
-    entry_prevs <- dijkstra(flat_G, entry)
-    entry_paths <- {}
+    entry_prev <- dijkstra(flat_G, entry)
+    entry_path <- {}
     FOR EACH v IN supplies DO
-        entry_paths[v] <- reconstruct_path(entry_prevs, v)
+        entry_path[v] <- reconstruct_path(entry_prev, v)
     END FOR
 
     exit_run <- []
     exit_run_cost <- -1
     FOR EACH e IN exits DO
-        curr <- reconstruct_path(entry_prevs, e)
+        curr <- reconstruct_path(entry_prev, e)
         curr_cost <- get_path_length(flat_G, curr)
         IF curr_cost < exit_run_cost OR exit_run_cost == -1 THEN
             exit_run <- curr
@@ -607,12 +629,12 @@ ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
         END IF
     END FOR
 
-    reduced_supplies <- get_reduced_supplies(flat_G, supplies, supply_weight, supply_value, entry_paths, budget - exit_run_cost)
+    reduced_supplies <- get_reduced_supplies(flat_G, supplies, supply_weight, supply_value, entry_path, budget - exit_run_cost)
     FOR EACH s IN reduced_supplies DO
         add(found_supply_ids, vertex_to_supply_id[s])
     END FOR
 
-    supply_wing_paths <- get_supply_wing_paths(G, reduced_supplies, entry_paths)
+    supply_wing_paths <- get_supply_wing_paths(G, reduced_supplies, entry_path)
 
     entry_wing <- get_which_wing(G, entry)
     supply_weight_ordered <- []
@@ -630,7 +652,7 @@ ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
         FOR EACH i IN clear_branch(G, entry, entry, n, entry_wing, backtrack, reduced_supplies, supply_weight_ordered, supply_value_ordered, curr_supply_wing_paths, []) DO
             curr_pos <- i[1]
             IF curr_pos != prev_pos THEN
-                FOR EACH v IN dijkstra_to(flat_G, prev_pos, curr_pos) DO
+                FOR EACH v IN reconstruct_path_to(entry_prev, prev_pos, curr_pos) DO
                     push_back(res, (v, 1, 0, 0))
                 END FOR
                 prev_pos <- curr_pos
@@ -640,7 +662,7 @@ ALGORITHM ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
     END FOR
 
     IF prev_pos != entry THEN
-        FOR EACH v IN dijkstra_to(flat_G, prev_pos, entry) DO
+        FOR EACH v IN reconstruct_path_to(entry_prev, prev_pos, entry) DO
             push_back(res, (v, 1, 0, 0))
         END FOR
     END IF

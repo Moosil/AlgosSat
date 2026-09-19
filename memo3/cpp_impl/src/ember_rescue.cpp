@@ -84,19 +84,81 @@ const Graph& get_which_wing(
 
 std::vector<Graph::VertexT> reconstruct_path(
 	const std::unordered_map<Graph::VertexT, Graph::VertexT>& prev,
-	Graph::VertexT                                            sink
+	const Graph::VertexT                                      sink
 ) {
-	Complexity::operation_counter += 1 + Complexity::braced_init;
-	std::vector res               = {sink};
+	Complexity::operation_counter += 1 + Complexity::braced_init + 1;
+	std::vector    res            = {sink};
+	Graph::VertexT curr           = sink;
 	Complexity::operation_counter += Complexity::while_outer + 1;
-	while (prev.contains(sink)) {
+	while (prev.contains(curr)) {
 		Complexity::operation_counter += Complexity::while_inner + 1 + 3;
-		sink                          = prev.at(sink);
-		res.push_back(sink);
+		curr                          = prev.at(curr);
+		res.push_back(curr);
 	}
 	Complexity::operation_counter += Complexity::reverse(res.size()) + Complexity::return_;
 	std::ranges::reverse(res);
 	return res;
+}
+
+std::vector<Graph::VertexT> reconstruct_path_to(
+	const std::unordered_map<Graph::VertexT, Graph::VertexT>& prev,
+	const Graph::VertexT                                      source,
+	const Graph::VertexT                                      sink
+) {
+	std::vector    left_path{source};
+	std::vector    right_path{sink};
+	Graph::VertexT left           = source;
+	Graph::VertexT right          = sink;
+	Complexity::operation_counter += 4 + 2 * Complexity::braced_init;
+
+	Complexity::operation_counter += Complexity::while_outer;
+	while (prev.contains(left) || prev.contains(right)) {
+		Complexity::operation_counter += Complexity::while_inner + 3;
+		if (prev.contains(left)) {
+			Complexity::operation_counter += 3;
+			left                          = prev.at(left);
+			left_path.push_back(left);
+		}
+		Complexity::operation_counter += 1 + Complexity::if_;
+
+		if (prev.contains(right)) {
+			Complexity::operation_counter += 3;
+			right                         = prev.at(right);
+			right_path.push_back(right);
+		}
+		Complexity::operation_counter += 1 + Complexity::if_;
+
+
+		Complexity::operation_counter += Complexity::for_outer + 1 + left_path.size() * (
+			Complexity::for_inner + 2 + Complexity::if_);
+		if (const auto it = std::ranges::find(left_path, right);
+			it != left_path.end()) {
+			Complexity::operation_counter += 1 + Complexity::for_outer + std::distance(left_path.begin(), it) * (
+						Complexity::for_inner + 2) + 1 + Complexity::for_outer + right_path.size() * (
+						Complexity::for_inner + 4)
+					+ Complexity::return_;
+			std::vector<Graph::VertexT> res{left_path.begin(), it};
+			res.append_range(std::views::reverse(right_path));
+			return res;
+		}
+
+		Complexity::operation_counter += Complexity::for_outer + 1 + right_path.size() * (
+			Complexity::for_inner + 2 + Complexity::if_);
+		if (const auto it = std::ranges::find(right_path, left);
+			it != right_path.end()) {
+			Complexity::operation_counter += 1 + Complexity::for_outer + left_path.size() * (Complexity::for_inner + 2)
+					+ 1 + Complexity::for_outer + std::distance(right_path.begin(), it) * (Complexity::for_inner + 3) +
+					Complexity::return_;
+			left_path.append_range(
+				std::ranges::subrange(
+					std::make_reverse_iterator(it),
+					std::make_reverse_iterator(right_path.begin())
+				)
+			);
+			return left_path;
+		}
+	}
+	throw std::runtime_error{"Opps"};
 }
 
 std::unordered_map<Graph::VertexT, Graph::VertexT> dijkstra(
@@ -148,57 +210,6 @@ std::unordered_map<Graph::VertexT, Graph::VertexT> dijkstra(
 	return prev;
 }
 
-std::vector<Graph::VertexT> dijkstra_to(const Graph& g, const Graph::VertexT source, const Graph::VertexT sink) {
-	Complexity::operation_counter += 1;
-	std::unordered_map<Graph::VertexT, Graph::WeightT> dist;
-
-	Complexity::operation_counter += Complexity::for_outer + 1;
-	for (const Graph::VertexT v : g.get_vertices()) {
-		Complexity::operation_counter += Complexity::for_inner + 1;
-		dist[v]                       = std::numeric_limits<Graph::WeightT>::max();
-	}
-
-	Complexity::operation_counter += 1;
-	dist[source]                  = 0;
-
-	Complexity::operation_counter += 1;
-	std::unordered_map<Graph::VertexT, Graph::VertexT> prev;
-
-	Complexity::operation_counter += 1 + Complexity::for_outer;
-	Complexity::operation_counter += g.size() * (Complexity::for_inner + 2);
-	std::priority_queue<std::pair<Graph::WeightT, Graph::VertexT> > pq;
-	pq.emplace(0, source);
-
-	Complexity::operation_counter += Complexity::while_outer + 2;
-	while (!pq.empty()) {
-		const auto [d, u] = pq.top();
-		pq.pop();
-		if (dist.at(u) < -d) {
-			continue;
-		}
-		Complexity::operation_counter += Complexity::while_inner + 2 + 1;
-
-		Complexity::operation_counter += Complexity::if_ + 1;
-		if (u == sink) {
-			Complexity::operation_counter += Complexity::return_;
-			return reconstruct_path(prev, sink);
-		}
-
-		Complexity::operation_counter += Complexity::for_outer + Complexity::get_neighbours(g.size());
-		for (const auto [v, w] : g.get_neighbours(u)) {
-			Complexity::operation_counter += Complexity::for_inner + Complexity::get_edge_weight + 1;
-			Complexity::operation_counter += Complexity::if_ + 4;
-			if (dist.at(u) + w < dist.at(v)) {
-				Complexity::operation_counter += 6;
-				prev[v]                       = u;
-				dist[v]                       = dist.at(u) + w;
-				pq.emplace(-dist.at(v), v);
-			}
-		}
-	}
-	throw std::runtime_error("Imaginary vertex in dijkstra_to");
-}
-
 Graph flatten_graph(const Facility_ADT& G) {
 	Complexity::operation_counter += Complexity::for_outer + 2;
 	Graph res{};
@@ -228,22 +239,22 @@ std::size_t get_weight_cost(const std::size_t weight, const std::size_t path_len
 	Complexity::operation_counter += Complexity::if_ + 1;
 	if (weight == 1) {
 		Complexity::operation_counter += Complexity::return_ + 2;
-		return ceil((static_cast<float>(weight) + 5. / 4.) * static_cast<float>(path_length));
+		return ceil((static_cast<float>(weight) + 5. / 4.) * static_cast<float>(path_length) / 4.);
 	}
 	Complexity::operation_counter += Complexity::if_ + 1;
 	if (weight == 2) {
 		Complexity::operation_counter += Complexity::return_ + 2;
-		return ceil((static_cast<float>(weight) + 5. / 4.) * static_cast<float>(path_length));
+		return ceil((static_cast<float>(weight) + 5. / 4.) * static_cast<float>(path_length) / 4.);
 	}
 	Complexity::operation_counter += Complexity::if_ + 1;
 	if (weight == 3) {
 		Complexity::operation_counter += Complexity::return_ + 2;
-		return ceil((static_cast<float>(weight) + 7. / 4.) * static_cast<float>(path_length));
+		return ceil((static_cast<float>(weight) + 7. / 4.) * static_cast<float>(path_length) / 4.);
 	}
 	Complexity::operation_counter += Complexity::if_ + 1;
 	if (weight >= 4) {
 		Complexity::operation_counter += Complexity::return_ + 1;
-		return (weight + 2) * path_length;
+		return ceil((weight + 2) * path_length / 4.);
 	}
 	throw std::runtime_error("weight outside of 1 - 5");
 }
@@ -273,7 +284,7 @@ std::vector<Graph::VertexT> get_reduced_supplies(
 
 	Complexity::operation_counter += Complexity::for_outer + 3;
 	std::vector<Graph::VertexT> res{};
-	for (const std::size_t i : std::get<0>(knapsack(budget, supply_value_ordered, supply_cost_ordered))) {
+	for (const std::size_t i : std::get<0>(knapsack(budget / 4., supply_value_ordered, supply_cost_ordered))) {
 		Complexity::operation_counter += Complexity::for_inner + 2;
 		res.push_back(supplies_ordered.at(i));
 	}
@@ -943,13 +954,13 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 	Complexity::operation_counter += 1;
 	supplies                      = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids);
 
-	Complexity::operation_counter                                                += 3 + Complexity::for_outer;
-	const Graph                                                      flat_G      = flatten_graph(G);
-	auto                                                             entry_prevs = dijkstra(flat_G, entry);
-	std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > entry_paths{};
+	Complexity::operation_counter                                               += 3 + Complexity::for_outer;
+	const Graph                                                      flat_G     = flatten_graph(G);
+	auto                                                             entry_prev = dijkstra(flat_G, entry);
+	std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > entry_path{};
 	for (const Graph::VertexT v : supplies) {
 		Complexity::operation_counter += Complexity::for_inner + 1;
-		entry_paths[v]                = reconstruct_path(entry_prevs, v);
+		entry_path[v]                 = reconstruct_path(entry_prev, v);
 	}
 
 	Complexity::operation_counter += 2 + Complexity::for_outer;
@@ -957,7 +968,7 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 	std::size_t                 exit_run_cost = std::numeric_limits<std::size_t>::max();
 	for (const Graph::VertexT e : exits) {
 		Complexity::operation_counter  += Complexity::for_inner + 2 + Complexity::if_ + 3;
-		const auto           curr      = reconstruct_path(entry_prevs, e);
+		const auto           curr      = reconstruct_path(entry_prev, e);
 		const Graph::WeightT curr_cost = get_path_length(flat_G, curr);
 		if (curr_cost < exit_run_cost) {
 			Complexity::operation_counter += 2;
@@ -972,7 +983,7 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 		supplies,
 		supply_weight,
 		supply_value,
-		entry_paths,
+		entry_path,
 		budget - exit_run_cost
 	);
 	Complexity::operation_counter += Complexity::for_outer;
@@ -987,7 +998,7 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 
 	Complexity::operation_counter                                                                   += 1;
 	const std::map<std::vector<Graph::VertexT>, std::unordered_set<std::size_t> > supply_wing_paths =
-			get_supply_wing_paths(G, reduced_supplies, entry_paths);
+			get_supply_wing_paths(G, reduced_supplies, entry_path);
 
 	Complexity::operation_counter       += 3 + Complexity::for_outer;
 	const Graph              entry_wing = get_which_wing(G, entry);
@@ -1030,7 +1041,7 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 			if (Graph::VertexT curr_pos = std::get<0>(i);
 				curr_pos != prev_pos) {
 				Complexity::operation_counter += Complexity::for_outer;
-				for (const Graph::VertexT v : dijkstra_to(flat_G, prev_pos, curr_pos)) {
+				for (const Graph::VertexT v : reconstruct_path_to(entry_prev, prev_pos, curr_pos)) {
 					Complexity::operation_counter += Complexity::for_inner + 1 + Complexity::braced_init;
 					res.emplace_back(v, 1, 0, 0);
 				}
@@ -1045,7 +1056,7 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 	Complexity::operation_counter += Complexity::if_ + 1;
 	if (prev_pos != entry) {
 		Complexity::operation_counter += Complexity::for_outer;
-		for (const Graph::VertexT v : dijkstra_to(flat_G, prev_pos, entry)) {
+		for (const Graph::VertexT v : reconstruct_path_to(entry_prev, prev_pos, entry)) {
 			Complexity::operation_counter += Complexity::for_inner + 1 + Complexity::braced_init;
 			res.emplace_back(v, 1, 0, 0);
 		}

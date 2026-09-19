@@ -151,7 +151,7 @@ int test_one() {
 }
 
 int test_knapsack() {
-	constexpr std::size_t TRIAL_TOTAL          = 100;
+	constexpr std::size_t TRIAL_TOTAL = 100;
 	constexpr std::size_t KNAPSACK_TRIAL_TOTAL = 50;
 
 	std::size_t loops{0};
@@ -206,7 +206,7 @@ int test_knapsack() {
 		std::string res = std::to_string(budget) + ',';
 		for (std::size_t i = 1; i <= KNAPSACK_TRIAL_TOTAL; ++i) {
 			Complexity::operation_counter = 0;
-			res                           += std::to_string(
+			res += std::to_string(
 				std::get<1>(
 					knapsack(
 						budget / i + (budget % i != 0),

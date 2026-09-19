@@ -14,8 +14,8 @@ std::tuple<std::vector<std::size_t>, std::size_t> knapsack(
 	const std::vector<std::size_t>& cost) {
 	std::vector<std::size_t> dp(cap + 1);
 	Complexity::operation_counter += 3;
-	std::vector<std::vector<std::size_t> >                     res(cap + 1);
-	std::unordered_map<std::size_t, std::vector<std::size_t> > frozen;
+	std::vector<std::vector<std::size_t> > res(cap + 1);
+	std::vector<std::vector<std::size_t> > new_res(cap + 1);
 
 	Complexity::operation_counter += Complexity::for_outer;
 	Complexity::operation_counter += (Complexity::for_inner + 3 + 2 * Complexity::braced_init) * (cap + 1);
@@ -34,26 +34,17 @@ std::tuple<std::vector<std::size_t>, std::size_t> knapsack(
 			if (dp.at(j) < curr) {
 				Complexity::operation_counter += 2 + Complexity::braced_init;
 				dp[j]                         = curr;
-				frozen[j].reserve(res.at(j).size());
-				frozen[j]                     = std::move(res[j]);
-				res[j]                        = {i};
-				Complexity::operation_counter += Complexity::if_ + 1;
-				if (frozen.contains(j - cost_i)) {
-					Complexity::operation_counter += Complexity::for_outer + 2;
-					Complexity::operation_counter += (Complexity::for_inner + 2) * res.at(j - cost_i).size();
-					res[j].append_range(frozen.at(j - cost_i));
-				} else {
-					Complexity::operation_counter += Complexity::for_outer + 2;
-					Complexity::operation_counter += (Complexity::for_inner + 2) * res.at(j - cost_i).size();
-					res[j].append_range(res.at(j - cost_i));
-				}
+				new_res[j]                    = {i};
+				Complexity::operation_counter += Complexity::for_outer + 2;
+				Complexity::operation_counter += (Complexity::for_inner + 2) * res.at(j - cost_i).size();
+				new_res[j].append_range(res.at(j - cost_i));
 			}
 
 			Complexity::operation_counter += 2;
 			--j;
 		}
 		Complexity::operation_counter += 1;
-		frozen.clear();
+		res                           = new_res;
 	}
 
 	Complexity::operation_counter += Complexity::return_;

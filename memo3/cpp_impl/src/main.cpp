@@ -40,6 +40,7 @@ int test_trials() {
 			vertex_to_supply_id[s] = ++i;
 		}
 		const auto budget = static_cast<std::size_t>(round(static_cast<float>(facility.full_budget) * .6));
+		Complexity::reset_op_count();
 		const auto plan   = ember_rescue(
 			std::make_pair(facility.wings, facility.junctions),
 			facility.entry,
@@ -86,16 +87,21 @@ int test_trials() {
 			std::to_string(value_collected) + ',' +
 			std::to_string(value_total) + ',' +
 			std::to_string(trials) + ',' +
-			std::to_string(Complexity::operation_counter)
+			std::to_string(Complexity::get_op_count())
 		);
 		++loops;
+	} {
+		std::ofstream file{"data_facility.csv", std::ios::binary};
+		file << "v,e,w,j,p,q,budget_used,budget,value_collected,value_total,t,op_count" << '\n';
+		for (const auto& line : data) {
+			file << line << '\n';
+		}
+		file.close();
+	} {
+		std::ofstream file{"flame_facility.csv", std::ios::binary};
+		file << Complexity::get_flame();
+		file.close();
 	}
-	std::ofstream file{"data_facility.csv", std::ios::binary};
-	file << "v,e,w,j,p,q,budget_used,budget,value_collected,value_total,t,op_count" << '\n';
-	for (const auto& line : data) {
-		file << line << '\n';
-	}
-	file.close();
 
 	bar->done();
 
@@ -205,7 +211,7 @@ int test_knapsack() {
 
 		std::string res = std::to_string(budget) + ',';
 		for (std::size_t i = 1; i <= KNAPSACK_TRIAL_TOTAL; ++i) {
-			Complexity::operation_counter = 0;
+			Complexity::reset_op_count();
 			res += std::to_string(
 				std::get<1>(
 					knapsack(
@@ -220,23 +226,29 @@ int test_knapsack() {
 					)
 				)
 			) + ',';
-			res += std::to_string(Complexity::operation_counter) + ',';
+			res += std::to_string(Complexity::get_op_count()) + ',';
 		}
 		res.pop_back();
 
 		data.push_back(res);
 		++loops;
 	}
-	std::ofstream file{"data_knapsack.csv", std::ios::binary};
-	file << "budget";
-	for (std::size_t i = 1; i <= KNAPSACK_TRIAL_TOTAL; i++) {
-		file << std::format(",n={},op_{}", i, i);
+	{
+		std::ofstream file{"data_knapsack.csv", std::ios::binary};
+		file << "budget";
+		for (std::size_t i = 1; i <= KNAPSACK_TRIAL_TOTAL; i++) {
+			file << std::format(",n={},op_{}", i, i);
+		}
+		file << '\n';
+		for (const auto& line : data) {
+			file << line << '\n';
+		}
+		file.close();
+	} {
+		std::ofstream file{"flame_knapsack.csv", std::ios::binary};
+		file << Complexity::get_flame();
+		file.close();
 	}
-	file << '\n';
-	for (const auto& line : data) {
-		file << line << '\n';
-	}
-	file.close();
 
 	bar->done();
 
@@ -244,5 +256,9 @@ int test_knapsack() {
 }
 
 int main() {
-	return test_trials();
+	Complexity::reset_flame();
+	test_knapsack();
+	Complexity::reset_flame();
+	test_trials();
+	return 0;
 }

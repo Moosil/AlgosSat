@@ -25,15 +25,17 @@ const Graph& get_which_wing(
 
 template<typename T>
 long long find(const std::vector<T>& l, const T& x, const std::size_t start) {
-	Complexity::operation_counter += Complexity::for_outer + 1;
+	Complexity::push_stack("find");
+	Complexity::add(Complexity::for_outer + 1);
 	for (std::size_t i = start; i < l.size(); ++i) {
-		Complexity::operation_counter += Complexity::for_inner + Complexity::if_ + 2;
+		Complexity::add(Complexity::for_inner + Complexity::if_ + 2);
 		if (l.at(i) == x) {
-			Complexity::operation_counter += Complexity::return_;
+			Complexity::add(Complexity::return_);
 			return static_cast<long long>(i);
 		}
 	}
-	Complexity::operation_counter += Complexity::return_;
+	Complexity::add(Complexity::return_);
+	Complexity::pop_stack();
 	return -1;
 }
 

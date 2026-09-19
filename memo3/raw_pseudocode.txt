@@ -1,11 +1,10 @@
 PROCEDURE knapsack(cap: Integer, val: List[Integer], cost: List[Integer]) -> Tuple[List[Integer], Integer]:
     dp <- []
-    old_res <- []
-    new_res <- []
+    res <- []
+    frozen <- empty Map
     FOR i <- 0 TO cap DO
         push_back(dp, 0)
-        push_back(old_res, [])
-        push_back(new_res, [])
+        push_back(res, [])
     END FOR
 
     FOR i <- 1 TO length(cost) DO
@@ -15,15 +14,21 @@ PROCEDURE knapsack(cap: Integer, val: List[Integer], cost: List[Integer]) -> Tup
             curr <- dp[j - cost_i] + val[i]
             IF dp[j] < curr THEN
                 dp[j] <- curr
-                new_res[j] <- [i]
-                FOR EACH k IN old_res[j - cost_i] DO
-                    push_back(new_res[j], k)
-                END FOR
+                frozen[j] <- res[j]
+                res[j] <- [i]
+                if has(frozen, j - cost_i) THEN
+                    FOR EACH k IN frozen[j - cost_i] DO
+                       push_back(res[j], k)
+                    END FOR
+                ELSE
+                    FOR EACH k IN old_res[j - cost_i] DO
+                        push_back(res[j], k)
+                    END FOR
+                END IF
             END IF
             j <- j - 1
         END WHILE
-
-        old_res <- new_res
+        frozen = {};
     END FOR
 
     RETURN (old_res[cap], dp[cap])

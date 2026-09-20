@@ -60,7 +60,8 @@ Graph::WeightT Graph::get_edge_weight(const VertexT u, const VertexT v) const {
 
 std::vector<Graph::VertexT> Graph::get_neighbour_vertices(const VertexT u) const {
 	std::vector<VertexT> res{};
-	for (const auto& v : adj.at(u) | std::views::elements<0>) {
+	res.reserve(adj.at(u).size());
+	for (const auto& v : adj.at(u) | std::views::elements < 0 >) {
 		if (!inactive.contains(v)) {
 			res.push_back(v);
 		}
@@ -70,6 +71,7 @@ std::vector<Graph::VertexT> Graph::get_neighbour_vertices(const VertexT u) const
 
 std::unordered_map<Graph::VertexT, Graph::WeightT> Graph::get_neighbours(const VertexT u) const {
 	std::unordered_map<VertexT, WeightT> res{};
+	res.reserve(adj.at(u).size());
 	for (const auto& [v, w] : adj.at(u)) {
 		if (!inactive.contains(v)) {
 			res[v] = w;
@@ -94,6 +96,7 @@ std::size_t Graph::size() const {
 
 std::vector<Graph::VertexT> Graph::get_vertices() const {
 	std::vector<VertexT> res{};
+	res.reserve(size());
 	for (const auto u : adj | std::views::keys) {
 		if (!inactive.contains(u)) {
 			res.push_back(u);
@@ -104,6 +107,7 @@ std::vector<Graph::VertexT> Graph::get_vertices() const {
 
 std::vector<std::tuple<Graph::VertexT, Graph::VertexT, Graph::WeightT> > Graph::get_edges() const {
 	std::vector<std::tuple<VertexT, VertexT, WeightT> > res{};
+	res.reserve(size() * size());
 	for (const auto u : adj | std::views::keys) {
 		if (!inactive.contains(u)) {
 			for (const auto& [v, w] : get_neighbours(u)) {
@@ -118,11 +122,13 @@ std::vector<std::tuple<Graph::VertexT, Graph::VertexT, Graph::WeightT> > Graph::
 
 std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(VertexT source) const {
 	std::unordered_map<VertexT, WeightT> dist;
+	dist.reserve(size());
 	for (const auto& v : get_vertices()) {
 		dist[v] = std::numeric_limits<WeightT>::max();
 	}
 	dist[source] = 0;
-	std::unordered_map<VertexT, VertexT>                prev;
+	std::unordered_map<VertexT, VertexT> prev;
+	prev.reserve(size());
 	std::priority_queue<std::pair<long long, VertexT> > pq;
 	pq.emplace(0, source);
 
@@ -143,6 +149,7 @@ std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(Ver
 	}
 
 	std::unordered_map<VertexT, std::vector<VertexT> > res{};
+	res.reserve(size());
 	for (const auto& v : get_vertices()) {
 		res[v] = reconstruct_path(prev, v);
 	}
@@ -156,6 +163,7 @@ std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(const VertexT s
 std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(
 	const std::unordered_map<VertexT, std::vector<VertexT> >& paths) const {
 	std::unordered_map<VertexT, std::size_t> res{};
+	res.reserve(size());
 	for (const auto& [k, p] : paths) {
 		res[k] = 0;
 		for (std::size_t i = 0; i < p.size() - 1; ++i) {
@@ -172,7 +180,7 @@ void Graph::update() {
 
 	for (auto& n : adj | std::views::values) {
 		for (auto i = n.begin(); i != n.end(); ++i) {
-			const VertexT u = std::get<0>(*i);
+			const VertexT u = std::get < 0 > (*i);
 			for (const auto v : inactive) {
 				if (v == u) {
 					n.erase(i);
@@ -187,6 +195,7 @@ void Graph::update() {
 
 std::vector<Graph::VertexT> Graph::reconstruct_path(const std::unordered_map<VertexT, VertexT>& prev, VertexT sink) {
 	std::vector res = {sink};
+	res.reserve(prev.size());
 	while (prev.contains(sink)) {
 		sink = prev.at(sink);
 		res.push_back(sink);

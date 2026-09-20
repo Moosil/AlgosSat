@@ -5,15 +5,30 @@
 #include <print>
 #include <ranges>
 
-Facility::Facility(const int seed):
+Facility::Facility(
+	const int         seed,
+	const std::size_t wing_count,
+	const std::size_t supply_count,
+	const std::size_t exit_count,
+	const std::size_t drone_capacity):
+	drone_capacity(drone_capacity),
 	rng(seed) {
-	const std::size_t wing_count = 2 + (seed % 3);
 	for (Graph::VertexT i = 0; i < wing_count; ++i) {
 		wings.push_back(build_wing(WING_COLS, WING_ROWS, i));
 	}
 
 	Graph::VertexT no_supply_wing = 3; {
+		std::uniform_int_distribution<Graph::VertexT> dist01(0, 1);
 		std::uniform_int_distribution<Graph::VertexT> dist_wings(0, static_cast<Graph::VertexT>(wing_count) - 1);
+		while (exits.size() < exit_count) {
+			const Graph::VertexT wing = dist_wings(rng);
+			const Graph::VertexT lr   = dist01(rng);
+			const Graph::VertexT tb   = dist01(rng);
+			if (const Graph::VertexT candidate = lr * (WING_COLS - 1) * WING_ROWS + tb * (WING_COLS - 1) | (wing << 16);
+				!exits.contains(candidate) && candidate != entry) {
+				exits.insert(candidate);
+			}
+		}
 		if (wing_count >= 3) {
 			no_supply_wing = dist_wings(rng);
 		}
@@ -39,9 +54,6 @@ Facility::Facility(const int seed):
 		junctions_flat.insert(v2);
 	}
 
-	exits.insert(get_vertex(wing_count - 1, WING_COLS - 1, WING_ROWS - 1));
-	exits.insert(get_vertex(wing_count - 1, WING_COLS - 1, 0));
-
 	std::vector<std::vector<Graph::VertexT> > tier_1(wing_count);
 	std::vector<std::vector<Graph::VertexT> > tier_2(wing_count);
 	for (std::size_t i = 0; i < wing_count; ++i) {
@@ -60,13 +72,13 @@ Facility::Facility(const int seed):
 	}
 
 	for (const auto& tier : {tier_1, tier_2}) {
-		while (supplies.size() < SUPPLY_COUNT) {
+		while (supplies.size() < supply_count) {
 			bool can_add = false;
 			for (std::size_t i = 0; i < wings.size(); ++i) {
 				if (i == no_supply_wing) {
 					continue;
 				}
-				if (supplies.size() >= SUPPLY_COUNT) {
+				if (supplies.size() >= supply_count) {
 					break;
 				}
 				for (const auto& v : tier[i]) {
@@ -82,7 +94,7 @@ Facility::Facility(const int seed):
 			}
 		}
 	}
-	assert(supplies.size() == SUPPLY_COUNT);
+	assert(supplies.size() == supply_count);
 
 	for (const auto& [u, v, _] : wings[1].get_edges()) {
 		std::size_t u_col = std::get < 1 > (get_vertex_tuple(u));
@@ -376,7 +388,7 @@ std::vector<std::vector<Graph::VertexT> > Facility::exemplar_a_nearest_fill(
 			const Graph::VertexT* to_add   = nullptr;
 			std::size_t           min_dist = std::numeric_limits<std::size_t>::max();
 			for (auto& v : remaining) {
-				if (!std::ranges::contains(trip, v) && load + weight[v] <= CAPACITY) {
+				if (!std::ranges::contains(trip, v) && load + weight[v] <= drone_capacity) {
 					if (dist[prev][v] < min_dist) {
 						min_dist = dist[prev][v];
 						to_add   = &v;

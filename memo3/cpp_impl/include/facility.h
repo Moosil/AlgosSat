@@ -8,24 +8,28 @@
 
 class Facility {
 public:
-	static constexpr Graph::VertexT WING_COLS    = 10;
-	static constexpr Graph::VertexT WING_ROWS    = 10;
-	static constexpr std::size_t    SUPPLY_COUNT = 50;
-	static constexpr std::size_t    CAPACITY     = 5;
+	static constexpr Graph::VertexT WING_COLS = 10;
+	static constexpr Graph::VertexT WING_ROWS = 10;
 
-	std::vector<Graph>                                                                                    wings;
-	Graph                                                                                                 flat_graph;
-	std::set<std::pair<Graph::VertexT, Graph::VertexT> >                                                  junctions;
-	std::unordered_set<Graph::VertexT>                                                                    exits;
-	std::unordered_set<Graph::VertexT>                                                                    supplies;
-	std::unordered_map<Graph::VertexT, std::size_t>                                                       weight;
-	std::unordered_map<Graph::VertexT, std::size_t>                                                       value;
-	std::unordered_map<Graph::VertexT, std::unordered_map<Graph::VertexT, std::size_t> >                  dist;
+	std::vector<Graph> wings;
+	Graph flat_graph;
+	std::set<std::pair<Graph::VertexT, Graph::VertexT> > junctions;
+	std::unordered_set<Graph::VertexT> exits;
+	std::unordered_set<Graph::VertexT> supplies;
+	std::unordered_map<Graph::VertexT, std::size_t> weight;
+	std::unordered_map<Graph::VertexT, std::size_t> value;
+	std::unordered_map<Graph::VertexT, std::unordered_map<Graph::VertexT, std::size_t> > dist;
 	std::unordered_map<Graph::VertexT, std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > > path;
-	const Graph::VertexT                                                                                  entry{0};
-	std::size_t                                                                                           full_budget{};
+	const Graph::VertexT entry{0};
+	std::size_t full_budget{};
+	std::size_t drone_capacity;
 
-	explicit Facility(int seed);
+	Facility(
+		int         seed,
+		std::size_t wing_count,
+		std::size_t supply_count,
+		std::size_t exit_count,
+		std::size_t drone_capacity);
 
 	void print() const;
 

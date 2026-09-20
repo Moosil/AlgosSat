@@ -11,7 +11,12 @@ using SupplyID = int;
 
 using Facility_ADT = std::pair<std::vector<Graph>, std::set<std::pair<Graph::VertexT, Graph::VertexT> > >;
 
-std::tuple<std::vector<std::size_t>, std::size_t> knapsack(
+std::tuple<std::vector<std::size_t>, std::size_t> knapsack_capacity(
+	std::size_t                     cap,
+	const std::vector<std::size_t>& val,
+	const std::vector<std::size_t>& cost);
+
+std::tuple<std::vector<std::size_t>, std::size_t> knapsack_value(
 	std::size_t                     cap,
 	const std::vector<std::size_t>& val,
 	const std::vector<std::size_t>& cost);
@@ -55,7 +60,7 @@ std::unordered_map<Graph::VertexT, Graph::VertexT> dijkstra(
 
 Graph flatten_graph(const Facility_ADT& G);
 
-std::size_t get_weight_cost(std::size_t weight, std::size_t path_length);
+std::size_t get_weight_cost(std::size_t weight, std::size_t drone_capacity, std::size_t path_length);
 
 std::vector<Graph::VertexT> get_reduced_supplies(
 	const Graph&                                                            g,
@@ -63,7 +68,8 @@ std::vector<Graph::VertexT> get_reduced_supplies(
 	const std::unordered_map<Graph::VertexT, std::size_t>&                  supply_weight,
 	const std::unordered_map<Graph::VertexT, std::size_t>&                  supply_value,
 	const std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> >& entry_path,
-	std::size_t                                                             budget);
+	std::size_t                                                             budget,
+	std::size_t                                                             drone_capacity);
 
 Graph::VertexT get_other_junction(const Facility_ADT& G, Graph::VertexT v);
 
@@ -82,6 +88,7 @@ void knapsack_supplies(
 	const std::vector<std::size_t>&                                                  supply_weight,
 	const std::vector<std::size_t>&                                                  supply_value,
 	std::vector<std::size_t>&                                                        supplies_in_junction,
+	std::size_t                                                                      drone_capacity,
 	Graph::VertexT                                                                   entry,
 	const std::vector<Graph::VertexT>&                                               backtrack,
 	std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> >& res);
@@ -96,6 +103,7 @@ void clear_junction_path(
 	const std::vector<std::size_t>&                                                  supply_value,
 	std::map<std::vector<Graph::VertexT>, std::unordered_set<size_t> >&              supply_path,
 	const std::vector<Graph::VertexT>&                                               inter_wing_path,
+	std::size_t                                                                      drone_capacity,
 	std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> >& res);
 
 std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > clear_branch(
@@ -109,7 +117,8 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 	const std::vector<std::size_t>&                                     supply_weight,
 	const std::vector<std::size_t>&                                     supply_value,
 	std::map<std::vector<Graph::VertexT>, std::unordered_set<size_t> >& supply_path,
-	const std::vector<Graph::VertexT>&                                  inter_wing_path);
+	const std::vector<Graph::VertexT>&                                  inter_wing_path,
+	std::size_t                                                         drone_capacity);
 
 std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > ember_rescue(
 	const Facility_ADT&                                    G,
@@ -118,7 +127,8 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 	std::unordered_set<Graph::VertexT>                     supplies,
 	const std::unordered_map<Graph::VertexT, std::size_t>& supply_weight,
 	const std::unordered_map<Graph::VertexT, std::size_t>& supply_value,
-	size_t                                                 budget,
+	std::size_t                                            budget,
+	std::size_t                                            drone_capacity,
 	const std::unordered_map<Graph::VertexT, SupplyID>&    vertex_to_supply_id,
 	const std::unordered_set<SupplyID>&                    found_supply_ids
 );

@@ -13,10 +13,11 @@ def imports():
     import matplotlib.colors as mcolors
     import itertools
     import numpy as np
+    import pandas as pd
     import re
 
     plt.rcParams['figure.dpi'] = 600
-    return itertools, mcolors, mo, np, nx, plt, random, re
+    return itertools, mcolors, mo, np, nx, pd, plt, random, re
 
 
 @app.cell
@@ -680,18 +681,18 @@ def _(mo, np, re):
         """
             )
 
-        def get_lines_fancy(self, start: int, stop: int, font_size: int = 12, numbered: bool = False):
+        def get_lines_fancy(self, start: int = 0, stop: int = -1, font_size: int = 12, numbered: bool = True):
             return mo.md(
                 rf"""
         <div style="font-family: monospace; font-size: {font_size}px; white-space: pre-wrap;">{self.get_lines(start, stop, numbered)}</div>
         """
             )
 
-        def get_lines(self, start: int, stop: int, numbered: bool, *, start_number_offset: int = 0, first_not_numbered: bool = True):
+        def get_lines(self, start: int = 0, stop: int = -1, numbered: bool = True, *, start_number_offset: int = 0, first_not_numbered: bool = False):
             if numbered:
                 splits = self.full_pseudocode.split('<br>')[start:stop]
                 pad = int(np.ceil(np.log10(len(splits))))
-                res = "" if first_not_numbered else f"<span class='pseudocode-bracket'>[{start_number_offset:0{pad}}]</span>"
+                res = "" if first_not_numbered else f"<span class='pseudocode-bracket'>[{start_number_offset:0{pad}}] </span>"
                 res += splits[0]
                 for i in range(1, len(splits)):
                     res += f"<br><span class='pseudocode-bracket'>[{start_number_offset + i:0{pad}}]</span> {splits[i]}"
@@ -788,12 +789,27 @@ def _(mo, np, re):
 
             res = find_all(res, "PROCEDURE</span>", syntax_highlight_proc)
             res = find_all(res, "FUNCTION</span>", syntax_highlight_proc)
+            res = res.replace("&#9;", "  ")
 
             return res
 
-    pseudocode_explorer = PseudocodeExplorer("memo2/raw_pseudocode.txt")
+    pseudocode_explorer = PseudocodeExplorer("memo3/raw_pseudocode.txt")
+    return (pseudocode_explorer,)
 
-    pseudocode_explorer_old = PseudocodeExplorer("memo1a1/raw_pseudocode.txt")
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Memo 3
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(rf"""
+    {mo.outline(label="Table of Contents")}
+    """)
     return
 
 
@@ -818,6 +834,55 @@ def facility_seed_picker(mo):
     return (seed_input,)
 
 
+@app.cell
+def _(mo):
+    music_player = mo.ui.switch(label="Toggle music")
+    music_player
+    return (music_player,)
+
+
+@app.cell
+def _(mo):
+    import os
+    music_selecter = mo.ui.dropdown([file[:-5] for file in os.listdir() if file.endswith(".opus")])
+    music_selecter
+    return (music_selecter,)
+
+
+@app.cell
+def _(mo, music_player, music_selecter):
+    import mutagen
+    from mutagen import oggopus, flac
+    import base64
+
+    def _extract_opus_thumbnail(opus_path):
+        flac_picture_b64 = oggopus.OggOpus(opus_path)["metadata_block_picture"][0]
+        flac_picture_bytes = base64.b64decode(flac_picture_b64)
+        flac_picture = flac.Picture(flac_picture_bytes)
+        raw_picture_b64 = base64.b64encode(flac_picture.data).decode("ascii")
+        return raw_picture_b64, flac_picture.mime
+
+    def _get_html_player(file_name):
+        fp = f"{file_name}.opus"
+        b64, mime = _extract_opus_thumbnail(fp)
+        return mo.vstack([
+            mo.hstack([
+                mo.Html(f"<img src=\"data:{mime};base64, {b64}\" alt=\"{file_name} thumbnail\" width=75px>"),
+                mo.Html(mo.audio(fp).text.replace("controls", "controls autoplay loop"))
+            ], justify="center", align="center"),
+            mo.md(fr"""***now playing: {file_name}***""")
+        ], justify="center", align="center")
+
+    def _get_music():
+        if music_player.value and music_selecter.value:
+            return _get_html_player(music_selecter.value)
+        else:
+            return None
+
+    _get_music()
+    return
+
+
 @app.cell(hide_code=True)
 def title(mo):
     mo.md(r"""
@@ -840,7 +905,7 @@ def introduction(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Problem abstraction
+    # 2 Problem abstraction
     Let $G = (V_w, E_w, w)$ be a meta-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
 
     $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the total cost of traversing the span of sectors  which are adjacent to just two other sectors and between two salient sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
@@ -884,10 +949,104 @@ def output_constraints(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""
-    ## 2.3 ADT & data model revisions
-    No changes due the problem abstraction.
+    _title = mo.md(fr"""
+    ## 2.3 ADT revisions
+    ### Main revisions:
+    - Making more functions inline, which reduces unnecessary copy instructions
+    - adding indexed pop/push functions
+    - adding set insertion/removal functions.
 
+    ### Semantic changes:
+    - Algorithm and procedure parameters are now passed by reference instead of copies.
+    <hr>
+    ### New Signatures
+    """)
+
+    _graphs_md = mo.md(r"""
+    - $\text{get\_vertices}: \text{Graph} \to \text{Set}[\text{Vertex}]$
+    - $\text{get\_edges}: \text{Graph} \to \text{Set}[\text{Edge}]$
+    - $\text{add\_vertex}: \text{Graph} \times \text{Vertex} \to \text{None}$
+    - $\text{add\_edge}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \times \mathbb{Z}^+ \cup \{0\} \to \text{None}$
+    - $\text{remove\_vertex}: \text{Graph} \times \text{Vertex} \to \text{None}$
+    - $\text{remove\_edge}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \to \text{None}$
+    - $\text{get\_neighbours}: \text{Graph} \times \text{Vertex} \to \text{Set}[\text{Vertex}]$
+    - $\text{has\_edge}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \to \text{Boolean}$
+    - $\text{get\_vertices}: \text{Graph} \to \text{Set}[\text{Vertex}]$
+    - $\text{set\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \times \mathbb{Z}^+ \cup \{0\} \to \text{None}$
+    - $\text{get\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex}) \to \mathbb{Z}^+ \cup \{0\}$
+    """)
+
+    _set_md = mo.md(r"""
+    - $\text{union}: \text{Set} \times \text{Set} \to \text{Set}$
+    - $\text{intersection}: \text{Set} \times \text{Set} \to \text{Set}$
+    - $\text{difference}: \text{Set} \times \text{Set} \to \text{Set}$
+    - $\text{symmetric\_difference}: \text{Set} \times \text{Set} \to \text{Set}$
+    - $\text{size}: \text{Set} \to \mathbb{Z}^+ \cup \{0\}$
+    - $\text{element\_of}: \text{Set} \times \text{Item} \to \text{boolean}$
+    - $\text{strict\_subset\_of}: \text{Set} \times \text{Set} \to \text{boolean}$
+    - $\text{subset\_of}: \text{Set} \times \text{Set} \to \text{boolean}$
+    - $\text{insert}: \text{Set} \times \text{Item} \to \text{None}$
+    - $\text{remove}: \text{Set} \times \text{Item} \to \text{None}$
+
+    `{x_1, x_2, ..., x_n}` is used to construct a set containing `x_1, x_2, ..., x_n`.
+    """)
+
+    _map_md = mo.md(r"""
+    - $\text{size}: \text{Map} \to \mathbb{Z}^+ \cup \{0\}$
+    - $\text{has}: \text{Map} \times \text{Key} \to \text{boolean}$
+    - $\text{at}: \text{Map} \times \text{Key} \to \text{Value}$
+    - $\text{remove}: \text{Map} \times \text{Key} \to \text{None}$
+    - $\text{set}: \text{Map} \times \text{Key} \times \text{Value} \to \text{None}$
+    - $\text{get\_keys}: \text{Map} \to \text{Set}[\text{Key}]$
+
+    `foo[x]` is used as a shorthand for `at(foo, x)`.
+    `foo[x] <- y` is used as a shorthand for `set(foo, x, y)`.
+    """)
+
+    _list_md = mo.md(r"""
+    - $\text{insert}: \text{List} \times \text{Item} \times \mathbb{N} \to \text{None}$
+    - $\text{push\_back}: \text{List} \times \text{Item} \to \text{None}$
+    - $\text{pop\_at}: \text{List} \times \mathbb{N} \to \text{None}$
+    - $\text{pop\_back}: \text{List} \to \text{None}$
+    - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
+    - $\text{length}:\text{List} \to \mathbb{Z}^+ \cup \{0\}$
+
+    `foo[i]` is used as a shorthand for `get(foo, i)`.
+    `[x_1, x_2, ..., x_n]` is used to construct a list containing, in order, `x_1, x_2, ..., x_n`.
+    """)
+
+    _tuple_md = mo.md(r"""
+    - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
+    - $\text{length}:\text{List} \to \mathbb{Z}^+$
+    """)
+
+    _pq_md = mo.md(r"""
+    - $\text{extract\_min}: \text{Priority Queue} \to \text{Item}$
+    - $\text{enqueue}: \text{Priority Queue} \times \text{Item} \times \mathbb{R} \to \text{None}$
+    - $\text{update\_priority}: \text{Priority Queue} \times \text{Item} \times \mathbb{R} \to \text{None}$
+    - $\text{length}:\text{Priority Queue} \to \mathbb{Z}^+$
+
+    `(x_1, x_2, ..., x_n)` is used to construct a `n`-tuple containing, in order, `x_1, x_2, ..., x_n`.
+    """)
+
+    mo.vstack([
+        _title,
+        mo.ui.tabs({
+            "Graph": _graphs_md,
+            "Set": _set_md,
+            "Map": _map_md,
+            "List": _list_md,
+            "Tuple": _tuple_md,
+            "Priority Queue": _pq_md
+        })
+    ])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 2.4 Data model revisions
     Due to the dropping supplies feature of the revised problem, abstracting 2-degree vertices as weight between 3+ degree vertices loses data. This is because supplies must be dropped on these 2-degree sectors in optimal solutions.
 
     This change causes a redesign, as $|V|$ and $|E|$ are now larger.
@@ -897,48 +1056,351 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-            ## 2.4 Revised Algorithm
-            the TL;DR of this algorithm is "DFS on $G$, clearing between each non-3-degree vertex recursively, bring back supplies when total weight on backtrack $\geq 5$".
-        
-            The algorithm first, like the previous algorithm, determines which supplies have already been collected using $F$ and $M$, removing them from $S$. It will then flatten $G$ to a single graph and run Dijkstra's algorithm from $s$. It will find the shortest path to an exit vertex in $X$ and save that cost in a variable. After which it will run a knapsack problem on the supplies' weights and priorities with a budget equal to $B$ minus that exit run distance, with tuned supply costs based on empirical data. It will then, for each supply get which junctions it should go through to reach them.
-        
-            Then it reaches the main body of the algorithm, which clears all supplies from a branch of the tree by clearing supplies on a stretch between the current vertex, $u$, and a new vertex $v: \deg_+(v) \geq 3 \vee \deg_+(v) = 1$ and then recursively calling it on each neighbour of $v$.
-        
-            While going between $u$ and $v$, it will check if any of those vertices between are junctions, in which case it calls a procedure to clear the connecting wings, if any supplies could be on that junction path or further junctions paths.
-        
-            When it has cleared supplies between $u$ and $v$, it will check if the path to the last point of inter-wing transit or to the entry otherwise has total supply weight $\geq 5$, in which case it will run a knapsack dp algorithm on those supplies and take back those supplies to the entrance. After that, it will bring back and drop all supplies between $v$ and $u$ to $u$ and before $u$.
-        
-            Supply droppings is an integral part of this algorithm, and its advantages and the margin to which its better will be discussed later.
-        
-            Some further optimisations have been made, but they will be discussed later.
-            """
-        )
+    mo.md(r"""
+    ## 2.5 Revised Algorithm
+    the TL;DR of this algorithm is "DFS on $G$, clearing between each non-3-degree vertex recursively, bring back supplies when total weight on backtrack $\geq 5$".
+
+    The algorithm first, like the previous algorithm, determines which supplies have already been collected using $F$ and $M$, removing them from $S$. It will then flatten $G$ to a single graph and run Dijkstra's algorithm from $s$. It will find the shortest path to an exit vertex in $X$ and save that cost in a variable. After which it will run a knapsack problem on the supplies' weights and priorities with a budget equal to $B$ minus that exit run distance, with tuned supply costs based on empirical data. It will then, for each supply get which junctions it should go through to reach them.
+
+    Then it reaches the main body of the algorithm, which clears all supplies from a branch of the tree by clearing supplies on a stretch between the current vertex, $u$, and a new vertex $v: \deg_+(v) \geq 3 \vee \deg_+(v) = 1$ and then recursively calling it on each neighbour of $v$.
+
+    While going between $u$ and $v$, it will check if any of those vertices between are junctions, in which case it calls a procedure to clear the connecting wings, if any supplies could be on that junction path or further junctions paths.
+
+    When it has cleared supplies between $u$ and $v$, it will check if the path to the last point of inter-wing transit or to the entry otherwise has total supply weight $\geq 5$, in which case it will run a knapsack dp algorithm on those supplies and take back those supplies to the entrance. After that, it will bring back and drop all supplies between $v$ and $u$ to $u$ and before $u$.
+
+    Supply droppings is an integral part of this algorithm, and its advantages and the margin to which its better will be discussed later.
+
+    Some further optimisations have been made, but they will be discussed later.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     # TODO add more here on each point? need to check criterion
-    mo.md(
-        r"""
-            # 3 Algorithm Quality
-            ## 3.1 Efficiency
-            The revised algorithm is much more efficient that memo 2's algorithm, running in $O(n^k), k \in N$ for $n$ being the worst-case variable and $k$ being independent of $n$, compared with memo 2's $O(n^2 2^n)$ complexity. This latter complexity is intractable and would not work on the larger supply count in the updated situation.
-        
-            The algorithm proposed in this memo could be more efficient, but would come with tradeoffs
-        
-            ## 3.2 Coherence
-            Not really sure what to put here
-        
-            ## 3.3 Fitness for purpose
-            Due to the heuristic nature of the algorithm, a memo 2-like exact algorithm will arrive at a better solution than this memo's algorithm. This of course comes at the cost of efficiency, and difficulty to encapsulate all features of the problem: multiple-trips, trip-dependent supply collection costs and dropping supplies, into an exact algorithm, which is why a heuristic algorithm is more fit for purpose than an exact algorithm like memo 2's
-        
-            ## 3.4 Counter-example
-            ???
-            """
-        )
+    mo.md(r"""
+    # 3 Algorithm Quality
+    ## 3.1 Efficiency
+    The revised algorithm is much more efficient that memo 2's algorithm, running in $O(n^k), k \in N$ for $n$ being the worst-case variable and $k$ being independent of $n$, compared with memo 2's $O(n^2 2^n)$ complexity. This latter complexity is intractable and would not work on the larger supply count in the updated situation.
+
+    The algorithm proposed in this memo could be more efficient, but would come with tradeoffs
+
+    ## 3.2 Coherence
+    Not really sure what to put here
+
+    ## 3.3 Fitness for purpose
+    Due to the heuristic nature of the algorithm, a memo 2-like exact algorithm will arrive at a better solution than this memo's algorithm. This of course comes at the cost of efficiency, and difficulty to encapsulate all features of the problem: multiple-trips, trip-dependent supply collection costs and dropping supplies, into an exact algorithm, which is why a heuristic algorithm is more fit for purpose than an exact algorithm like memo 2's
+
+    ## 3.4 Counter-example
+    ???
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 4 Time Complexity & Optimisations
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 4.1 Worst-case
+    calculation with each function using sympy
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    class VariableSetter(mo.ui.dictionary):
+        _pretty_name = {
+            "vertex count": "Vertex count",
+            "wing count": "Wing count",
+            "supply count": "Supply count",
+            "exit count": "Exit count",
+            "edge count": "Edge count",
+            "junction count": "Inter-wing junction count",
+            "drone cap": "CRUDY-1 supply storage size",
+            "op_count": "Operation count"
+        }
+
+        def __init__(self, label, range_max: dict[str, int]=None, initial_values=None, range_min: dict[str, int]=None, *, df=None, variables: list[str]=None):
+            if variables is None:
+                variables = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "drone cap"]
+
+            self.variables = list(variables)
+
+            for v in self.variables:
+                if v not in initial_values:
+                    initial_values[v] = None
+
+            if df is None:
+                if range_max is None:
+                    range_max = "oops. range_max or df must be filled"
+                super().__init__({self._pretty_name[name]: mo.ui.slider(1 if range_min is None else range_min[name], range_max[name], 1, label=self._pretty_name[name], show_value=True, value=None if initial_values is None else initial_values[name]) for name in variables}, label=label)
+            else:
+                super().__init__({self._pretty_name[name]: mo.ui.slider(steps=[int (n) for n in sorted(df[name].unique())], label=self._pretty_name[name], show_value=True, value=None if initial_values is None else initial_values[name]) for name in variables}, label=label)
+
+        def __getitem__(self, name):
+            if name in self._pretty_name:
+                name = self._pretty_name[name]
+            return super().__getitem__(name)
+
+    operation_cost_explorer = VariableSetter(
+        "Variables",
+        {"vertex count": 144*3, "wing count": 150, "supply count": 50, "exit count": 50, "edge count": 144*3-4, "junction count": 150, "drone cap": 50},
+        {"vertex count": 70,  "wing count": 150, "supply count": 11, "exit count": 4,  "edge count": 150, "junction count": 150, "drone cap": 50},
+        None
+    )
+    operation_cost_explorer
+    return (VariableSetter,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 4.2 Average-case
+    c++ impl data
+    """)
+    return
+
+
+@app.cell
+def _(VariableSetter, mo, pd):
+    _df = pd.read_csv("memo3/data/data_facility_small.csv")
+
+    _pretty_name = {
+        "vertex count": "Vertex count",
+        "wing count": "Wing count",
+        "supply count": "Supply count",
+        "exit count": "Exit count",
+        "edge count": "Edge count",
+        "junction count": "Inter-wing junction count",
+        "drone cap": "CRUDY-1 supply storage size",
+        "op_count": "Operation count"
+    }
+
+    _variables = ["vertex count", "edge count", "wing count", "exit count", "supply count", "drone cap"]
+
+    _all_vars = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "drone cap"]
+
+    average_case_partial_growth_rate_explorer = VariableSetter("Fixed Variables",
+        df=_df, variables=_variables, initial_values={"vertex count": 314}
+    )
+
+    _default_enabled = {
+        "vertex count": False,
+        "wing count": False,
+        "supply count": True,
+        "exit count": False,
+        "edge count": False,
+        "junction count": False,
+        "drone cap": True,
+    }
+
+    average_case_partial_growth_rate_explorer_cbs = mo.ui.dictionary({_pretty_name[name]: mo.ui.checkbox(value=_default_enabled[name], on_change=lambda v: on_change_cb(name, v)) for name in _variables}, label="Enabled")
+
+    average_case_partial_growth_rate_colour_picker = mo.ui.dropdown([_pretty_name[n] for n in _all_vars], allow_select_none=True, value=_pretty_name["wing count"], searchable=False, label="Coloured variable (except in supply/supply storage figures)")
+
+    def on_change_cb(name: str, value: bool):
+        average_case_partial_growth_rate_explorer[name].disabled = value
+
+    mo.vstack([
+        mo.hstack([
+            average_case_partial_growth_rate_explorer,
+            average_case_partial_growth_rate_explorer_cbs
+        ], widths=[1.5, 1]),
+        average_case_partial_growth_rate_colour_picker
+    ])
+    return (
+        average_case_partial_growth_rate_colour_picker,
+        average_case_partial_growth_rate_explorer,
+        average_case_partial_growth_rate_explorer_cbs,
+    )
+
+
+@app.cell
+def _(
+    average_case_partial_growth_rate_colour_picker,
+    average_case_partial_growth_rate_explorer,
+    average_case_partial_growth_rate_explorer_cbs,
+    mo,
+    np,
+    pd,
+    plt,
+):
+    _pretty_name = {
+        "vertex count": "Vertex count",
+        "wing count": "Wing count",
+        "supply count": "Supply count",
+        "exit count": "Exit count",
+        "edge count": "Edge count",
+        "junction count": "Inter-wing junction count",
+        "drone cap": "CRUDY-1 supply storage size",
+        "op_count": "Operation count"
+    }
+
+    _variables = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "drone cap"]
+
+    @mo.cache
+    def _get_df(names=[]):
+        df = pd.read_csv("memo3/data/data_facility_small.csv")
+
+        for n in _variables:
+            if n in ["junction count"]:
+                continue
+
+            if not average_case_partial_growth_rate_explorer_cbs[_pretty_name[n]].value:
+                continue
+
+            if n in names:
+                continue
+
+            mask = df[n].values == average_case_partial_growth_rate_explorer[n].value
+            df = df[mask]
+            if len(df) == 0:
+                print("Empty df")
+                break
+
+        if len(df) > 1000:
+            df = df.sample(n=1000)
+        return df
+
+    def _plot(name):
+        _fig, _ax = plt.subplots(1, 1, figsize=(12, 6))
+        if name == "drone cap":
+            df = _get_df(["drone cap", "supply count"])
+            colors = plt.cm.viridis(np.linspace(0, 1, max(df["supply count"])))
+            for m in sorted(df["supply count"].unique()):
+                c_df = df[df["supply count"] == m]
+                if len(c_df) > 0:
+                    _ax.scatter(c_df["drone cap"], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
+
+            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df["supply count"])))
+            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, max(df["supply count"]) + 1, 5)))
+            axcb.set_label(f"{_pretty_name["supply count"]}", fontsize=14)
+            _ax.set_yscale("log", base=10)
+            _ax.set_ylim(0, 10 ** (np.log10(max(df["op_count"])) * 1.1))
+        elif name == "supply count":
+            df = _get_df(["drone cap", "supply count"])
+            colors = plt.cm.viridis(np.linspace(0, 1, max(df["drone cap"])))
+            for m in sorted(df["drone cap"].unique()):
+                c_df = df[df["drone cap"] == m]
+                if len(c_df) > 0:
+                    _ax.scatter(c_df["supply count"], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
+
+            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df["drone cap"])))
+            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, max(df["drone cap"]) + 1, 5)))
+            axcb.set_label(f"{_pretty_name["drone cap"]}", fontsize=14)
+            _ax.set_yscale("log", base=10)
+            _ax.set_ylim(0, 10 ** (np.log10(max(df["op_count"])) * 1.1))
+        else:
+            df = _get_df([name])
+            if len(df) == 0:
+                return _fig
+
+            _ax.set_ylim(1, max(df["op_count"]) * 1.1)
+
+            if average_case_partial_growth_rate_colour_picker.value is None:
+                    _ax.scatter(df[name], df["op_count"], color="#74c7ec", label=_pretty_name[name])
+    
+            else:
+                colour_name = [k for k, v in _pretty_name.items() if v == average_case_partial_growth_rate_colour_picker.value][0]
+
+                colors = plt.cm.viridis(np.linspace(0, 1, max(df[colour_name])))
+                for m in sorted(df[colour_name].unique()):
+                    c_df = df[df[colour_name] == m]
+                    if len(c_df) > 0:
+                        _ax.scatter(c_df[name], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
+
+                sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df[colour_name])))
+                axcb = _fig.colorbar(sm, ax=_ax)
+                axcb.set_label(f"{_pretty_name[colour_name]}", fontsize=14)
+
+        if len(df) == 0:
+            return _fig
+        _ax.set_xlabel(_pretty_name[name], fontsize=14)
+        _ax.set_title(f"{_pretty_name[name]} vs Operation count", fontsize=16)
+        _ax.set_xlim(0, max(df[name]) * 1.1)
+        _ax.tick_params(axis='x', which='major', labelsize=14)
+        _ax.set_ylabel("Operation count", fontsize=14)
+
+        _fig.tight_layout()
+        return _fig
+
+    average_case_partial_growth_tabs = mo.ui.tabs({_pretty_name[name]: _plot(name) for name in _variables})
+    average_case_partial_growth_tabs
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 4.3 Best-case
+    c++ impl data, check a bunch of facilities
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 4.4 Optimsations
+    flame graph, knapsack discussion
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 5 Heuristic discussion
+    ## 5.1 Intractability of exact solution
+    permutations: with and without supply dropping
+    ## 5.2 Local Optimal
+    what local optimal does the algorithm find with the heuristic
+    ## 5.3 Error Bounding
+    soft, non-rigorous proof of bound between found solution and optimal
+    ## 5.5 No Supply Dropping Discussion
+    supply non-dropping dicussion
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 5.3 Error Bounding
+    """)
+    return
+
+
+@app.cell
+def _(pd, plt):
+    _df = pd.read_csv("memo3/data/data_facility_small.csv")
+    plt.hist(_df["budget_used"] / _df["budget"])
+    return
+
+
+@app.cell
+def _(pd, plt):
+    _df = pd.read_csv("memo3/data/data_facility_small.csv")
+    plt.hist(_df["value_collected"] / _df["value_total"])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 6 Real-world application
+    ## 6.1 Real Hardware
+    ## 6.2 Algorithm Guarantees
+    graph of budget left using c++impl data
+    """)
     return
 
 
@@ -947,6 +1409,21 @@ def algorithm_explorer_header(mo):
     mo.md(r"""
     # 6 Algorithm
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, pseudocode_explorer, re):
+    _dict = {"Full": mo.md(fr"""{pseudocode_explorer.get_lines_fancy(numbered=True)}""")}
+
+    for match in re.finditer("FUNCTION ([^\()]+)", pseudocode_explorer.raw_pseudocode):
+        _dict[match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(match.group(1))}""")
+
+    for match in re.finditer("PROCEDURE ([^\()]+)", pseudocode_explorer.raw_pseudocode):
+        _dict[match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(match.group(1))}""")
+
+
+    mo.ui.tabs(_dict, value="ember_rescue")
     return
 
 
@@ -1006,11 +1483,12 @@ def algorithm_resource(facility_drawer, mo):
 
     _ave_mem = round(sum([_get_mem() for _ in range(_trials)]) / _trials)
 
+
     mo.hstack(
         [
-            mo.stat(label="Runtime (Python):", value=f"{_get_runtime(_trials) * 1000:.2f}ms"),
-            mo.stat(label="Memory (Python):", value=f"{_ave_mem} B")
-        ], gap=1, wrap=True
+            mo.lazy(mo.stat(label="Runtime (Python):", value=f"{_get_runtime(_trials) * 1000:.2f}ms"), show_loading_indicator=True),
+            mo.lazy(mo.stat(label="Memory (Python):", value=f"{round(sum([_get_mem() for _ in range(_trials)]) / _trials)} B"), show_loading_indicator=True)
+        ], justify="center", gap="2rem"
     )
     return (memo3_algorithm,)
 
@@ -1092,30 +1570,30 @@ def algorithm_explorer_controls_and_info(
         [
             mo.hstack(
                 [
-                    mo.stat(
+                    mo.lazy(mo.stat(
                         label="Total instructions",
                         value=f"{len(_path) - 1} steps"
-                    ),
-                    mo.stat(
+                    ), show_loading_indicator=True),
+                    mo.lazy(mo.stat(
                         label="Supplies collected",
                         value=f"{len(_collected_supplies)}/{len(facility_drawer.supplies)}"
-                    ),
-                    mo.stat(
+                    ), show_loading_indicator=True),
+                    mo.lazy(mo.stat(
                         label="Supply priority collected",
                         value=f"{sum(facility_drawer.values[s] for s in _collected_supplies)}/{sum(facility_drawer.values[s] for s in facility_drawer.supplies)}"
-                    ),
-                    mo.stat(
+                    ), show_loading_indicator=True),
+                    mo.lazy(mo.stat(
                         label="Budget used",
                         value=f"{_used_budget}/{facility_drawer.budget}"
-                    ),
-                    mo.stat(
+                    ), show_loading_indicator=True),
+                    mo.lazy(mo.stat(
                         label="Ends at exit",
                         value="✅ Yes" if _path[-1] in _exits else "❌ No"
-                    ),
-                    mo.stat(
+                    ), show_loading_indicator=True),
+                    mo.lazy(mo.stat(
                         label="All moves valid",
                         value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value - 1) if _path[i][0] >= 0 and _path[i + 1][0] >= 0) else "❌ No"
-                    )
+                    ), show_loading_indicator=True)
                 ], gap=1, wrap=True
             ),
             path_len,
@@ -1144,14 +1622,14 @@ def _(ember_rescue_cached, facility_drawer, highlight_trip, mo):
             return str(l[0])
         return f"{", ".join(str(s) for s in l[:-1])} and {l[-1]}"
 
-    mo.md(fr"""
+    mo.lazy(mo.md(fr"""
     {f"Collecting supplies at {join_and(_trip_supplies[highlight_trip.value - 1])}" if highlight_trip.value != highlight_trip.stop - 1 else ""}
     {f"\nWeights: {join_and([facility_drawer.masses[s] for s in _trip_supplies[highlight_trip.value - 1]])}" if highlight_trip.value != highlight_trip.stop - 1 else ""}
 
     {f"Moving suppl{"ies" if len(_ordered) > 1 else "y"} at {join_and([facility_drawer.supplies[i] for i in _ordered])} to {join_and([_trip_move_supplies[highlight_trip.value - 1][i] for i in _ordered])}" if len(_ordered) > 0 else ""}
 
     Trip cost: {_trip_costs[highlight_trip.value - 1]}
-    """) if highlight_trip.value != highlight_trip.stop else None
+    """)) if highlight_trip.value != highlight_trip.stop else None
     return
 
 
@@ -1160,18 +1638,27 @@ def algorithm_explorer(
     ember_rescue_cached,
     facility_drawer,
     highlight_trip,
+    mo,
     path_len,
 ):
     _path = ember_rescue_cached()
 
-    facility_drawer.draw_multi_wing(plan=_path[:path_len.value + 1], highlight_trip=highlight_trip.value - 1 if highlight_trip.value != highlight_trip.stop else None)
+    mo.lazy(facility_drawer.draw_multi_wing(plan=_path[:path_len.value + 1], highlight_trip=highlight_trip.value - 1 if highlight_trip.value != highlight_trip.stop else None))
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # 7 Reflection
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def appendix(mo):
     mo.md(r"""
-    # 7 Appendix
+    # 8 Appendix
     """)
     return
 
@@ -1179,7 +1666,7 @@ def appendix(mo):
 @app.cell
 def references(mo):
     mo.md(f"""
-    ## 7.1 References\n{open("memo2/references.txt", "r", encoding="utf-8").read()}
+    ## 8.1 References\n{open("memo2/references.txt", "r", encoding="utf-8").read()}
     """)
     return
 

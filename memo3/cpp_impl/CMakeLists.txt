@@ -34,8 +34,8 @@ target_compile_options(${PROJECT_NAME} PUBLIC
 		"$<$<CONFIG:Release>:/permissive->"
 		"$<$<CONFIG:Release>:/fp:fast>"
 		"$<$<CONFIG:Release>:/arch:AVX512>"
-		"$<$<CONFIG:Release>:/Qpar>"
 		"$<$<CONFIG:Release>:/Qfast_transcendentals>"
+		"$<$<CONFIG:Release>:/openmp:llvm>"
 		
 		"$<$<CONFIG:Debug>:/PROFILE>"
 )

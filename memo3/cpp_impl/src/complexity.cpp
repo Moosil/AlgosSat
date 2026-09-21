@@ -17,6 +17,7 @@ std::size_t Complexity::reverse(const std::size_t n) {
 
 void Complexity::add(const std::size_t amount) {
 	op_count           += amount;
+	#pragma omp atomic
 	flame_graph[stack] += amount;
 }
 

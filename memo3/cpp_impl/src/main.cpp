@@ -26,15 +26,19 @@ int test_trials_small() {
 			.speed      = .5,
 			.speed_unit = "facilities/s",
 			.style      = barkeep::ProgressBarStyle::Bars,
-			.interval   = 1.
+			.interval   = .2
 		}
 	);
 
-	std::vector<std::string> data{};
-	data.reserve(total);
+	std::vector<std::vector<std::string>> data{static_cast<std::size_t>(omp_get_max_threads())};
+	for (auto& i : data) {
+		i.reserve(total);
+	}
 
 	#pragma omp parallel for
 	for (int trials = 0; trials < TRIAL_TOTAL; ++trials) {
+		const int thread_number = omp_get_thread_num();
+
 		auto                                                complexity = std::make_shared<Complexity>();
 		auto                                                drone      = Drone(complexity);
 		std::size_t                                         seed       = trials;
@@ -83,7 +87,7 @@ int test_trials_small() {
 			value_total += facility.value.at(x);
 		}
 
-		data.push_back(
+		data[thread_number].push_back(
 			std::to_string(v) + ',' +
 			std::to_string(e) + ',' +
 			std::to_string(facility.wings.size()) + ',' +
@@ -98,14 +102,17 @@ int test_trials_small() {
 			std::to_string(seed) + ',' +
 			std::to_string(complexity->get_op_count())
 		);
+		#pragma omp atomic
 		++loops;
 	} {
 		std::ofstream file{"data_facility_small.csv", std::ios::binary};
 		file <<
 				"vertex count,edge count,wing count,junction count,supply count,exit count,supply cap,budget_used,budget,value_collected,value_total,seed,op_count"
 				<< '\n';
-		for (const auto& line : data) {
-			file << line << '\n';
+		for (const auto& lines : data) {
+			for (const auto& line : lines) {
+				file << line << '\n';
+			}
 		}
 		file.close();
 	} {
@@ -121,7 +128,7 @@ int test_trials_small() {
 
 int test_trials() {
 	constexpr std::size_t TRIAL_TOTAL     = 25;
-	constexpr std::size_t SUPPLY_TOTAL    = 60;
+	constexpr std::size_t SUPPLY_TOTAL    = 75;
 	constexpr std::size_t DRONE_CAP_TOTAL = 7;
 	constexpr std::size_t WING_TOTAL      = 6;
 
@@ -142,15 +149,18 @@ int test_trials() {
 			.speed      = .5,
 			.speed_unit = "facilities/s",
 			.style      = barkeep::ProgressBarStyle::Bars,
-			.interval   = 2.
+			.interval   = .3
 		}
 	);
 
-	std::vector<std::string> data{};
-	data.reserve(total);
+	std::vector<std::vector<std::string>> data{static_cast<std::size_t>(omp_get_max_threads())};
+	for (auto& i : data) {
+		i.reserve(total);
+	}
 
 	#pragma omp parallel for
 	for (int wing_count = WING_TOTAL; wing_count >= 1; --wing_count) {
+		const int thread_number = omp_get_thread_num();
 		auto complexity = std::make_shared<Complexity>();
 		auto drone      = Drone(complexity);
 		for (int exit_count = wing_count; exit_count >= 1; --exit_count) {
@@ -223,7 +233,7 @@ int test_trials() {
 								}
 							}
 
-							data.push_back(
+							data[thread_number].push_back(
 								std::to_string(v) + ',' +
 								std::to_string(e) + ',' +
 								std::to_string(wing_count) + ',' +
@@ -240,13 +250,16 @@ int test_trials() {
 								std::to_string(seed) + ',' +
 								std::to_string(complexity->get_op_count())
 							);
+							#pragma omp atomic
 							++loops;
 						}
 					}
 				}
 			}
 		}
-	} {
+	}
+
+	{
 		std::ofstream file{"data_facility.csv", std::ios::binary};
 		file << "vertex count,"
 				<< "edge count,"
@@ -264,11 +277,15 @@ int test_trials() {
 				<< "seed,"
 				<< "op_count"
 				<< '\n';
-		for (const auto& line : data) {
-			file << line << '\n';
+		for (const auto& lines : data) {
+			for (const auto& line : lines) {
+				file << line << '\n';
+			}
 		}
 		file.close();
-	} {
+	}
+
+	{
 		std::ofstream file{"flame_facility.csv", std::ios::binary};
 		file << Complexity::get_flame();
 		file.close();
@@ -344,15 +361,18 @@ int test_knapsack() {
 			.speed      = .5,
 			.speed_unit = "tests/s",
 			.style      = barkeep::ProgressBarStyle::Bars,
-			.interval   = 1.
+			.interval   = .2
 		}
 	);
 
-	std::vector<std::string> data{};
-	data.reserve(total);
+	std::vector<std::vector<std::string>> data{static_cast<std::size_t>(omp_get_max_threads())};
+	for (auto& i : data) {
+		i.reserve(total);
+	}
 
 	#pragma omp parallel for
 	for (long long supply_n = SUPPLY_TOTAL; supply_n >= 0; --supply_n) {
+		const int thread_number = omp_get_thread_num();
 		auto complexity = std::make_shared<Complexity>();
 		auto drone      = Drone(complexity);
 		for (long long drone_cap = DRONE_CAP_TOTAL; drone_cap >= 0; --drone_cap) {
@@ -421,7 +441,8 @@ int test_knapsack() {
 					res += ',' + std::to_string(complexity->get_op_count());
 				}
 
-				data.push_back(res);
+				data[thread_number].push_back(res);
+				#pragma omp atomic
 				++loops;
 			}
 		}
@@ -432,8 +453,10 @@ int test_knapsack() {
 			file << std::format(",n={},op_{}", i, i);
 		}
 		file << '\n';
-		for (const auto& line : data) {
-			file << line << '\n';
+		for (const auto& lines : data) {
+			for (const auto& line : lines) {
+				file << line << '\n';
+			}
 		}
 		file.close();
 	} {

@@ -41,6 +41,8 @@ public:
 
 	static std::array<Graph::VertexT, 3> get_vertex_tuple(Graph::VertexT v);
 
+	void set_budget();
+
 private:
 	std::default_random_engine rng;
 
@@ -58,6 +60,4 @@ private:
 
 	std::vector<std::vector<Graph::VertexT> > exemplar_a_nearest_fill(
 		const std::vector<Graph::VertexT>& pool);
-
-	void set_budget();
 };

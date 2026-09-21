@@ -100,6 +100,14 @@ PROCEDURE find(l: List, x, start: Integer) -> Integer
     RETURN -1
 END PROCEDURE
 
+PROCEDURE reverse(list: List) -> List
+    res <- []
+    FOR i <- 1 TO length(list) DO
+        push(res, list[1 + length(list) - i])
+    END FOR
+    RETURN res
+END PROCEDURE
+
 PROCEDURE reconstruct_path(prev: Map[Vertex, Vertex], sink: Vertex) -> List[Vertex]
     res <- [sink]
     curr <- sink
@@ -197,34 +205,27 @@ PROCEDURE flatten_graph(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]]) -> Gra
     RETURN res
 END PROCEDURE
 
-PROCEDURE get_weight_cost(weight: Integer, path_len: Integer) -> Integer
-    IF weight == 1 THEN
-        RETURN ceil((weight + 5 / 4) * path_len / 4)
-    END IF
-    IF weight == 2 THEN
-        RETURN ceil((weight + 5 / 4) * path_len / 4)
-    END IF
-    IF weight == 3:
-        RETURN ceil((weight + 7 / 4) * path_len / 4)
-    END IF
-    IF weight >= 4:
+PROCEDURE get_weight_cost(weight: Integer, drone_capacity: Integer, path_len: Integer) -> Integer
+    IF weight >= .75 * drone_capacity:
         RETURN ceil((weight + 2) * path_len / 4)
     END IF
-    RAISE InputError
+    RETURN ceil((weight + 1 + weight / drone_capacity) * path_len)
 END PROCEDURE
 
-PROCEDURE get_reduced_supplies(g: Graph, supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], entry_path: Map[Vertex, List[Vertex]], budget: Integer) -> List[Vertex]
+PROCEDURE get_reduced_supplies(g: Graph, supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], entry_path: Map[Vertex, List[Vertex]], budget: Integer, drone_capacity: Integer) -> List[Vertex]
     supply_value_ordered <- []
     supply_cost_ordered <- []
     supplies_ordered <- []
     FOR EACH v IN supplies DO
-        push_back(supply_value_ordered, supply_value[v])
-        push_back(supply_cost_ordered, get_weight_cost(supply_weight[v], get_path_length(g, entry_path[v])))
-        push_back(supplies_ordered, v)
+        IF supply_weight[v] <= drone_capacity THEN
+            push_back(supply_value_ordered, supply_value[v])
+            push_back(supply_cost_ordered, get_weight_cost(supply_weight[v], drone_capacity, get_path_length(g, entry_path[v])))
+            push_back(supplies_ordered, v)
+        END IF
     END FOR
 
     res <- []
-    FOR EACH i IN knapsack_value(ceil(budget / 4), supply_value_ordered, supply_cost_ordered)[1] DO
+    FOR EACH i IN knapsack_value(ceil(budget), supply_value_ordered, supply_cost_ordered)[1] DO
         push_back(res, supplies_ordered[i])
     END FOR
     RETURN res
@@ -284,18 +285,18 @@ PROCEDURE get_supply_wing_paths(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]]
     RETURN res
 END PROCEDURE
 
-PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer], supply_value: List[Integer], supplies_in_junction: List[Integer], entry: Vertex, backtrack: List[Vertex], res: List[Tuple[Vertex, Integer, Integer, Integer]]) -> NULL
+PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer], supply_value: List[Integer], supplies_in_junction: List[Integer], drone_capacity: Integer, entry: Vertex, backtrack: List[Vertex], res: List[Tuple[Vertex, Integer, Integer, Integer]]) -> NULL
     total_weight <- 0
     FOR EACH s_idx IN supplies_in_junction DO
         total_weight <- total_weight + supply_weight[s_idx]
     END FOR
 
-    WHILE total_weight >= 5 DO
+    WHILE total_weight >= drone_capacity DO
         in_junction_weight <- []
         FOR EACH s_idx IN supplies_in_junction DO
             push_back(in_junction_weight, supply_weight[s_idx])
         END FOR
-        sack <- knapsack_capacity(5, in_junction_weight, in_junction_weight)
+        sack <- knapsack_capacity(drone_capacity, in_junction_weight, in_junction_weight)
 
         sack_items <- {}
         FOR EACH ij_idx IN sack[1] DO
@@ -318,7 +319,7 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
                 FOR s_idx IN sack_items[curr_pos] DO
                     w <- supply_weight[s_idx]
                     drop_count <- 1
-                    WHILE total_sack_weight + w > 5 DO
+                    WHILE total_sack_weight + w > drone_capacity DO
                         del_s_idx <- extra_supplies[length(extra_supplies)]
                         pop_back(extra_supplies)
                         del_pos <- backtrack[i + drop_count]
@@ -342,7 +343,7 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
                     WHILE s_idx != -1 DO
                         IF find(supplies_in_junction, s_idx, 0) != -1 THEN
                             w <- supply_weight[s_idx]
-                            IF total_sack_weight + w <= 5 THEN
+                            IF total_sack_weight + w <= drone_capacity THEN
                                 total_sack_weight <- total_sack_weight + w
                                 push_back(res, (curr_pos, 3, w, supply_value[s_idx]))
                                 push_back(extra_supplies, s_idx)
@@ -373,7 +374,7 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
     END WHILE
 END PROCEDURE
 
-PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, curr: Vertex, backtrack: list[Vertex], supplies: List[Vertex], supply_weight: List[Integer], supply_value: List[Integer], supply_path: Map[List[Vertex], Set[Vertex]], inter_wing_path: List[Vertex], res: List[Tuple[Vertex, Integer, Integer, Integer]]) -> NULL
+PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, curr: Vertex, backtrack: list[Vertex], supplies: List[Vertex], supply_weight: List[Integer], supply_value: List[Integer], supply_path: Map[List[Vertex], Set[Vertex]], inter_wing_path: List[Vertex], drone_capacity: Integer, res: List[Tuple[Vertex, Integer, Integer, Integer]]) -> NULL
     junction_other <- get_other_junction(G, curr)
     IF junction_other == curr THEN
         RETURN
@@ -409,7 +410,7 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
         surviving_supplies <- []
         FOR EACH n IN get_neighbours(wing, junction_other) DO
             new_branch_backtrack <- [junction_other]
-            branch_res <- clear_branch(G, entry, junction_other, n, wing, new_branch_backtrack, supplies, supply_weight, supply_value, supply_path, new_inter_wing_path)
+            branch_res <- clear_branch(G, entry, junction_other, n, wing, new_branch_backtrack, supplies, supply_weight, supply_value, supply_path, new_inter_wing_path, drone_capacity)
 
             IF length(branch_res) != 0 THEN
                 push_back(res, (junction_other, 1, 0, 0))
@@ -434,7 +435,7 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
                     END IF
                 END FOR
 
-                knapsack_supplies(supplies, supply_weight, supply_value, supplies_in_junction, entry, curr_backtrack, res)
+                knapsack_supplies(supplies, supply_weight, supply_value, supplies_in_junction, drone_capacity, entry, curr_backtrack, res)
 
                 supply_count <- length(supplies_in_junction)
                 IF supply_count != 0 THEN
@@ -480,7 +481,7 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
             END IF
         END FOR
 
-        knapsack_supplies(supplies, supply_weight, supply_value, surviving_supplies, entry, backtrack, res)
+        knapsack_supplies(supplies, supply_weight, supply_value, surviving_supplies, drone_capacity, entry, backtrack, res)
 
         IF has(supply_path, new_inter_wing_path) THEN
             supply_path[inter_wing_path] <- union(supply_path[inter_wing_path], supply_path[new_inter_wing_path])
@@ -489,14 +490,14 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
     END FOR
 END PROCEDURE
 
-PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, orig: Vertex, branch: Vertex, orig_wing: Graph, backtrack: list[Vertex], supplies: List[Vertex], supply_weight: List[Integer], supply_value: List[Integer], supply_path: Map[List[Vertex], Set[Vertex]], inter_wing_path: List[Vertex]) -> List[Tuple[Vertex, Integer, Integer, Integer]]
+PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, orig: Vertex, branch: Vertex, orig_wing: Graph, backtrack: list[Vertex], supplies: List[Vertex], supply_weight: List[Integer], supply_value: List[Integer], supply_path: Map[List[Vertex], Set[Vertex]], inter_wing_path: List[Vertex], drone_capacity: Integer) -> List[Tuple[Vertex, Integer, Integer, Integer]]
     res <- []
 
     branch_pos <- branch
     prev <- orig
     push_back(backtrack, branch_pos)
 
-    clear_junction_path(G, entry, branch_pos, backtrack, supplies, supply_weight, supply_value, supply_path, inter_wing_path, res)
+    clear_junction_path(G, entry, branch_pos, backtrack, supplies, supply_weight, supply_value, supply_path, inter_wing_path, drone_capacity, res)
     neighbours <- get_neighbours(orig_wing, branch_pos)
     WHILE length(neighbours) == 2 DO
         IF neighbours[1] == prev THEN
@@ -509,7 +510,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
         neighbours <- get_neighbours(orig_wing, branch_pos)
         push_back(backtrack, branch_pos)
 
-        clear_junction_path(G, entry, branch_pos, backtrack, supplies, supply_weight, supply_value, supply_path, inter_wing_path, res)
+        clear_junction_path(G, entry, branch_pos, backtrack, supplies, supply_weight, supply_value, supply_path, inter_wing_path, drone_capacity, res)
     END WHILE
 
     branch_degree <- length(neighbours)
@@ -520,7 +521,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
                 FOR EACH i IN backtrack DO
                     push_back(new_backtrack, i)
                 END FOR
-                FOR EACH i IN clear_branch(G, entry, branch_pos, n, orig_wing, new_backtrack, supplies, supply_weight, supply_value, supply_path, inter_wing_path) DO
+                FOR EACH i IN clear_branch(G, entry, branch_pos, n, orig_wing, new_backtrack, supplies, supply_weight, supply_value, supply_path, inter_wing_path, drone_capacity) DO
                     push_back(res, i)
                 END FOR
             END IF
@@ -542,7 +543,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
         END FOR
     END IF
 
-    knapsack_supplies(supplies, supply_weight, supply_value, supply_to_collect, entry, backtrack, res)
+    knapsack_supplies(supplies, supply_weight, supply_value, supply_to_collect, drone_capacity, entry, backtrack, res)
 
     storage <- []
     vertex_to_collect <- empty Map
@@ -660,7 +661,7 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
     RETURN res
 END PROCEDURE
 
-FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, exits: Set[Vertex], supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], budget: Integer, vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: set[SupplyID]) -> List[Tuple[Vertex, Integer, Integer, Integer]]
+FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: Vertex, exits: Set[Vertex], supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], budget: Integer, drone_capacity: Integer, vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: set[SupplyID]) -> List[Tuple[Vertex, Integer, Integer, Integer]]
     supplies <- get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids)
 
     flat_G <- flatten_graph(G)
@@ -681,7 +682,7 @@ FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: V
         END IF
     END FOR
 
-    reduced_supplies <- get_reduced_supplies(flat_G, supplies, supply_weight, supply_value, entry_path, budget - exit_run_cost)
+    reduced_supplies <- get_reduced_supplies(flat_G, supplies, supply_weight, supply_value, entry_path, budget - exit_run_cost, drone_capacity)
     FOR EACH s IN reduced_supplies DO
         insert(found_supply_ids, vertex_to_supply_id[s])
     END FOR
@@ -701,7 +702,7 @@ FUNCTION ember_rescue(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: V
     FOR EACH n IN get_neighbours(flat_G, entry) DO
         backtrack <- [entry]
         curr_supply_wing_paths <- supply_wing_paths
-        FOR EACH i IN clear_branch(G, entry, entry, n, entry_wing, backtrack, reduced_supplies, supply_weight_ordered, supply_value_ordered, curr_supply_wing_paths, []) DO
+        FOR EACH i IN clear_branch(G, entry, entry, n, entry_wing, backtrack, reduced_supplies, supply_weight_ordered, supply_value_ordered, curr_supply_wing_paths, [], drone_capacity) DO
             curr_pos <- i[1]
             IF curr_pos != prev_pos THEN
                 FOR EACH v IN reconstruct_path_to(entry_prev, prev_pos, curr_pos) DO

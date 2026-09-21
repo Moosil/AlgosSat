@@ -16,7 +16,7 @@ def imports():
     import pandas as pd
     import re
 
-    plt.rcParams['figure.dpi'] = 600
+    plt.rcParams['figure.dpi'] = 300
     return itertools, mcolors, mo, np, nx, pd, plt, random, re
 
 
@@ -1109,8 +1109,90 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     # 4.1 Worst-case
-    calculation with each function using sympy
     """)
+    return
+
+
+@app.cell
+def _(mo, pseudocode_explorer, re):
+    class ProcedureTCExplorer:
+        @classmethod
+        def get_custom_explanation(cls, name):
+            match name:
+                case "reconstruct_path_to":
+                    return """The while loop (7) runs exactly $|V|$ times, where the lengths of the left and right paths increment by 0 or 1 each run of the loop. The for loops (18) (32) runs at most the length of the left and right paths, giving a triangular amount of runs. The inside of the ifs inside the for loops (19) (33) run exactly once, as it returns after that."""
+                case "get_path_length":
+                    return r"""The for loop (2) runs exactly $n - 1$ times."""
+                case "reverse":
+                    return r"""The for loop (2) runs exactly $n$ times."""
+                case "reconstruct_path":
+                    return r"""The while loop (2) can run at most $|V|$ times, as valid first inputs represent a directed tree graph with $|V|$ verticies. The call to reverse is done with $n = |V|$"""
+                case "dijkstra":
+                    return r"""The for loops (2) (6) run exactly $|V|$ times. Since the while loop removes 1 item from the priority queue each loop, it runs at most $|V|$ times"""
+                case "ember_rescue":
+                    return r"""The for loop (12) runs exactly $|X|$ times, calling reconstruct path on $n = |V|$ vertices. Then clear branch is called (41), which has much larger costs in all variables than other parts of ember_rescue."""
+                case "knapsack_capacity":
+                    return r"""There are 2 nested loops (10) (13) which run $n$ and $C$ times respectively, where $C$ is the capacity parameter."""
+                case "knapsack_value":
+                    return r"""There are 2 nested loops (15) (18) which run $n$ and $C$ times respectively, where $P$ is the sum of values in the value parameter."""
+                case "get_which_wing":
+                    return r"""The for loop (1) runs exactly |V_W| times."""
+                case "find":
+                    return r"""linear search at worst searches through the entire list with the for loop (1)."""
+                case "flatten_graph":
+                    return r"""The nest for loops (2) (3) (6) are amortised to each vertex and edge on the graph, giving $|V|$ and $|E|$ iterations respecitvely. The for loops are started $|W|$ times. The final for loop (10) runs $|J|$ times."""
+                case "get_weight_cost":
+                    return r"""no loops or anything"""
+                case "get_reduced_supplies":
+                    return r"""The main cost is in the call to `knapsack_value`. The maximum value is in $O(n C)$ where $C$ is the drone weight capacity, giving $O(n \times n C)$."""
+                case "get_other_junction":
+                    return r"""Checks each junction in for loop (1), totaling $|J|$ times."""
+                case "get_supplies_to_collect":
+                    return r"""Checks each supply in for loop (2), totaling $|S|$ times."""
+                case "get_supply_wing_paths":
+                    return r"""Adds each junction to set in for loop (2). Then it does, for each supply, looks through the path between it and the entrance. This path has a maximal length of $|V|$, giving $|V| \times |S|$ iterations."""
+                case "knapsack_supplies":
+                    return r""""""
+
+        @classmethod
+        def get_function(cls, name: str):
+            var_explanation_dict = {
+                "V": "set of vertices",
+                "E": "set of edges",
+                "V_W": "set of input wing graphs",
+                "E_W": "set of inter-wing junctions",
+                "A": "array representing CRUDY-1's supply storage",
+                "X": "set of exit vertices",
+                "S": "set of supply vertices"
+            }
+
+            big_os = open("memo3/big_os.txt").read()
+            t_n_big_o_latex = list(filter(lambda x: name in x, big_os.split('\n')))[0].replace(f"{name}: ", "")
+        
+            pseudocode = pseudocode_explorer.get_fn_fancy(name, numbered=True)
+
+            return mo.md(
+                fr"""
+                ### {"Procedure" if name != "ember_rescue" else "Algorithm"} `{name}`
+                {pseudocode}
+
+                $${t_n_big_o_latex}$$
+
+                {cls.get_custom_explanation(name)}
+            """
+                )
+
+    proc_tc_explorer = ProcedureTCExplorer()
+
+    _tabs_dict = {}
+
+    for _match in re.finditer("FUNCTION ([^\()]+)", pseudocode_explorer.raw_pseudocode):
+        _tabs_dict[_match.group(1)] = proc_tc_explorer.get_function(_match.group(1))
+
+    for _match in re.finditer("PROCEDURE ([^\()]+)", pseudocode_explorer.raw_pseudocode):
+        _tabs_dict[_match.group(1)] = proc_tc_explorer.get_function(_match.group(1))
+
+    mo.ui.tabs(_tabs_dict)
     return
 
 
@@ -1124,13 +1206,13 @@ def _(mo):
             "exit count": "Exit count",
             "edge count": "Edge count",
             "junction count": "Inter-wing junction count",
-            "drone cap": "CRUDY-1 supply storage size",
+            "supply cap": "Supply capacity",
             "op_count": "Operation count"
         }
 
         def __init__(self, label, range_max: dict[str, int]=None, initial_values=None, range_min: dict[str, int]=None, *, df=None, variables: list[str]=None):
             if variables is None:
-                variables = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "drone cap"]
+                variables = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "supply cap"]
 
             self.variables = list(variables)
 
@@ -1152,8 +1234,8 @@ def _(mo):
 
     operation_cost_explorer = VariableSetter(
         "Variables",
-        {"vertex count": 144*3, "wing count": 150, "supply count": 50, "exit count": 50, "edge count": 144*3-4, "junction count": 150, "drone cap": 50},
-        {"vertex count": 70,  "wing count": 150, "supply count": 11, "exit count": 4,  "edge count": 150, "junction count": 150, "drone cap": 50},
+        {"vertex count": 144*3, "wing count": 150, "supply count": 50, "exit count": 50, "edge count": 144*3-4, "junction count": 150, "supply cap": 50},
+        {"vertex count": 70,  "wing count": 150, "supply count": 11, "exit count": 4,  "edge count": 150, "junction count": 150, "supply cap": 50},
         None
     )
     operation_cost_explorer
@@ -1164,14 +1246,13 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     # 4.2 Average-case
-    c++ impl data
     """)
     return
 
 
 @app.cell
 def _(VariableSetter, mo, pd):
-    _df = pd.read_csv("memo3/data/data_facility_small.csv")
+    _df = pd.read_csv("memo3/data/data_facility.csv")
 
     _pretty_name = {
         "vertex count": "Vertex count",
@@ -1180,31 +1261,31 @@ def _(VariableSetter, mo, pd):
         "exit count": "Exit count",
         "edge count": "Edge count",
         "junction count": "Inter-wing junction count",
-        "drone cap": "CRUDY-1 supply storage size",
+        "supply cap": "Supply capacity",
         "op_count": "Operation count"
     }
 
-    _variables = ["vertex count", "edge count", "wing count", "exit count", "supply count", "drone cap"]
+    _variables = ["vertex count", "edge count", "wing count", "exit count", "supply count", "supply cap"]
 
-    _all_vars = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "drone cap"]
+    _all_vars = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "supply cap"]
 
     average_case_partial_growth_rate_explorer = VariableSetter("Fixed Variables",
-        df=_df, variables=_variables, initial_values={"vertex count": 314}
+        df=_df, variables=_variables, initial_values={"supply count": 50, "supply cap": 5, "exit count": 2}
     )
 
     _default_enabled = {
         "vertex count": False,
         "wing count": False,
         "supply count": True,
-        "exit count": False,
+        "exit count": True,
         "edge count": False,
         "junction count": False,
-        "drone cap": True,
+        "supply cap": True,
     }
 
     average_case_partial_growth_rate_explorer_cbs = mo.ui.dictionary({_pretty_name[name]: mo.ui.checkbox(value=_default_enabled[name], on_change=lambda v: on_change_cb(name, v)) for name in _variables}, label="Enabled")
 
-    average_case_partial_growth_rate_colour_picker = mo.ui.dropdown([_pretty_name[n] for n in _all_vars], allow_select_none=True, value=_pretty_name["wing count"], searchable=False, label="Coloured variable (except in supply/supply storage figures)")
+    average_case_partial_growth_rate_colour_picker = mo.ui.dropdown([_pretty_name[n] for n in _all_vars], allow_select_none=True, value=None, searchable=False, label="Coloured variable (except in supply/supply storage figures)")
 
     def on_change_cb(name: str, value: bool):
         average_case_partial_growth_rate_explorer[name].disabled = value
@@ -1240,15 +1321,15 @@ def _(
         "exit count": "Exit count",
         "edge count": "Edge count",
         "junction count": "Inter-wing junction count",
-        "drone cap": "CRUDY-1 supply storage size",
+        "supply cap": "Supply capacity",
         "op_count": "Operation count"
     }
 
-    _variables = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "drone cap"]
+    _variables = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "supply cap"]
 
     @mo.cache
     def _get_df(names=[]):
-        df = pd.read_csv("memo3/data/data_facility_small.csv")
+        df = pd.read_csv("memo3/data/data_facility.csv")
 
         for n in _variables:
             if n in ["junction count"]:
@@ -1266,66 +1347,34 @@ def _(
                 print("Empty df")
                 break
 
-        if len(df) > 1000:
-            df = df.sample(n=1000)
+        df = df.sample(n=300)
         return df
 
     def _plot(name):
         _fig, _ax = plt.subplots(1, 1, figsize=(12, 6))
-        if name == "drone cap":
-            df = _get_df(["drone cap", "supply count"])
-            colors = plt.cm.viridis(np.linspace(0, 1, max(df["supply count"])))
-            for m in sorted(df["supply count"].unique()):
-                c_df = df[df["supply count"] == m]
-                if len(c_df) > 0:
-                    _ax.scatter(c_df["drone cap"], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
-
-            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df["supply count"])))
-            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, max(df["supply count"]) + 1, 5)))
-            axcb.set_label(f"{_pretty_name["supply count"]}", fontsize=14)
-            _ax.set_yscale("log", base=10)
-            _ax.set_ylim(0, 10 ** (np.log10(max(df["op_count"])) * 1.1))
-        elif name == "supply count":
-            df = _get_df(["drone cap", "supply count"])
-            colors = plt.cm.viridis(np.linspace(0, 1, max(df["drone cap"])))
-            for m in sorted(df["drone cap"].unique()):
-                c_df = df[df["drone cap"] == m]
-                if len(c_df) > 0:
-                    _ax.scatter(c_df["supply count"], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
-
-            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df["drone cap"])))
-            axcb = _fig.colorbar(sm, ax=_ax, ticks=list(range(0, max(df["drone cap"]) + 1, 5)))
-            axcb.set_label(f"{_pretty_name["drone cap"]}", fontsize=14)
-            _ax.set_yscale("log", base=10)
-            _ax.set_ylim(0, 10 ** (np.log10(max(df["op_count"])) * 1.1))
-        else:
-            df = _get_df([name])
-            if len(df) == 0:
-                return _fig
-
-            _ax.set_ylim(1, max(df["op_count"]) * 1.1)
-
-            if average_case_partial_growth_rate_colour_picker.value is None:
-                    _ax.scatter(df[name], df["op_count"], color="#74c7ec", label=_pretty_name[name])
-    
-            else:
-                colour_name = [k for k, v in _pretty_name.items() if v == average_case_partial_growth_rate_colour_picker.value][0]
-
-                colors = plt.cm.viridis(np.linspace(0, 1, max(df[colour_name])))
-                for m in sorted(df[colour_name].unique()):
-                    c_df = df[df[colour_name] == m]
-                    if len(c_df) > 0:
-                        _ax.scatter(c_df[name], c_df["op_count"], color=colors[m-1], label=_pretty_name[name])
-
-                sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df[colour_name])))
-                axcb = _fig.colorbar(sm, ax=_ax)
-                axcb.set_label(f"{_pretty_name[colour_name]}", fontsize=14)
-
+        df = _get_df([name])
         if len(df) == 0:
             return _fig
+
+        if average_case_partial_growth_rate_colour_picker.value is None:
+            _ax.scatter(df[name], df["op_count"], color="#74c7ec", label=_pretty_name[name], alpha=.7)
+        else:
+            colour_name = [k for k, v in _pretty_name.items() if v == average_case_partial_growth_rate_colour_picker.value][0]
+
+            colors = plt.cm.viridis(np.linspace(0, 1, max(df[colour_name])))
+            for m in sorted(df[colour_name].unique()):
+                c_df = df[df[colour_name] == m]
+                if len(c_df) > 0:
+                    _ax.scatter(c_df[name], c_df["op_count"], color=colors[m-1], label=_pretty_name[name], alpha=.7)
+
+            sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df[colour_name])))
+            axcb = _fig.colorbar(sm, ax=_ax)
+            axcb.set_label(f"{_pretty_name[colour_name]}", fontsize=14)
+
         _ax.set_xlabel(_pretty_name[name], fontsize=14)
         _ax.set_title(f"{_pretty_name[name]} vs Operation count", fontsize=16)
         _ax.set_xlim(0, max(df[name]) * 1.1)
+        _ax.set_ylim(1, max(df["op_count"]) * 1.1)
         _ax.tick_params(axis='x', which='major', labelsize=14)
         _ax.set_ylabel("Operation count", fontsize=14)
 
@@ -1334,6 +1383,23 @@ def _(
 
     average_case_partial_growth_tabs = mo.ui.tabs({_pretty_name[name]: _plot(name) for name in _variables})
     average_case_partial_growth_tabs
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The new algorithm has a much better, non-exponential average time. It displays low-order polynomial-time with all variables, and the runtime of the algorithm is dominated instead by constant costs.
+
+    For the main problem instance: 50 supplies, 3-5 wings, 5 supply capacity, the algorithm has roughly linear time complexity with its number of wings.
+    """)
+    return
+
+
+@app.cell
+def _(pd):
+    _df = pd.read_csv("memo3/data/flame_facility_small.csv")
+    _df
     return
 
 
@@ -1416,11 +1482,11 @@ def algorithm_explorer_header(mo):
 def _(mo, pseudocode_explorer, re):
     _dict = {"Full": mo.md(fr"""{pseudocode_explorer.get_lines_fancy(numbered=True)}""")}
 
-    for match in re.finditer("FUNCTION ([^\()]+)", pseudocode_explorer.raw_pseudocode):
-        _dict[match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(match.group(1))}""")
+    for _match in re.finditer("FUNCTION ([^\()]+)", pseudocode_explorer.raw_pseudocode):
+        _dict[_match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(_match.group(1))}""")
 
-    for match in re.finditer("PROCEDURE ([^\()]+)", pseudocode_explorer.raw_pseudocode):
-        _dict[match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(match.group(1))}""")
+    for _match in re.finditer("PROCEDURE ([^\()]+)", pseudocode_explorer.raw_pseudocode):
+        _dict[_match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(_match.group(1))}""")
 
 
     mo.ui.tabs(_dict, value="ember_rescue")

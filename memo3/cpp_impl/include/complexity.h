@@ -23,25 +23,25 @@ public:
 
 	static std::size_t reverse(std::size_t n);
 
-	static void add(std::size_t amount);
+	void add(std::size_t amount);
 
-	static void push_stack(const std::string& fn_name);
+	void push_stack(const std::string& fn_name);
 
-	static void pop_stack();
+	void pop_stack();
 
-	static std::size_t get_op_count();
+	[[nodiscard]] std::size_t get_op_count() const;
 
-	static void reset_op_count();
+	void reset_op_count();
 
 	static void reset_flame();
 
 	static std::string get_flame();
 
 private:
-	constexpr static std::size_t MAX_STACK_DEPTH = 7;
-	inline static std::size_t    op_count;
+	static constexpr std::size_t MAX_STACK_DEPTH = 7;
+	std::size_t                  op_count{0};
 
-	inline static std::map<std::vector<std::string>, std::size_t> flame_graph{};
-	inline static std::vector<std::string>                        stack{};
-	inline static std::size_t                                     stack_depth = 0;
+	static inline std::map<std::vector<std::string>, std::size_t> flame_graph{};
+	std::vector<std::string>                                      stack{};
+	std::size_t                                                   stack_depth = 0;
 };

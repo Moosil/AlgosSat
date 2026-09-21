@@ -135,7 +135,7 @@ std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(Ver
 	while (!pq.empty()) {
 		const auto [d, u] = pq.top();
 		pq.pop();
-		if (dist[u] < -d) {
+		if (dist[u] < static_cast<std::size_t>(-d)) {
 			continue;
 		}
 

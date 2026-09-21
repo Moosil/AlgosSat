@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.0"
+__generated_with = "0.24.2"
 app = marimo.App(width="medium", app_title="Memo2", css_file="../custom.css")
 
 
@@ -1350,10 +1350,10 @@ def _(
 
             if average_case_partial_growth_rate_colour_picker.value is None:
                     _ax.scatter(df[name], df["op_count"], color="#74c7ec", label=_pretty_name[name])
-        
+    
             else:
                 colour_name = [k for k, v in _pretty_name.items() if v == average_case_partial_growth_rate_colour_picker.value][0]
-    
+
                 colors = plt.cm.viridis(np.linspace(0, 1, max(df[colour_name])))
                 for m in sorted(df[colour_name].unique()):
                     c_df = df[df[colour_name] == m]

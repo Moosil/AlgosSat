@@ -4,6 +4,8 @@ project(Memo3Cpp)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(OpenMP REQUIRED)
+
 add_executable(${PROJECT_NAME}
 		${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/src/graph.cpp
@@ -19,11 +21,30 @@ add_executable(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/barkeep/barkeep)
 
+target_link_libraries(${PROJECT_NAME} PRIVATE OpenMP::OpenMP_CXX)
+
 target_compile_options(${PROJECT_NAME} PUBLIC
 		"$<$<CONFIG:Release>:/O2>"
+		"$<$<CONFIG:Release>:/Ob3>"
+		"$<$<CONFIG:Release>:/GA>"
+		"$<$<CONFIG:Release>:/GL>"
+		"$<$<CONFIG:Release>:/Gy>"
+		"$<$<CONFIG:Release>:/GS->"
+		"$<$<CONFIG:Release>:/sdl->"
+		"$<$<CONFIG:Release>:/permissive->"
+		"$<$<CONFIG:Release>:/fp:fast>"
+		"$<$<CONFIG:Release>:/arch:AVX512>"
 		"$<$<CONFIG:Release>:/Qpar>"
 		"$<$<CONFIG:Release>:/Qfast_transcendentals>"
-		"/GA"
-		"/utf8"
+		
 		"$<$<CONFIG:Debug>:/PROFILE>"
 )
+
+target_link_options(${PROJECT_NAME} PUBLIC
+		"$<$<CONFIG:Release>:/INCREMENTAL:NO>"
+		"$<$<CONFIG:Release>:/OPT:ICF>"
+		"$<$<CONFIG:Release>:/OPT:REF>"
+		"$<$<CONFIG:Release>:/MANIFEST:NO>"
+)
+
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)

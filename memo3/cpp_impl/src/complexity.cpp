@@ -34,7 +34,7 @@ void Complexity::pop_stack() {
 	stack_depth--;
 }
 
-std::size_t Complexity::get_op_count() {
+std::size_t Complexity::get_op_count() const {
 	return op_count;
 }
 
@@ -53,8 +53,8 @@ std::string Complexity::get_flame() {
 	std::string res_bottom;
 	std::string delim = "->";
 	for (const auto& [k, v] : flame_graph) {
-		res_top    += (k | std::views::join_with(delim) | std::ranges::to<std::string>()) + ';';
-		res_bottom += std::to_string(v) + ';';
+		res_top    += (k | std::views::join_with(delim) | std::ranges::to<std::string>()) + ',';
+		res_bottom += std::to_string(v) + ',';
 	}
 	res_top.pop_back();
 	res_bottom.pop_back();

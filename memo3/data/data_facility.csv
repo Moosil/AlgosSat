@@ -1,4 +1,4 @@
-vertex count,edge count,wing count,junction count,supply count,exit count,drone cap,budget_used,budget,value_collected,value_total,seed,op_count
+vertex count,edge count,wing count,junction count,supply count,exit count,supply cap,budget_used,budget,value_collected,value_total,seed,op_count
 100,198,1,0,40,1,3,2085,2483,48,124,22100,268797
 100,198,1,0,40,1,3,2911,3080,48,122,22101,384034
 100,198,1,0,40,1,3,2607,2913,53,122,22102,318123

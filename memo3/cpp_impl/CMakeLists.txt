@@ -7,11 +7,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_executable(${PROJECT_NAME}
 		${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/src/graph.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/src/ember_rescue.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/graph.h
+		${CMAKE_CURRENT_SOURCE_DIR}/src/ember_rescue.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/ember_rescue.h
 		${CMAKE_CURRENT_SOURCE_DIR}/src/facility.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/facility.h
+		${CMAKE_CURRENT_SOURCE_DIR}/src/complexity.cpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/complexity.h
 		${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/barkeep/barkeep/barkeep.h
 )

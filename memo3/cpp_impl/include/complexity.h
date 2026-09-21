@@ -1,7 +1,8 @@
 #pragma once
+
 #include <map>
-#include <ranges>
 #include <string>
+#include <vector>
 
 class Complexity {
 public:
@@ -16,63 +17,25 @@ public:
 	static constexpr std::size_t get_edge_weight = 1;
 	static constexpr std::size_t max             = 3;
 
-	static std::size_t get_neighbours([[maybe_unused]] std::size_t n) {
-		return 1;
-	}
+	static std::size_t get_neighbours([[maybe_unused]] std::size_t n);
 
-	static std::size_t update_priority(const std::size_t n) {
-		return static_cast<std::size_t>(std::ceil(std::log10(static_cast<double>(n))));
-	}
+	static std::size_t update_priority(std::size_t n);
 
-	static std::size_t reverse(const std::size_t n) {
-		return 1 + return_ + for_outer + 1 + n * (for_inner + 4);
-	}
+	static std::size_t reverse(std::size_t n);
 
-	static void add(const std::size_t amount) {
-		op_count           += amount;
-		flame_graph[stack] += amount;
-	}
+	static void add(std::size_t amount);
 
-	static void push_stack(const std::string& fn_name) {
-		stack_depth++;
-		if (stack_depth <= MAX_STACK_DEPTH) {
-			stack.push_back(fn_name);
-		}
-	}
+	static void push_stack(const std::string& fn_name);
 
-	static void pop_stack() {
-		if (stack_depth <= MAX_STACK_DEPTH) {
-			stack.pop_back();
-		}
-		stack_depth--;
-	}
+	static void pop_stack();
 
-	static std::size_t get_op_count() {
-		return op_count;
-	}
+	static std::size_t get_op_count();
 
-	static void reset_op_count() {
-		stack       = {};
-		stack_depth = 0;
-		op_count    = 0;
-	}
+	static void reset_op_count();
 
-	static void reset_flame() {
-		flame_graph = {};
-	}
+	static void reset_flame();
 
-	static std::string get_flame() {
-		std::string res_top;
-		std::string res_bottom;
-		std::string delim = "->";
-		for (const auto& [k, v] : flame_graph) {
-			res_top    += (k | std::views::join_with(delim) | std::ranges::to<std::string>()) + ';';
-			res_bottom += std::to_string(v) + ';';
-		}
-		res_top.pop_back();
-		res_bottom.pop_back();
-		return res_top + '\n' + res_bottom;
-	}
+	static std::string get_flame();
 
 private:
 	constexpr static std::size_t MAX_STACK_DEPTH = 7;

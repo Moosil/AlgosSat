@@ -31,7 +31,7 @@ int test_trials_small() {
 	std::vector<std::string> data{};
 	data.reserve(total);
 
-	//#pragma omp parallel for
+	#pragma omp parallel for
 	for (std::size_t trials = 0; trials < TRIAL_TOTAL; ++trials) {
 		std::size_t                                  seed = trials;
 		Facility                                     facility{static_cast<int>(seed), (seed % 3) + 2, 50, 2, 5};
@@ -124,7 +124,7 @@ int test_trials() {
 	std::size_t total{0};
 	for (std::size_t wing_count = 1; wing_count <= WING_TOTAL; ++wing_count) {
 		for (std::size_t exit_count = 1; exit_count <= wing_count; ++exit_count) {
-			total += TRIAL_TOTAL * (SUPPLY_TOTAL - 40) * (DRONE_CAP_TOTAL - 3);
+			total += TRIAL_TOTAL * (SUPPLY_TOTAL - 39) * (DRONE_CAP_TOTAL - 2);
 		}
 	}
 
@@ -144,7 +144,7 @@ int test_trials() {
 	std::vector<std::string> data{};
 	data.reserve(total);
 
-	//#pragma omp parallel for
+	#pragma omp parallel for
 	for (std::size_t wing_count = 1; wing_count <= WING_TOTAL; ++wing_count) {
 		for (std::size_t exit_count = 1; exit_count <= wing_count; ++exit_count) {
 			for (std::size_t supply_count = 40; supply_count <= SUPPLY_TOTAL; ++supply_count) {
@@ -290,7 +290,7 @@ int test_knapsack() {
 	constexpr std::size_t DRONE_CAP_TOTAL      = 7;
 	constexpr std::size_t KNAPSACK_TRIAL_TOTAL = 50;
 
-	const std::size_t total = TRIAL_TOTAL * (SUPPLY_TOTAL - 25) * (DRONE_CAP_TOTAL - 3);
+	constexpr std::size_t total = TRIAL_TOTAL * (SUPPLY_TOTAL - 40) * (DRONE_CAP_TOTAL - 3);
 
 	std::size_t loops{0};
 
@@ -309,7 +309,7 @@ int test_knapsack() {
 	data.reserve(total);
 
 	#pragma omp parallel for
-	for (std::size_t supply_n = 25; supply_n < SUPPLY_TOTAL; ++supply_n) {
+	for (std::size_t supply_n = 40; supply_n < SUPPLY_TOTAL; ++supply_n) {
 		for (std::size_t drone_cap = 3; drone_cap < DRONE_CAP_TOTAL; ++drone_cap) {
 			for (std::size_t trials = 0; trials < TRIAL_TOTAL; ++trials) {
 				Facility   facility{static_cast<int>(trials), 5, supply_n, 2, drone_cap};
@@ -317,15 +317,15 @@ int test_knapsack() {
 
 
 				const Graph flat_G = flatten_graph(std::make_pair(facility.wings, facility.junctions));
-				auto entry_prevs = dijkstra(flat_G, facility.entry);
+				auto entry_prev = dijkstra(flat_G, facility.entry);
 				std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > entry_paths{};
 				for (const Graph::VertexT v : facility.supplies) {
-					entry_paths[v] = reconstruct_path(entry_prevs, v);
+					entry_paths[v] = reconstruct_path(entry_prev, v);
 				}
 
 				std::size_t exit_run_cost = std::numeric_limits<std::size_t>::max();
 				for (const Graph::VertexT e : facility.exits) {
-					exit_run_cost = std::min(exit_run_cost, get_path_length(flat_G, reconstruct_path(entry_prevs, e)));
+					exit_run_cost = std::min(exit_run_cost, get_path_length(flat_G, reconstruct_path(entry_prev, e)));
 				}
 
 				std::vector<Graph::VertexT> supplies_ordered{};
@@ -347,7 +347,7 @@ int test_knapsack() {
 				for (std::size_t i = 1; i <= KNAPSACK_TRIAL_TOTAL; ++i) {
 					Complexity::reset_op_count();
 					res += ',' + std::to_string(
-						std::get<1>(
+						std::get < 1 > (
 							knapsack_value(
 								budget / i + (budget % i != 0),
 								supply_value_ordered,

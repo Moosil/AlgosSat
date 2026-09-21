@@ -417,6 +417,16 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
                     push_back(res, i)
                 END FOR
 
+                res_len <- length(res)
+                WHILE res_len > 0 DO
+                    res_back <- res[res_len]
+                    IF res_back[1] == entry OR res_back[2] != 2 THEN
+                        BREAK;
+                    END IF
+                    pop_back(res)
+                    res_len <- res_len - 1
+                END WHILE
+
                 supplies_in_junction <- []
                 FOR EACH s_idx in supply_path[new_inter_wing_path] DO
                     IF supplies[s_idx] == junction_other THEN

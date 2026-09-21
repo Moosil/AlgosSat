@@ -96,10 +96,12 @@ Facility::Facility(
 	}
 	assert(supplies.size() == supply_count);
 
-	for (const auto& [u, v, _] : wings[1].get_edges()) {
-		std::size_t u_col = std::get < 1 > (get_vertex_tuple(u));
-		std::size_t v_col = std::get < 1 > (get_vertex_tuple(v));
-		wings[1].set_edge_weight(u, v, 1 + static_cast<Graph::WeightT>(std::max(u_col, v_col)) / 3);
+	if (wing_count >= 2) {
+		for (const auto& [u, v, _] : wings[1].get_edges()) {
+			std::size_t u_col = std::get < 1 > (get_vertex_tuple(u));
+			std::size_t v_col = std::get < 1 > (get_vertex_tuple(v));
+			wings[1].set_edge_weight(u, v, 1 + static_cast<Graph::WeightT>(std::max(u_col, v_col)) / 3);
+		}
 	}
 	if (wing_count >= 3) {
 		std::uniform_int_distribution<Graph::WeightT> dist_weight(1, 5);

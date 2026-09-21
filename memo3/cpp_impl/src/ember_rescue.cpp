@@ -369,7 +369,7 @@ std::vector<Graph::VertexT> get_reduced_supplies(
 
 	Complexity::add(Complexity::for_outer + 3);
 	std::vector<Graph::VertexT> res{};
-	for (const std::size_t i : std::get<0>(knapsack_value(budget, supply_value_ordered, supply_cost_ordered))) {
+	for (const std::size_t i : std::get < 0 > (knapsack_value(budget, supply_value_ordered, supply_cost_ordered))) {
 		Complexity::add(Complexity::for_inner + 2);
 		res.push_back(supplies_ordered.at(i));
 	}
@@ -501,7 +501,7 @@ void knapsack_supplies(
 
 		Complexity::add(Complexity::for_outer + 2);
 		std::unordered_map<Graph::VertexT, std::vector<std::size_t> > sack_items{};
-		for (const std::size_t ij_idx : std::get<0>(sack)) {
+		for (const std::size_t ij_idx : std::get < 0 > (sack)) {
 			Complexity::add(4 + Complexity::if_ + 1);
 			const std::size_t in_junction_idx = supplies_in_junction.at(ij_idx);
 			if (const Graph::VertexT curr_supply = supplies.at(in_junction_idx);
@@ -578,7 +578,7 @@ void knapsack_supplies(
 		}
 
 		Complexity::add(1 + Complexity::for_outer);
-		for (const std::size_t i : std::get<0>(sack)) {
+		for (const std::size_t i : std::get < 0 > (sack)) {
 			Complexity::add(Complexity::for_inner + 10 + Complexity::braced_init);
 			const std::size_t s_idx = supplies_in_junction.at(i);
 			supplies[s_idx]         = entry;
@@ -658,7 +658,7 @@ void clear_junction_path(
 		std::vector<std::size_t> surviving_supplies{};
 		for (const Graph::VertexT n : wing.get_neighbours(junction_other) | std::views::keys) {
 			Complexity::add(2 + Complexity::braced_init + Complexity::if_ + 2);
-			std::vector new_branch_prevs = {junction_other};
+			std::vector new_branch_backtrack = {junction_other};
 
 			if (const auto branch_res = clear_branch(
 					G,
@@ -666,7 +666,7 @@ void clear_junction_path(
 					junction_other,
 					n,
 					wing,
-					new_branch_prevs,
+					new_branch_backtrack,
 					supplies,
 					supply_weight,
 					supply_value,
@@ -692,16 +692,19 @@ void clear_junction_path(
 					}
 				}
 
-				knapsack_supplies(
-					supplies,
-					supply_weight,
-					supply_value,
-					supplies_in_junction,
-					drone_capacity,
-					entry,
-					curr_backtrack,
-					res
-				);
+				Complexity::add(1 + 1 + Complexity::while_outer + 1);
+				auto res_len = static_cast<long long>(res.size()) - 1;
+				while (res_len >= 0) {
+					Complexity::add(2 + Complexity::if_ + 5);
+					if (const auto& res_back = res.at(res_len);
+						std::get < 1 > (res_back) != 2 || std::get < 0 > (res_back) == entry) {
+						Complexity::add(Complexity::break_);
+						break;
+					}
+					Complexity::add(3);
+					res.pop_back();
+					--res_len;
+				}
 
 				Complexity::add(3 + Complexity::if_);
 				if (const std::size_t supply_count = supplies_in_junction.size();
@@ -709,9 +712,8 @@ void clear_junction_path(
 					Complexity::add(1 + Complexity::for_outer);
 					std::vector<std::size_t> storage{};
 					for (const std::size_t s_idx : supplies_in_junction) {
-						Complexity::add(Complexity::for_inner + 4 + Complexity::braced_init);
+						Complexity::add(Complexity::for_inner + 1);
 						storage.push_back(s_idx);
-						res.emplace_back(junction_other, 3, supply_weight.at(s_idx), supply_value.at(s_idx));
 					}
 
 					Complexity::add(1 + Complexity::for_outer);
@@ -921,13 +923,13 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 		res_len != -1) {
 		Complexity::add(2 + Complexity::if_ + 5);
 		auto res_last = res.at(res_len);
-		if (std::get<0>(res_last) != entry && std::get<1>(res_last) == 2) {
+		if (std::get < 0 > (res_last) != entry && std::get < 1 > (res_last) == 2) {
 			Complexity::add(3 + Complexity::if_ + 3);
-			curr_pos = std::get<0>(res.at(res_len - 1));
+			curr_pos = std::get < 0 > (res.at(res_len - 1));
 
 			if (curr_pos != branch_pos && curr_pos != entry) {
 				Complexity::add(Complexity::while_outer + 3);
-				while (std::get<0>(res_last) == curr_pos) {
+				while (std::get < 0 > (res_last) == curr_pos) {
 					Complexity::add(Complexity::while_inner + 1 + 2 + 2 + Complexity::while_outer + 2);
 					res.pop_back();
 					--res_len;
@@ -936,8 +938,8 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 					for (auto k = static_cast<long long>(candidates.size()) - 1; k >= 0; --k) {
 						Complexity::add(Complexity::while_inner + 1 + Complexity::if_ + 7 + 2);
 						if (const std::size_t s_idx = candidates.at(k);
-							supply_weight.at(s_idx) == std::get<2>(res_last) &&
-							supply_value.at(s_idx) == std::get<3>(res_last)) {
+							supply_weight.at(s_idx) == std::get < 2 > (res_last) &&
+							supply_value.at(s_idx) == std::get < 3 > (res_last)) {
 							Complexity::add(2 + Complexity::break_);
 							storage.push_back(s_idx);
 							candidates.erase(candidates.begin() + k);
@@ -951,23 +953,23 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 				Complexity::add(Complexity::while_outer + 1);
 				while (res_len >= 0) {
 					Complexity::add(Complexity::while_inner + 1 + 2 + Complexity::if_);
-					if (std::get<1>(res_last) == 3) {
+					if (std::get < 1 > (res_last) == 3) {
 						Complexity::add(Complexity::break_);
 						break;
 					}
 					Complexity::add(2 + Complexity::if_);
-					if (std::get<1>(res_last) == 2) {
+					if (std::get < 1 > (res_last) == 2) {
 						Complexity::add(4 + 2 + Complexity::for_outer);
-						auto& candidates = vertex_to_collect.at(std::get<0>(res_last));
+						auto& candidates = vertex_to_collect.at(std::get < 0 > (res_last));
 						res.pop_back();
 						--res_len;
 
 						for (auto k = static_cast<long long>(candidates.size()) - 1; k >= 0; --k) {
 							Complexity::add(Complexity::while_inner + 1 + Complexity::if_ + 7 + 2);
 							if (const std::size_t s_idx = candidates.at(k);
-								supply_weight.at(s_idx) == std::get<2>(res_last) && supply_value.at(s_idx) ==
-								std::get<
-									3>(res_last)) {
+								supply_weight.at(s_idx) == std::get < 2 > (res_last) && supply_value.at(s_idx) ==
+								std::get <
+								3 > (res_last)) {
 								Complexity::add(2 + Complexity::break_);
 								storage.push_back(s_idx);
 								candidates.erase(candidates.begin() + k);
@@ -1148,7 +1150,7 @@ std::vector<std::tuple<Graph::VertexT, std::size_t, std::size_t, std::size_t> > 
 		);
 		for (const auto& i : curr_plan) {
 			Complexity::add(Complexity::for_inner + 3 + Complexity::if_);
-			if (Graph::VertexT curr_pos = std::get<0>(i);
+			if (Graph::VertexT curr_pos = std::get < 0 > (i);
 				curr_pos != prev_pos) {
 				Complexity::add(Complexity::for_outer);
 				for (const Graph::VertexT v : reconstruct_path_to(entry_prev, prev_pos, curr_pos)) {

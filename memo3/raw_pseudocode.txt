@@ -20,6 +20,7 @@ PROCEDURE knapsack_capacity(cap: Integer, val: List[Integer], cost: List[Integer
         END WHILE
     END FOR
 
+    sort(old_res[cap])
     RETURN (old_res[cap], dp[cap])
 END PROCEDURE
 
@@ -52,6 +53,7 @@ PROCEDURE knapsack_value(cap: Integer, val: List[Integer], cost: List[Integer]) 
 
     WHILE total_val >= 1 DO
         IF dp[total_val] <= cap THEN
+            sort(old_res[total_val])
             RETURN (old_res[total_val], dp[total_val])
         END IF
         total_val <- total_val - 1

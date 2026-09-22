@@ -53,6 +53,23 @@ public:
 		return -1;
 	}
 
+	template<typename T>
+	void csort(std::vector<T>& l) const {
+		complexity->add(1 + Complexity::for_outer);
+		const std::size_t n = l.size();
+		for (std::size_t i = 1; i < n; ++i) {
+			complexity->add(Complexity::for_inner + 4 + Complexity::while_outer + 4);
+			T key = l[i];
+			int j = static_cast<int>(i) - 1;
+			for (; j >= 0 && l[j] < key; --j) {
+				complexity->add(Complexity::while_inner + 4 + 6);
+				l[j + 1] = l[j];
+			}
+			complexity->add(2);
+			l[j + 1] = key;
+		}
+	}
+
 	[[nodiscard]] std::vector<Graph::VertexT> reconstruct_path(
 		const std::unordered_map<Graph::VertexT, Graph::VertexT>& prev,
 		Graph::VertexT                                            sink) const;
@@ -71,8 +88,8 @@ public:
 
 	[[nodiscard]] std::size_t get_weight_cost(
 		std::size_t weight,
-		std::size_t drone_capacity,
-		std::size_t path_length) const;
+		std::size_t cap,
+		std::size_t path_len) const;
 
 	[[nodiscard]] std::vector<Graph::VertexT> get_reduced_supplies(
 		const Graph&                                                            g,

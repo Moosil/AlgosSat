@@ -15,13 +15,15 @@ def imports():
     import numpy as np
     import pandas as pd
     import re
+    import scipy
+    import math
 
     plt.rcParams['figure.dpi'] = 300
-    return itertools, mcolors, mo, np, nx, pd, plt, random, re
+    return itertools, math, mcolors, mo, np, nx, pd, plt, random, re, scipy
 
 
 @app.cell
-def global_vars():
+def global_vars(mo, pd):
     # Globals
     _figure_names = []
 
@@ -32,7 +34,11 @@ def global_vars():
             _figure_names.append(figure_name)
             return len(_figure_names)
 
-    return
+    @mo.cache
+    def get_df(path, *args, **kwargs):
+        return pd.read_csv(path, *args, **kwargs)
+
+    return get_df, get_fig
 
 
 @app.cell(hide_code=True)
@@ -834,55 +840,6 @@ def facility_seed_picker(mo):
     return (seed_input,)
 
 
-@app.cell
-def _(mo):
-    music_player = mo.ui.switch(label="Toggle music")
-    music_player
-    return (music_player,)
-
-
-@app.cell
-def _(mo):
-    import os
-    music_selecter = mo.ui.dropdown([file[:-5] for file in os.listdir() if file.endswith(".opus")])
-    music_selecter
-    return (music_selecter,)
-
-
-@app.cell
-def _(mo, music_player, music_selecter):
-    import mutagen
-    from mutagen import oggopus, flac
-    import base64
-
-    def _extract_opus_thumbnail(opus_path):
-        flac_picture_b64 = oggopus.OggOpus(opus_path)["metadata_block_picture"][0]
-        flac_picture_bytes = base64.b64decode(flac_picture_b64)
-        flac_picture = flac.Picture(flac_picture_bytes)
-        raw_picture_b64 = base64.b64encode(flac_picture.data).decode("ascii")
-        return raw_picture_b64, flac_picture.mime
-
-    def _get_html_player(file_name):
-        fp = f"{file_name}.opus"
-        b64, mime = _extract_opus_thumbnail(fp)
-        return mo.vstack([
-            mo.hstack([
-                mo.Html(f"<img src=\"data:{mime};base64, {b64}\" alt=\"{file_name} thumbnail\" width=75px>"),
-                mo.Html(mo.audio(fp).text.replace("controls", "controls autoplay loop"))
-            ], justify="center", align="center"),
-            mo.md(fr"""***now playing: {file_name}***""")
-        ], justify="center", align="center")
-
-    def _get_music():
-        if music_player.value and music_selecter.value:
-            return _get_html_player(music_selecter.value)
-        else:
-            return None
-
-    _get_music()
-    return
-
-
 @app.cell(hide_code=True)
 def title(mo):
     mo.md(r"""
@@ -926,16 +883,27 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.1 Signature specification:
-    $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{List}[\text{SupplyID}] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \times \mathbb{N} \to \text{List}[\text{Vertex}] \times \text{List}[\mathbb{N}]$
-    """)
+    ## 2.1 Main problem instance
+    We have been tasked with creating an algorithm that works for a facility with the following values: $|W| \in [2, 4]$, $|W_E| = 2(|W| - 1)$, $|S| = 50$, $C = 5$, $\delta: S \to [1, 3]$, $p: S \to \mathbb{{N}}$. For other problem instances, the algorithm may solve them, but that has been a side-effort, and incorrectness can be found with lower budgets, supply capacities and supply counts in the facility.
+    """
+          )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ## 2.2 Signature specification:
+            $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{List}[\text{SupplyID}] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \times \mathbb{N} \to \text{List}[\text{Vertex}] \times \text{List}[\mathbb{N}]$
+            """)
     return
 
 
 @app.cell(hide_code=True)
 def output_constraints(mo):
     mo.md(r"""
-    ## 2.2 Output Constraints
+    ## 2.3 Output Constraints
     The algorithm's 3 outputs:
     - $W$, an ordered sequence of vertices (List)
     - $A$, an ordered sequence of 3-tuples of natural numbers (List)
@@ -950,7 +918,7 @@ def output_constraints(mo):
 @app.cell(hide_code=True)
 def _(mo):
     _title = mo.md(fr"""
-    ## 2.3 ADT revisions
+    ## 2.4 ADT revisions
     ### Main revisions:
     - Making more functions inline, which reduces unnecessary copy instructions
     - adding indexed pop/push functions
@@ -1046,7 +1014,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.4 Data model revisions
+    ## 2.5 Data model revisions
     Due to the dropping supplies feature of the revised problem, abstracting 2-degree vertices as weight between 3+ degree vertices loses data. This is because supplies must be dropped on these 2-degree sectors in optimal solutions.
 
     This change causes a redesign, as $|V|$ and $|E|$ are now larger.
@@ -1057,7 +1025,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.5 Revised Algorithm
+    ## 2.6 Revised Algorithm
     the TL;DR of this algorithm is "DFS on $G$, clearing between each non-3-degree vertex recursively, bring back supplies when total weight on backtrack $\geq 5$".
 
     The algorithm first, like the previous algorithm, determines which supplies have already been collected using $F$ and $M$, removing them from $S$. It will then flatten $G$ to a single graph and run Dijkstra's algorithm from $s$. It will find the shortest path to an exit vertex in $X$ and save that cost in a variable. After which it will run a knapsack problem on the supplies' weights and priorities with a budget equal to $B$ minus that exit run distance, with tuned supply costs based on empirical data. It will then, for each supply get which junctions it should go through to reach them.
@@ -1168,7 +1136,7 @@ def _(mo, pseudocode_explorer, re):
 
             big_os = open("memo3/big_os.txt").read()
             t_n_big_o_latex = list(filter(lambda x: name in x, big_os.split('\n')))[0].replace(f"{name}: ", "")
-        
+
             pseudocode = pseudocode_explorer.get_fn_fancy(name, numbered=True)
 
             return mo.md(
@@ -1225,7 +1193,7 @@ def _(mo):
                     range_max = "oops. range_max or df must be filled"
                 super().__init__({self._pretty_name[name]: mo.ui.slider(1 if range_min is None else range_min[name], range_max[name], 1, label=self._pretty_name[name], show_value=True, value=None if initial_values is None else initial_values[name]) for name in variables}, label=label)
             else:
-                super().__init__({self._pretty_name[name]: mo.ui.slider(steps=[int (n) for n in sorted(df[name].unique())], label=self._pretty_name[name], show_value=True, value=None if initial_values is None else initial_values[name]) for name in variables}, label=label)
+                super().__init__({self._pretty_name[name]: mo.ui.slider(steps=[int(n) for n in sorted(df[name].unique())], label=self._pretty_name[name], show_value=True, value=None if initial_values is None else initial_values[name]) for name in variables}, label=label)
 
         def __getitem__(self, name):
             if name in self._pretty_name:
@@ -1251,8 +1219,8 @@ def _(mo):
 
 
 @app.cell
-def _(VariableSetter, mo, pd):
-    _df = pd.read_csv("memo3/data/data_facility.csv")
+def _(VariableSetter, get_df, mo):
+    _df = get_df("memo3/data/data_facility.csv")
 
     _pretty_name = {
         "vertex count": "Vertex count",
@@ -1309,9 +1277,9 @@ def _(
     average_case_partial_growth_rate_colour_picker,
     average_case_partial_growth_rate_explorer,
     average_case_partial_growth_rate_explorer_cbs,
+    get_df,
     mo,
     np,
-    pd,
     plt,
 ):
     _pretty_name = {
@@ -1327,9 +1295,8 @@ def _(
 
     _variables = ["vertex count", "edge count", "wing count", "junction count", "exit count", "supply count", "supply cap"]
 
-    @mo.cache
     def _get_df(names=[]):
-        df = pd.read_csv("memo3/data/data_facility.csv")
+        df = get_df("memo3/data/data_facility.csv")
 
         for n in _variables:
             if n in ["junction count"]:
@@ -1341,15 +1308,14 @@ def _(
             if n in names:
                 continue
 
-            mask = df[n].values == average_case_partial_growth_rate_explorer[n].value
-            df = df[mask]
+            df = df[df[n] == average_case_partial_growth_rate_explorer[n].value]
             if len(df) == 0:
                 print("Empty df")
                 break
 
-        df = df.sample(n=300)
-        return df
+        return df.sample(n=min(300, len(df)))
 
+    @mo.cache
     def _plot(name):
         _fig, _ax = plt.subplots(1, 1, figsize=(12, 6))
         df = _get_df([name])
@@ -1357,7 +1323,7 @@ def _(
             return _fig
 
         if average_case_partial_growth_rate_colour_picker.value is None:
-            _ax.scatter(df[name], df["op_count"], color="#74c7ec", label=_pretty_name[name], alpha=.7)
+            _ax.scatter(df[name], df["op count"], color="#74c7ec", label=_pretty_name[name], alpha=.7)
         else:
             colour_name = [k for k, v in _pretty_name.items() if v == average_case_partial_growth_rate_colour_picker.value][0]
 
@@ -1365,7 +1331,7 @@ def _(
             for m in sorted(df[colour_name].unique()):
                 c_df = df[df[colour_name] == m]
                 if len(c_df) > 0:
-                    _ax.scatter(c_df[name], c_df["op_count"], color=colors[m-1], label=_pretty_name[name], alpha=.7)
+                    _ax.scatter(c_df[name], c_df["op count"], color=colors[m - 1], label=_pretty_name[name], alpha=.7)
 
             sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=max(df[colour_name])))
             axcb = _fig.colorbar(sm, ax=_ax)
@@ -1374,7 +1340,7 @@ def _(
         _ax.set_xlabel(_pretty_name[name], fontsize=14)
         _ax.set_title(f"{_pretty_name[name]} vs Operation count", fontsize=16)
         _ax.set_xlim(0, max(df[name]) * 1.1)
-        _ax.set_ylim(1, max(df["op_count"]) * 1.1)
+        _ax.set_ylim(1, max(df["op count"]) * 1.1)
         _ax.tick_params(axis='x', which='major', labelsize=14)
         _ax.set_ylabel("Operation count", fontsize=14)
 
@@ -1391,15 +1357,87 @@ def _(mo):
     mo.md(r"""
     The new algorithm has a much better, non-exponential average time. It displays low-order polynomial-time with all variables, and the runtime of the algorithm is dominated instead by constant costs.
 
-    For the main problem instance: 50 supplies, 3-5 wings, 5 supply capacity, the algorithm has roughly linear time complexity with its number of wings.
+    For the main problem instance it has low coefficient polynomial time growth with vertices, edges, wings, inter-wing junctions, exits, supply capacity and higher coefficient polynomial time growth with supplies.
     """)
     return
 
 
 @app.cell
-def _(pd):
+def _(np, pd, plt):
+    def _get_flame_graph(df, samples):
+        fig, ax = plt.subplots(figsize=(10, 4))
+
+        for name in df:
+            df[name] /= samples
+
+        max_splits = 0
+        for stack in df:
+            max_splits = max(max_splits, len(stack.split("->")))
+
+        for i in range(max_splits - 1, 1, -1):
+            curr_df = list(filter(lambda x: len(x.split("->")) == i, df))
+            for name in curr_df:
+                parent_name = "->".join(name.split("->")[:-1])
+                df[parent_name] += df[name]
+
+        data_width = df["ember_rescue"].tolist()[0]
+
+        splits = {"ember_rescue": 0}
+
+        def get_bar(ax, name, depth, left, value):
+            bar = ax.barh(depth, value, left=left, ec="#000000", color=cmap(float(depth) / max_splits / 2 + .5), height=1)
+            label = ax.text(data_width * .003 + left, depth, f"{name}: {np.round(value / data_width * 100, 2)}%", ha="left", va="center", clip_on=True)
+            label.set_clip_path(bar[0])
+
+        cmap = plt.get_cmap("inferno")
+        get_bar(ax, "ember_rescue", 1, 0, data_width)
+        for depth in range(2, max_splits):
+            curr_df = list(sorted(filter(lambda x: len(x.split("->")) == depth, df), key=lambda x: df[x].tolist()[0], reverse=True))
+            for name in curr_df:
+                parent_name = "->".join(name.split("->")[:-1])
+                parent_curr_start = splits[parent_name]
+                value = df[name].tolist()[0]
+                splits[name] = parent_curr_start
+                splits[parent_name] += value
+                get_bar(ax, name.split("->")[-1], depth, parent_curr_start, value)
+
+        ax.spines["top"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.yaxis.set_visible(False)
+        ax.set_xlim(0, data_width, auto=True)
+        ax.set_title("Main problem instance flame graph")
+        ax.set_xlabel("Operation (count)")
+        plt.tight_layout()
+        return fig
+
     _df = pd.read_csv("memo3/data/flame_facility_small.csv")
-    _df
+    _get_flame_graph(_df, sum(1 for _ in open("memo3/data/data_facility_small.csv", "rb")))
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo):
+    # TODO move error stuff to error section except first one...
+    mo.md(
+        rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Main problem instance flame graph")}</span>
+
+    Figure {get_fig("Main problem instance flame graph")} shows the call stack of an average run of the algorithm on the main problem instance. 
+
+    The majority of time is spent in `get_reduced_supplies` which reduces the supply set to those the algorithm will definitely be able to collect. This is where most of the error by introducing heuristics can be found: we cannot guess the exact budget cost to pickup a supply is, so we approximate it. To reduce this error, we spend a large amount of time here.
+
+    The `reconstruct_path` call is used to reconstruct entry to supply paths and entry paths, which are used in `get_reduced_supplies` to calculate approximate supply costs, and to reduce the budget to allow for an exit trip, respectively. 
+
+    `get_supply_wing_paths`, the third largest cost in the algorithm, is responsible for deciding which supplies should be collected by paths through which junctions. It allows depth first search to be used when traversing the facility by not allowing CRUDY-1 to pick up supplies if the backtrack path isn't the shortest way to get that supply. This does introduce an error, as the shortest path to a supply may not be the optimal way to collect it.
+
+    `dijkstra_to`, the fourth largest cost connects together the salient instructions returned by `clear_branch`. It uses the tree structure to reconstruct paths in $O(n)$ time, faster than running dijkstra's algorithm repeatedly.
+
+    `flatten_graph`, the fifth largest cost, creates a flat graph for finding least-cost entry to supply and exit paths.
+
+    `clear_branch`, the sixth largest cost, is where the majority of the code lies, and recursively clear branches, acting similar to depth first search. It introduces error in a simplification I decided to make due to the time restriction: if the sum of supply weight on the backtrack path to the previous junction or entry is greater than or equal to CRUDY-1's storage size, it will bring some of those supplies back. In many cases, it may be better to 'juggle' 2 high weight supplies to avoid wasting energy bring a 3 weight supply back by itself.
+    """
+        )
     return
 
 
@@ -1446,16 +1484,118 @@ def _(mo):
 
 
 @app.cell
-def _(pd, plt):
+def _(math, np, pd, plt, scipy):
     _df = pd.read_csv("memo3/data/data_facility_small.csv")
-    plt.hist(_df["budget_used"] / _df["budget"])
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    def _graph(df, ax, budget_percent):
+        df = df[df["budget"] != 0]
+
+        df = df[df["budget percent"] == budget_percent]
+
+        data = df["budget used"] / df["budget"]
+
+        kde = scipy.stats.gaussian_kde(data)
+        xx = np.linspace(data.min(), data.max(), 1000)
+
+        ax.hist(data, density=True, bins=[float(i) / 100 for i in range(math.floor(data.min() * 100), math.ceil(data.max() * 100), 1)], color="#74c7ec")
+
+        return ax.plot(xx, kde(xx), color="#ff4d00")
+
+    _graph(_df, _ax1, 60)
+    _graph(_df, _ax2, 35)
+
+    _fig.tight_layout()
+
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo, np, pd, scipy):
+    def _scientific_latex(n):
+        if n != 0:
+            splits = np.format_float_scientific(n, precision=4).split('e')
+            return splits[0] + r"\mathrm{e}{" + splits[1] + '}'
+        return r"0\ \text{(to 300 decimal places)}"
+
+    def _get_paragraph(df, budget_percent):
+        df = df[df["budget"] != 0]
+        df = df[df["budget percent"] == budget_percent]
+        data = df["budget used"] / df["budget"]
+        p_val = scipy.stats.norm.pdf(1, loc=data.mean(), scale=data.std())
+        return fr"""With $B_{{{budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(B_{{{budget_percent}}} > 1) = {_scientific_latex(p_val)}$ chance of going over budget, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
+
+    _df = pd.read_csv("memo3/data/data_facility_small.csv")
+
+    mo.md(
+        rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Budget bound main")}</span>
+
+    Figure {get_fig("Budget bound main")} shows the used budget as a proportion of budget use in trips found by the algorithm on the main problem instance.
+
+    {_get_paragraph(_df, 60)}
+
+    {_get_paragraph(_df, 35)}
+    """)
     return
 
 
 @app.cell
-def _(pd, plt):
+def _(math, np, pd, plt, scipy):
     _df = pd.read_csv("memo3/data/data_facility_small.csv")
-    plt.hist(_df["value_collected"] / _df["value_total"])
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    def _graph(df, ax, budget_percent):
+        df = df[df["value total"] != 0]
+
+        df = df[df["budget percent"] == budget_percent]
+
+        data = df["value collected"] / df["value total"]
+
+        kde = scipy.stats.gaussian_kde(data)
+        xx = np.linspace(data.min(), data.max(), 1000)
+
+        ax.hist(data, density=True, bins=[float(i) / 100 for i in range(math.floor(data.min() * 100), math.ceil(data.max() * 100), 1)], color="#74c7ec")
+
+        return ax.plot(xx, kde(xx), color="#ff4d00")
+
+    _graph(_df, _ax1, 60)
+    _graph(_df, _ax2, 35)
+
+    _fig.tight_layout()
+
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo, np, pd, scipy):
+    _df = pd.read_csv("memo3/data/data_facility_small.csv")
+
+    def _scientific_latex(n):
+        if n != 0:
+            splits = np.format_float_scientific(n, precision=4).split('e')
+            return splits[0] + r"\mathrm{e}{" + splits[1] + '}'
+        return r"0\ \text{(to 300 decimal places)}"
+
+    def _get_paragraph(df, budget_percent):
+        df = df[df["value total"] != 0]
+        df = df[df["budget percent"] == budget_percent]
+        data = df["value collected"] / df["value total"]
+        p_val = scipy.stats.norm.pdf(budget_percent, loc=data.mean(), scale=data.std())
+        return fr"""With $V_\text{{{budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(V_\text{{{budget_percent}}} < {budget_percent / 100}) \approx {_scientific_latex(p_val)}$ chance of collecting less than the amount of value that the budget was calculated to collect, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
+
+    mo.md(
+        rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Value bound main")}</span>
+
+    Figure {get_fig("Value bound main")} shows the collected value as a proportion of possible-to-collect value in the facility by trips found by the algorithm on the main problem instance. 
+
+    {_get_paragraph(_df, 60)}
+
+    {_get_paragraph(_df, 35)}
+    """)
     return
 
 
@@ -1467,6 +1607,17 @@ def _(mo):
     ## 6.2 Algorithm Guarantees
     graph of budget left using c++impl data
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        rf"""
+    {mo.image("memo3/media/c++impl_flame.png")}
+    When implemented in c++, the algorithm has greater costs in clear_branch, likely due to me treating copying of lists into other lists to be constant time, which it isn't in practise. There are likely also other costs like function call, vector resizing and non-constant costs for each ADT operation which contribute to the predicted operation count being different from the one in the implementation.
+    """
+        )
     return
 
 
@@ -1483,10 +1634,10 @@ def _(mo, pseudocode_explorer, re):
     _dict = {"Full": mo.md(fr"""{pseudocode_explorer.get_lines_fancy(numbered=True)}""")}
 
     for _match in re.finditer("FUNCTION ([^\()]+)", pseudocode_explorer.raw_pseudocode):
-        _dict[_match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(_match.group(1))}""")
+        _dict[_match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(_match.group(1), numbered=True)}""")
 
     for _match in re.finditer("PROCEDURE ([^\()]+)", pseudocode_explorer.raw_pseudocode):
-        _dict[_match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(_match.group(1))}""")
+        _dict[_match.group(1)] = mo.md(fr"""{pseudocode_explorer.get_fn_fancy(_match.group(1), numbered=True)}""")
 
 
     mo.ui.tabs(_dict, value="ember_rescue")

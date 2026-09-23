@@ -207,7 +207,7 @@ PROCEDURE flatten_graph(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]]) -> Gra
 END PROCEDURE
 
 PROCEDURE get_weight_cost(weight: Integer, cap: Integer, path_len: Integer) -> Integer
-    RETURN ((weight + 2) * pow(weight / cap, .35) * pow(2, 0.5 - weight / cap) * pow(2, weight / cap / 2)) * path_len
+    RETURN ceil((1 - pow(weight / cap, 0.45)) * (cap + 2) * weight / cap + pow(weight / cap, 0.45) * (weight + 2) * path_len)
 END PROCEDURE
 
 PROCEDURE get_reduced_supplies(g: Graph, supplies: Set[Vertex], supply_weight: Map[Vertex, Integer], supply_value: Map[Vertex, Integer], entry_path: Map[Vertex, List[Vertex]], budget: Integer, drone_capacity: Integer) -> List[Vertex]

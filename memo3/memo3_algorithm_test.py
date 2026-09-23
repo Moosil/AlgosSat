@@ -303,7 +303,7 @@ def get_runtime(seed: int, trials: int = 1) -> float:
     pr = cProfile.Profile()
     pr.enable()
     for i in range(trials):
-        memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget)
+        memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget, 5)
     pr.disable()
     ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
     return ps.stats[tuple(next(s for s in ps.stats if 'ember_rescue' in s))][3] / trials
@@ -320,7 +320,7 @@ def test_seed(seed: int):
     supply_map = {i: hash(i) for i in facility.supplies}
     budget = facility.budget
 
-    res = memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget)
+    res = memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget, 5)
 
     print(
         '\n'.join(
@@ -355,7 +355,7 @@ def test_facilities():
             supply_map = {i: hash(i) for i in facility.supplies}
             budget = facility.budget
             pr.enable()
-            res = memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget)
+            res = memo3_algorithm.ember_rescue(abs_graph, entry, exits, supplies, masses, values, supply_map, set(), budget, 5)
             pr.disable()
             ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
 

@@ -1,4 +1,5 @@
 import heapq
+import math
 from collections import defaultdict
 
 import networkx as nx
@@ -12,7 +13,7 @@ SupplyID = int
 """https://www.geeksforgeeks.org/dsa/0-1-knapsack-problem-dp-10/#space-optimized-approach-on-x-w-time-and-ow-space"""
 
 
-def knapsack(cap: int, val: list[int], wt: list[int]) -> tuple[list[int], int]:
+def knapsack_capacity(cap: int, val: list[int], wt: list[int]) -> tuple[list[int], int]:
     """
     Solves the 0-1 knapsack problem
     W: capacity
@@ -22,8 +23,7 @@ def knapsack(cap: int, val: list[int], wt: list[int]) -> tuple[list[int], int]:
 
     # Initializing dp list
     dp = [0] * (cap + 1)
-    old_res = [[]] * (cap + 1)
-    new_res = [[]] * (cap + 1)
+    res = [[]] * (cap + 1)
 
     # Taking first i elements
     for i in range(len(wt)):
@@ -34,27 +34,40 @@ def knapsack(cap: int, val: list[int], wt: list[int]) -> tuple[list[int], int]:
             curr = dp[j - wt[i]] + val[i]
             if dp[j] < curr:
                 dp[j] = curr
-                new_res[j] = [i] + old_res[j - wt[i]]
+                res[j] = [i] + res[j - wt[i]]
 
-        old_res = new_res
-
-    return old_res[cap], dp[cap]
+    return list(sorted(res[cap], reverse=True)), dp[cap]
 
 
-# def bin_pack(weights: list[int], cap: int) -> list[list[int]]:
-#     """FFD"""
-#     bins = [[]]
-#     for w in weights:
-#         added = False
-#         for b in bins:
-#             if sum(b) + w <= cap:
-#                 b.append(w)
-#                 added = True
-#         if not added:
-#             bins.append([w])
-#
-#     return bins
+def knapsack_value(cap: int, val: list[int], wt: list[int]) -> tuple[list[int], int]:
+    """
+    Solves the 0-1 knapsack problem
+    W: capacity
+    val: value
+    wt: weight
+    """
 
+    max_val = sum(val)
+
+    # Initializing dp list
+    dp = [0] + [float('inf')] * max_val
+    res = [[]] * (max_val + 1)
+
+    # Taking first i elements
+    for i in range(len(wt)):
+
+        # Starting from back, so that we also have data of
+        # previous computation of i-1 items
+        for j in range(max_val, val[i] - 1, -1):
+            curr = dp[j - val[i]] + wt[i]
+            if dp[j] > curr:
+                dp[j] = curr
+                res[j] = res[j - val[i]] + [i]
+
+    for i in range(max_val, 0, -1):
+        if dp[i] <= cap:
+            return list(sorted(res[i], reverse=True)), dp[i]
+    return [], 0
 
 def get_path_length(g: nx.Graph, path: list[VertexT]) -> int:
     return sum(g.get_edge_data(path[i], path[i + 1])["weight"] for i in range(len(path) - 1))
@@ -175,23 +188,17 @@ def flatten_graph(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]]) -> nx.Grap
 
 def reduce_supplies(
     g, supplies: set[VertexT], supply_weights: dict[VertexT, int], supply_priorities: dict[VertexT, int],
-    entry_paths: dict[VertexT, list[VertexT]], budget: int
+    entry_paths: dict[VertexT, list[VertexT]], budget: int, drone_capacity: int
 ) -> list[VertexT]:
     supply_distances = {v: get_path_length(g, entry_paths[v]) for v in supplies}
     supplies_ordered = list(supplies)
 
-    def get_weight_cost(weight: int) -> int:
-        if weight >= 3:
-            return int(4 * weight + 2 * 3.5)
-        if weight == 2:
-            return int(4 * weight + 2 * 2.5)
-        if weight == 1:
-            return int(4 * weight + 2 * 2.5)
-        raise RuntimeError(f"invalid weight")
+    def get_weight_cost(weight: int, cap: int, path_len: int) -> int:
+        return math.ceil(((1 - pow(weight / cap, 0.45)) * (cap + 2) * weight / cap + pow(weight / cap, 0.45) * (weight + 2)) * path_len)
 
-    ks, tot = knapsack(
-        4 * budget, [supply_priorities[u] for u in supplies_ordered],
-        [get_weight_cost(supply_weights[u]) * supply_distances[u] for u in supplies_ordered]
+    ks, tot = knapsack_value(
+        budget, [supply_priorities[u] for u in supplies_ordered],
+        [get_weight_cost(supply_weights[u], drone_capacity, supply_distances[u]) for u in supplies_ordered]
     )
 
     return [supplies_ordered[i] for i in ks]
@@ -200,7 +207,7 @@ def reduce_supplies(
 def knapsack_supplies(supplies: list[VertexT], supply_weights: list[int], supply_priorities: list[int], supplies_in_junction: list[int], entry: VertexT, prevs: list[VertexT], res: list[tuple | VertexT]) -> None:
     total_weight = sum(supply_weights[s] for s in supplies_in_junction)
     while total_weight >= 5:
-        sack, sack_weight = knapsack(
+        sack, sack_weight = knapsack_capacity(
             5, [supply_weights[i] for i in supplies_in_junction],
             [supply_weights[i] for i in supplies_in_junction]
         )
@@ -499,11 +506,7 @@ def get_supplies_to_collect(
     )
 
 
-def ember_rescue(
-    G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: VertexT, exits: set[VertexT],
-    supplies: set[VertexT], supply_weights: dict[VertexT, int], supply_priorities: dict[VertexT, int],
-    vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID], energy_amount: int
-):
+def ember_rescue(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: VertexT, exits: set[VertexT], supplies: set[VertexT], supply_weights: dict[VertexT, int], supply_priorities: dict[VertexT, int], vertex_to_supply_id: dict[VertexT, SupplyID], found_supply_ids: set[SupplyID], energy_amount: int, drone_capacity):
     supplies = get_supplies_to_collect(supplies, vertex_to_supply_id, found_supply_ids)
 
     flat_G = flatten_graph(G)
@@ -522,7 +525,7 @@ def ember_rescue(
             exit_run_cost = curr_cost
 
     """knapsack problem on the possible runs"""
-    reduced_supplies = reduce_supplies(flat_G, supplies, supply_weights, supply_priorities, entry_paths, energy_amount - exit_run_cost)
+    reduced_supplies = reduce_supplies(flat_G, supplies, supply_weights, supply_priorities, entry_paths, energy_amount - exit_run_cost, drone_capacity)
 
     supply_wing_paths = get_supply_wing_paths(G, reduced_supplies, entry_paths)
 

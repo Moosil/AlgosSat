@@ -320,8 +320,10 @@ std::size_t Drone::get_weight_cost(
 	const auto c = static_cast<float>(cap);
 
 	complexity->pop_stack();
+	const float ratio = w / c;
+	const float ratio_pow = pow(ratio, .45);
 	return static_cast<std::size_t>(ceil((
-		(w + 2.f) * pow(w/c, .35) * pow(2, .5f - w/c) * pow(2, w/c/2)
+		(1 - ratio_pow) * (c + 2) * ratio + ratio_pow * (w + 2)
 	) * static_cast<float>(path_len)));
 }
 

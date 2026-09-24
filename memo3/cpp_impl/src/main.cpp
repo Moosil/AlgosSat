@@ -12,7 +12,7 @@
 std::array<Graph::VertexT, 3> get_vertex_tuple(Graph::VertexT v);
 
 int test_trials_small() {
-	constexpr std::size_t TRIAL_TOTAL = 10000;
+	constexpr std::size_t TRIAL_TOTAL = 40000;
 
 	constexpr std::size_t total{TRIAL_TOTAL * 2};
 
@@ -145,9 +145,9 @@ int test_trials_small() {
 
 int test_trials() {
 	constexpr std::size_t TRIAL_TOTAL     = 5;
-	constexpr std::size_t SUPPLY_TOTAL    = 60;
-	constexpr std::size_t DRONE_CAP_TOTAL = 6;
-	constexpr std::size_t WING_TOTAL      = 5;
+	constexpr std::size_t SUPPLY_TOTAL    = 75;
+	constexpr std::size_t DRONE_CAP_TOTAL = 7;
+	constexpr std::size_t WING_TOTAL      = 6;
 
 	std::size_t total{0};
 	for (int wing_count = WING_TOTAL; wing_count >= 1; --wing_count) {

@@ -152,7 +152,7 @@ int test_trials() {
 	std::size_t total{0};
 	for (int wing_count = WING_TOTAL; wing_count >= 1; --wing_count) {
 		for (int exit_count = wing_count; exit_count >= 1; --exit_count) {
-			total += TRIAL_TOTAL * (SUPPLY_TOTAL + 1) * (DRONE_CAP_TOTAL + 1) * 10;
+			total += TRIAL_TOTAL * (SUPPLY_TOTAL + 1 - 51) * (DRONE_CAP_TOTAL + 1) * 10;
 		}
 	}
 
@@ -171,12 +171,9 @@ int test_trials() {
 	);
 
 	std::vector<std::vector<std::string> > data{static_cast<std::size_t>(omp_get_max_threads())};
-	for (auto& i : data) {
-		i.reserve(total);
-	}
 
-	#pragma omp parallel for
-	for (int supply_count = SUPPLY_TOTAL; supply_count >= 0; --supply_count) {
+	#pragma omp parallel for schedule(guided, 1)
+	for (int supply_count = SUPPLY_TOTAL; supply_count >= 51; --supply_count) {
 		const int thread_number = omp_get_thread_num();
 		auto      complexity    = std::make_shared<Complexity>();
 		auto      drone         = Drone(complexity);

@@ -33,3 +33,11 @@
 .pseudocode-bracket {
     color: var(--ctp-mocha-subtext0);
 }
+
+.katex {
+    font-size: 1.1em !important;
+}
+
+.katex .mtight {
+    font-size: 0.75rem !important
+}

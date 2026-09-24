@@ -316,20 +316,23 @@ PROCEDURE knapsack_supplies(supplies: List[Vertex], supply_weight: List[Integer]
                 collecting_strays <- TRUE
                 FOR EACH s_idx IN sack_items[curr_pos] DO
                     w <- supply_weight[s_idx]
-                    drop_count <- 1
+                    bt_i <- i
                     WHILE total_sack_weight + w > drone_capacity DO
                         del_s_idx <- extra_supplies[length(extra_supplies)]
                         pop_back(extra_supplies)
-                        del_pos <- backtrack[i + drop_count]
+                        del_pos <- backtrack[bt_i]
                         WHILE NOT del_pos = supplies[del_s_idx] AND NOT find(supplies, del_pos, 0) = -1 DO
-                            drop_count <- drop_count + 1
-                            del_pos <- backtrack[i + drop_count]
+                            bt_i <- bt_i + 1
+                            del_pos <- backtrack[bt_i]
                         END WHILE
                         del_w <- supply_weight[del_s_idx]
-                        push_back(res, (del_pos, 2, del_w, supply_value[del_s_idx]))
+                        IF del_pos = supplies[del_s_idx] THEN
+                            pop_at(res, find(res, (del_pos, 3, del_w, supply_value[del_s_idx])))
+                        ELSE
+                            push_back(res, (del_pos, 2, del_w, supply_value[del_s_idx]))
+                            supplies[del_s_idx] <- del_pos
+                        END
                         total_sack_weight <- total_sack_weight - del_w
-                        supplies[del_s_idx] <- del_pos
-                        drop_count <- drop_count + 1
                     END WHILE
 
                     total_sack_weight <- total_sack_weight + w
@@ -418,6 +421,11 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
                     END IF
                 END FOR
 
+                supplies_set <- {}
+                FOR EACH s IN supplies DO
+                    insert(supplies_set, s)
+                END FOR
+
                 bt_i <- length(backtrack)
                 i <- length(branch_res)
                 WHILE i >= 1 DO
@@ -429,6 +437,10 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
                             s_idx <- supplies_in_junction[j]
                             IF supplies[s_idx] = junction_other AND supply_weight[s_idx] = w AND supply_value[s_idx] = v THEN
                                 curr_bt <- backtrack[bt_i]
+                                WHILE bt_i > 1 AND element_of(supplies_set, curr_bt) DO
+                                    bt_i <- bt_i - 1
+                                    curr_bt <- backtrack[bt_i]
+                                END WHILE
                                 supplies[bt_i] <- curr_bt
                                 supplies_in_junction.pop_at(i)
                                 surviving_supplies.push_back(s_idx)
@@ -562,8 +574,8 @@ PROCEDURE clear_branch(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], entry: 
                             END IF
                             k <- k - 1
                         END WHILE
+                        res_last <- res[res_len]
                     END IF
-                    res_last <- res[res_len]
                 END WHILE
             END IF
         END IF

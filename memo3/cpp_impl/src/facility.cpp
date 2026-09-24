@@ -5,6 +5,8 @@
 #include <print>
 #include <ranges>
 
+#include "ember_rescue.h"
+
 Facility::Facility(
 	const int         seed,
 	const std::size_t wing_count,
@@ -214,7 +216,7 @@ Facility::get_plan_data(
 		while (i < plan.size()) {
 			const auto& curr                            = plan[i];
 			const auto& [curr_loc, ins, curr_w, curr_v] = curr;
-			if (ins == 3) {
+			if (ins == Drone::PICKUP) {
 				bool added = false;
 				for (std::size_t s_idx = 0; s_idx < supplies.size(); ++s_idx) {
 					if (weight.at(supplies_ordered.at(s_idx)) == curr_w && value.at(supplies_ordered.at(s_idx)) ==
@@ -226,7 +228,7 @@ Facility::get_plan_data(
 					}
 				}
 				assert(added);
-			} else if (ins == 2) {
+			} else if (ins == Drone::DROP) {
 				bool added = false;
 				for (std::size_t j = 0; j < curr_supplies.size(); ++j) {
 					if (const std::size_t s_idx = curr_supplies[j];

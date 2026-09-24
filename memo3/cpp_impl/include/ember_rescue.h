@@ -13,6 +13,10 @@ public:
 
 	using Facility_ADT = std::pair<std::vector<Graph>, std::set<std::pair<Graph::VertexT, Graph::VertexT> > >;
 
+	static constexpr std::size_t MOVE   = 1;
+	static constexpr std::size_t DROP   = 2;
+	static constexpr std::size_t PICKUP = 3;
+
 	explicit Drone(const std::shared_ptr<Complexity>& complexity):
 		complexity{complexity} {}
 
@@ -59,8 +63,8 @@ public:
 		const std::size_t n = l.size();
 		for (std::size_t i = 1; i < n; ++i) {
 			complexity->add(Complexity::for_inner + 4 + Complexity::while_outer + 4);
-			T key = l[i];
-			int j = static_cast<int>(i) - 1;
+			T   key = l[i];
+			int j   = static_cast<int>(i) - 1;
 			for (; j >= 0 && l[j] < key; --j) {
 				complexity->add(Complexity::while_inner + 4 + 6);
 				l[j + 1] = l[j];

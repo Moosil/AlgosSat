@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.24.2"
+__generated_with = "0.25.0"
 app = marimo.App(width="medium", app_title="Memo3", css_file="../custom.css")
 
 
@@ -100,19 +100,20 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
             next_append = False
             if plan and len(plan) > 0:
                 i = 0
-                curr_loc = self.entry
+                prev_loc = self.entry
                 curr_supplies = []
                 while i < len(plan):
                     curr = plan[i]
-                    if curr[0] == -2:
-                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2] and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
+                    curr_loc, ins, curr_w, curr_v = curr
+                    if ins == "pickup":
+                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr_w and self.values[self.supplies[x]] == curr_v and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
                         curr_supplies.append(supply_index)
-                    elif curr[0] == -1:
-                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2], curr_supplies))[-1]
+                    elif ins == "drop":
+                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr_w and self.values[self.supplies[x]] == curr_v, curr_supplies))[-1]
                         curr_supplies.remove(supply_index)
                         trip_move_supplies[-1][supply_index] = curr_loc
                         curr_supply_locations[supply_index] = curr_loc
-                    else:
+                    if prev_loc != curr_loc:
                         if next_append:
                             trip_supplies.append(set(self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry).difference(s for trip_s in trip_supplies for s in trip_s))
                             trip_move_supplies.append({})
@@ -120,8 +121,8 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                             next_append = False
 
                         mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
-                        total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
-                        curr_loc = curr
+                        total_energy_cost += (1 + mass_total) * self.G.get_edge_data(prev_loc, curr_loc)["weight"]
+                        prev_loc = curr_loc
 
                         if curr == self.entry or i == len(plan) - 1:
                             # number the trip at its first collection point
@@ -434,7 +435,7 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
             if plan and len(plan) > 0:
                 i = 0
                 curr_supply_locations = self.supplies.copy()
-                curr_loc = self.entry
+                prev_loc = self.entry
                 curr_trip = []
                 total_energy_cost = 0
                 curr_supplies = []
@@ -443,21 +444,22 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                 supplies_collected, _, _, _ = self.get_plan_info(plan)
                 while i < len(plan):
                     curr = plan[i]
+                    curr_loc, ins, curr_w, curr_v = curr
                     trip_of[curr] = col
-                    if curr[0] == -2:
-                        index = curr_supply_locations.index(curr_loc)
-                        while index in curr_supplies:
-                            index = curr_supply_locations.index(curr_loc, index + 1)
-                        curr_supplies.append(index)
+                    if ins == "pickup":
+                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr_w and self.values[self.supplies[x]] == curr_v and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
+                        curr_supplies.append(supply_index)
                         if trip_first_supply is None:
                             trip_first_supply = curr_loc
-                    elif curr[0] == -1:
-                        curr_supply_locations[curr_supplies.pop()] = curr_loc
-                    else:
+                    elif ins == "drop":
+                        supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr_w and self.values[self.supplies[x]] == curr_v, curr_supplies))[-1]
+                        curr_supplies.remove(supply_index)
+                        curr_supply_locations[supply_index] = curr_loc
+                    if prev_loc != curr_loc:
                         mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
-                        total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
-                        xs = [xoff(n[0]) + n[1] + 0.5 for n in [curr_loc, curr]]
-                        ys = [n[2] + 0.5 for n in [curr_loc, curr]]
+                        total_energy_cost += (1 + mass_total) * self.G.get_edge_data(prev_loc, curr_loc)["weight"]
+                        xs = [xoff(n[0]) + n[1] + 0.5 for n in [prev_loc, curr_loc]]
+                        ys = [n[2] + 0.5 for n in [prev_loc, curr_loc]]
                         # white underlay keeps overlapping routes legible
                         if highlight_trip is None or highlight_trip == trip_count:
                             ax.plot(
@@ -468,10 +470,10 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
                                 xs, ys, color=col, lw=3.6, alpha=0.95, zorder=7,
                                 solid_capstyle='round'
                             )
-                        curr_loc = curr
-                        curr_trip.append(curr)
+                        prev_loc = curr_loc
+                        curr_trip.append(curr_loc)
 
-                    if curr == self.entry:
+                    if curr_loc == self.entry:
                         # number the trip at its first collection point
 
                         if trip_first_supply is not None and (highlight_trip is None or highlight_trip == trip_count):
@@ -742,14 +744,16 @@ def _(mo, np, re):
             for command in ["PROCEDURE", "FUNCTION", "WHILE", "FOR", "IF"]:
                 res = re.sub(f"END {command}", f"<span class='pseudocode-command'>END {command}</span>", res)
 
-            for command in ["AND", "OR", "NOT", "RAISE", "DO", "THEN", "IN", "TO", "RETURN"]:
+            for command in ["AND", "OR", "NOT", "RAISE", "DO", "THEN", "IN", "TO", "RETURN", "BREAK", "TRUE", "FALSE"]:
                 res = re.sub(fr"(?:(?<=\s)|(?<=&#9;)|(?<=\<br\>)){command}(?:(?=\s)|(?=&#9;)|(?=\<br\>))", f"<span class='pseudocode-command'>{command}</span>", res)
 
             for operator in [r"<-", "=", ">", "<", "<=", ">=", "+", "-"]:
                 res = re.sub(fr"(?<= ){operator}(?= )", f"<span class='pseudocode-op'>{operator}</span>", res)
 
-            res = re.sub(r"∅", "<span class='pseudocode-bracket'>∅</span>", res)
-            for bracket in ["[", "]", "(", ")"]:
+            for item in ["∞"]:
+                res = res.replace(str(item), f"<span class='pseudocode-bracket'>{item}</span>")
+
+            for bracket in ["[", "]", "(", ")", "{", "}"]:
                 res = re.sub(fr"\{bracket}", f"<span class='pseudocode-bracket'>{bracket}</span>", res)
 
             def find_all(p_str: str, find_str: str, func) -> str:
@@ -777,16 +781,15 @@ def _(mo, np, re):
                 param_names = [s for s in first_line.split(':')]
                 param_names = [param_names[0]] + [s.split(', ')[-1] for s in param_names[1:-1]]
 
-                end = p_str.find(f"END {find_str}", i + len(find_str))
-                if end == -1:
+                line_end = p_str.find(f"END {find_str}", i + len(find_str))
+                if line_end == -1:
                     return p_str
-                substr = p_str[i:end]
+                substr = p_str[i:line_end]
                 substr = syntax_highlight_name(substr, param_names, "pseudocode-param")
-                return p_str[:i] + substr + p_str[end:]
+                return p_str[:i] + substr + p_str[line_end:]
 
             adt_operators = [
-                "get_vertices", "get_edges", "add_vertex", "add_edge", "remove_vertex", "remove_edge", "get_neighbours", "has_edge", "get_vertices", "set_edge_weight", "get_edge_weight", "union", "intersection", "difference", 'symmetric_difference', "size", 'element_of', "strict_subset_of", "subset_of", "are_equal", "size", "has", "at", "remove", "set", "get_keys", "push", "pop", "get", "set", "get", "length",
-                "enqueue", "update_priority"
+                "get_vertices", "get_edges", "add_vertex", "add_edge", "remove_vertex", "remove_edge", "get_neighbours", "has_edge", "get_vertices", "set_edge_weight", "get_edge_weight", "union", "intersection", "difference", 'symmetric_difference', "size", 'element_of', "strict_subset_of", "subset_of", "are_equal", "size", "has", "at", "remove", "set", "get_keys", "insert", "pop_at", "get", "set", "get", "length", "push_back", "pop_back", "enqueue", "update_priority", "extract_min"
             ]
 
             res = syntax_highlight_name(res, list(set(adt_operators)) + ["List", "Array", "Set", "Map", "Graph", "Tuple", "Priority Queue", "Positive Integer", "Integer", "Real"], "pseudocode-atomic")
@@ -804,7 +807,7 @@ def _(mo, np, re):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def title(mo):
     mo.md(r"""
     # Memo 3
     """)
@@ -838,14 +841,6 @@ def facility_seed_picker(mo):
     )
     seed_input
     return (seed_input,)
-
-
-@app.cell(hide_code=True)
-def title(mo):
-    mo.md(r"""
-    # Memo 3
-    """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -884,7 +879,7 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     ## 2.1 Main problem instance
-    We have been tasked with creating an algorithm that works for a facility with the following values: $|W| \in [2, 4]$, $|W_E| = 2(|W| - 1)$, $|S| = 50$, $C = 5$, $\delta: S \to [1, 3]$, $p: S \to \mathbb{{N}}$. For other problem instances, the algorithm may solve them, but that has been a side-effort, and incorrectness can be found with lower budgets, supply capacities and supply counts in the facility.
+    We have been tasked with creating an algorithm that works for a facility with the following values: $|V_w| \in [2, 4]$, $|E_w| = 2(|V_w| - 1)$, $|S| = 50$, $C = 5$, $\delta: S \to [1, 3]$, $p: S \to \mathbb{{N}}$. For other problem instances, the algorithm may solve them, but that has been a side-effort, and incorrectness can be found with lower budgets, supply capacities and supply counts in the facility.
     """
           )
     return
@@ -943,6 +938,8 @@ def _(mo):
     - $\text{get\_vertices}: \text{Graph} \to \text{Set}[\text{Vertex}]$
     - $\text{set\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex} \times \mathbb{Z}^+ \cup \{0\} \to \text{None}$
     - $\text{get\_edge\_weight}: \text{Graph} \times \text{Vertex} \times \text{Vertex}) \to \mathbb{Z}^+ \cup \{0\}$
+
+    `new Graph` is used to construct an empty graph.
     """)
 
     _set_md = mo.md(r"""
@@ -968,6 +965,7 @@ def _(mo):
     - $\text{set}: \text{Map} \times \text{Key} \times \text{Value} \to \text{None}$
     - $\text{get\_keys}: \text{Map} \to \text{Set}[\text{Key}]$
 
+    `new Map` is used to construct an empty map.
     `foo[x]` is used as a shorthand for `at(foo, x)`.
     `foo[x] <- y` is used as a shorthand for `set(foo, x, y)`.
     """)
@@ -980,13 +978,15 @@ def _(mo):
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+ \cup \{0\}$
 
-    `foo[i]` is used as a shorthand for `get(foo, i)`.
     `[x_1, x_2, ..., x_n]` is used to construct a list containing, in order, `x_1, x_2, ..., x_n`.
+    `foo[i]` is used as a shorthand for `get(foo, i)`.
     """)
 
     _tuple_md = mo.md(r"""
     - $\text{get}: \text{List} \times \mathbb{Z}^+ \to \text{Item}$
     - $\text{length}:\text{List} \to \mathbb{Z}^+$
+
+    `(x_1, x_2, ..., x_n)` is used to construct a `n`-tuple containing, in order, `x_1, x_2, ..., x_n`.
     """)
 
     _pq_md = mo.md(r"""
@@ -995,7 +995,7 @@ def _(mo):
     - $\text{update\_priority}: \text{Priority Queue} \times \text{Item} \times \mathbb{R} \to \text{None}$
     - $\text{length}:\text{Priority Queue} \to \mathbb{Z}^+$
 
-    `(x_1, x_2, ..., x_n)` is used to construct a `n`-tuple containing, in order, `x_1, x_2, ..., x_n`.
+    `new Priority Queue` is used to contruct an empty priority queue.
     """)
 
     mo.vstack([
@@ -1109,19 +1109,31 @@ def _(mo, pseudocode_explorer, re):
                 case "find":
                     return r"""linear search at worst searches through the entire list with the for loop (1)."""
                 case "flatten_graph":
-                    return r"""The nest for loops (2) (3) (6) are amortised to each vertex and edge on the graph, giving $|V|$ and $|E|$ iterations respecitvely. The for loops are started $|W|$ times. The final for loop (10) runs $|J|$ times."""
+                    return r"""The nest for loops (2) (3) (6) are amortised to each vertex and edge on the graph, giving $|V|$ and $|E|$ iterations respecitvely. The for loops are started $|V_w|$ times. The final for loop (10) runs $|E_w|$ times."""
                 case "get_weight_cost":
                     return r"""no loops or anything"""
                 case "get_reduced_supplies":
                     return r"""The main cost is in the call to `knapsack_value`. The maximum value is in $O(n C)$ where $C$ is the drone weight capacity, giving $O(n \times n C)$."""
                 case "get_other_junction":
-                    return r"""Checks each junction in for loop (1), totaling $|J|$ times."""
+                    return r"""Checks each junction in for loop (1), totaling $|E_w|$ times."""
                 case "get_supplies_to_collect":
                     return r"""Checks each supply in for loop (2), totaling $|S|$ times."""
                 case "get_supply_wing_paths":
                     return r"""Adds each junction to set in for loop (2). Then it does, for each supply, looks through the path between it and the entrance. This path has a maximal length of $|V|$, giving $|V| \times |S|$ iterations."""
                 case "knapsack_supplies":
-                    return r""""""
+                    return r"""The outer while loop (6) runs at most $C$ times, as it will remove 1 supply from the facility each time. It then calls `knapsack_capacity` (11) which runs in $O(|S| C)$. The backtracking while loop (27) can run for each vertex in the facility if that is the full backtrack. The for loop (31) can run up to $C$ times, as the knapsack can hold at most $C$ items, given their weight is in $\mathbb{Z}^+$. The while loop inside (34) can run at most $C$ times for the same reason: it removes at least 1 weight from a value that can be at most $C$ each loop till it's at lowest 0. The while loop (38) can run up to $|V| - 1$ times for a full backtrack."""
+                case "clear_junction_path":
+                    return r"""since `clear_junction_path` and `clear_branch` both call each other recursively, their complexity classes are the same. The $|E|$ cost can be attributed to the for loop (34) running at most $|E|$ times if each edge connects two junctions. The inner for loops amortise to costs smaller than other terms, as the length of the return value is bound in $2|V| (|S| + 2)$ in the worst case where it brings back each supply to the entrances then goes to get that supply and repeats."""
+                case "clear_branch":
+                    return r"""<div>Since `clear_junction_path` and `clear_branch` both call each other recursively, their complexity classes are the same. From the `clear_branch` procedure, two of the main 3 terms can be found:
+                    <ul>
+                    <li>$|S| C (|S| C + C^2 |V|^2)$ can be attributed to calling knapsack_supplies and it sucessfully running past the if conditional at most $|S|$ times as it can happen at most once for each supply.</li>
+                    <li>$|V| |V_E| (|S|^2 + |V| + |C|)$ can  be attributed to amortisation of the recursive calls. Since the facility's wings are trees, vertex in the facility has 1 path of junctions which it is optimally traversed through. This optimal path can traverse through at most $|E_w|$ junctions, each searching at most $|V|$ vertices.
+                      <ul><li>Each run of the procedure will backtrack at most $|V|$ vertices. The check inside for supplies amortises to $|S|$ checks.</li>
+                      <li>The double nested while loop (74) (80) backtracking through `res`. The inner loop amortises to $|S|$, as it can only be called $|S|$ times because it's checking for supplies in the current vertex.</li>
+                      <li>he double nested while loop below (92) (101) has the outer running $C$ times at most for dropping at most $C$ 1-weight supplies (given supply weights $\in \mathbb{N}$), while the inner loop amortises to $|S|$ runnings for the same reason as the previous part.</li></ul></li></ul></div>"""
+                case "ember_rescue":
+                    return r"""The $|X| |V|$ cost can be attributed to finding length of paths to each exit (12 - 19). The $|V|^3$ cost is from reconstructing the paths between at most $|V| |S|$ vertices (44, 54), in the worst case where CRUDY-1 collects each supply one at a time. The rest of the cost is from the `clear_branch` call (41) which is amortised on each vertex (hence it's not $|V| \times$ that cost)."""
 
         @classmethod
         def get_function(cls, name: str):
@@ -1348,7 +1360,7 @@ def _(
         _fig.tight_layout()
         return _fig
 
-    average_case_partial_growth_tabs = mo.ui.tabs({_pretty_name[name]: _plot(name) for name in _variables})
+    average_case_partial_growth_tabs = mo.ui.tabs({_pretty_name[name]: mo.lazy(_plot(name), show_loading_indicator=True) for name in _variables})
     average_case_partial_growth_tabs
     return
 
@@ -1807,7 +1819,7 @@ def _(get_fig, mo, np, pd, scipy):
         df = df[df["budget percent"] == budget_percent]
         data = df["budget used"] / df["budget"]
         p_val = scipy.stats.norm.pdf(1, loc=data.mean(), scale=data.std())
-        return fr"""With $B_{{{budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(B_{{{budget_percent}}} > 1) = {_scientific_latex(p_val)}$ chance of going over budget, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
+        return fr"""With $B_{{\small {budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(B_{{\small {budget_percent}}} > 1) = {_scientific_latex(p_val)}$ chance of going over budget, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
 
     _df = pd.read_csv("memo3/data/data_facility_small.csv")
 
@@ -1867,7 +1879,7 @@ def _(get_fig, mo, np, pd, scipy):
         df = df[df["budget percent"] == budget_percent]
         data = df["value collected"] / df["value total"]
         p_val = scipy.stats.norm.pdf(budget_percent, loc=data.mean(), scale=data.std())
-        return fr"""With $V_\text{{{budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(V_\text{{{budget_percent}}} < {budget_percent / 100}) \approx {_scientific_latex(p_val)}$ chance of collecting less than the amount of value that the budget was calculated to collect, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
+        return fr"""With $V_{{\small {budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(V_{{\small {budget_percent}}} < {budget_percent / 100}) \approx {_scientific_latex(p_val)}$ chance of collecting less than the amount of value that the budget was calculated to collect, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
 
     mo.md(
         rf"""
@@ -2096,11 +2108,11 @@ def algorithm_explorer_controls_and_info(
                     ), show_loading_indicator=True),
                     mo.lazy(mo.stat(
                         label="Ends at exit",
-                        value="✅ Yes" if _path[-1] in _exits else "❌ No"
+                        value="✅ Yes" if _path[-1][0] in _exits else "❌ No"
                     ), show_loading_indicator=True),
                     mo.lazy(mo.stat(
                         label="All moves valid",
-                        value="✅ Yes" if all(_has_edge(_path[i], _path[i + 1]) for i in range(path_len.value - 1) if _path[i][0] >= 0 and _path[i + 1][0] >= 0) else "❌ No"
+                        value="✅ Yes" if all(_has_edge(_path[i][0], _path[i + 1][0]) for i in range(path_len.value - 1) if _path[i][0] != _path[i + 1][0]) else "❌ No"
                     ), show_loading_indicator=True)
                 ], gap=1, wrap=True
             ),

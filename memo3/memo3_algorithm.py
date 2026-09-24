@@ -103,6 +103,28 @@ def dfs(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
     return prev
 
 
+def reconstruct_path_to(prev: dict[VertexT, VertexT | None], source: VertexT, sink: VertexT) -> list[VertexT]:
+    left_path = [source]
+    right_path = [sink]
+    left = source
+    right = sink
+    while True:
+        if prev[left] is not None:
+            left = prev[left]
+            left_path.append(left)
+
+        if prev[right] is not None:
+            right = prev[right]
+            right_path.append(right)
+
+        if right in left_path:
+            right_index = left_path.index(right)
+            return left_path[:right_index] + list(reversed(right_path))
+
+        if left in right_path:
+            left_index = right_path.index(left)
+            return left_path + list(reversed(right_path[:left_index]))
+
 def reconstruct_path(came_from: dict[VertexT, VertexT | None], e: VertexT) -> list[VertexT]:
     res = []
     curr = e
@@ -142,38 +164,6 @@ def dijkstra(g: nx.Graph, source: VertexT) -> dict[VertexT, VertexT | None]:
     return prev
 
 
-def dijkstra_to(g: nx.Graph, source: VertexT, sink: VertexT) -> list[VertexT]:
-    dist = {s: float('infinity') for s in g}
-
-    dist[source] = 0
-
-    # visited set replaced update(PQ, v)
-    visited = set()
-
-    prev: dict[VertexT, VertexT | None] = {source: None}
-    pq = [(0., source)]
-    heapq.heapify(pq)
-    while len(pq) > 0:
-        _, u = heapq.heappop(pq)
-
-        if u == sink:
-            return reconstruct_path(prev, sink)
-
-        # required for the python heapq that doesn't allow changing priority
-        if u in visited:
-            continue
-        visited.add(u)
-
-        for v in g.neighbors(u):
-            w = g.get_edge_data(u, v)["weight"]
-            if dist[u] + w < dist[v]:
-                prev[v] = u
-                dist[v] = dist[u] + w
-                heapq.heappush(pq, (dist[v], v))
-
-    raise RuntimeError("bro how tf did it get here")
-
-
 def flatten_graph(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]]) -> nx.Graph:
     res = nx.Graph()
     for wing in G[0]:
@@ -191,7 +181,7 @@ def reduce_supplies(
     entry_paths: dict[VertexT, list[VertexT]], budget: int, drone_capacity: int
 ) -> list[VertexT]:
     supply_distances = {v: get_path_length(g, entry_paths[v]) for v in supplies}
-    supplies_ordered = list(supplies)
+    supplies_ordered = list(s for s in supplies if supply_weights[s] <= drone_capacity)
 
     def get_weight_cost(weight: int, cap: int, path_len: int) -> int:
         return math.ceil(((1 - pow(weight / cap, 0.45)) * (cap + 2) * weight / cap + pow(weight / cap, 0.45) * (weight + 2)) * path_len)
@@ -204,11 +194,11 @@ def reduce_supplies(
     return [supplies_ordered[i] for i in ks]
 
 
-def knapsack_supplies(supplies: list[VertexT], supply_weights: list[int], supply_priorities: list[int], supplies_in_junction: list[int], entry: VertexT, prevs: list[VertexT], res: list[tuple | VertexT]) -> None:
+def knapsack_supplies(supplies: list[VertexT], supply_weights: list[int], supply_priorities: list[int], supplies_in_junction: list[int], entry: VertexT, drone_cap: int, prevs: list[VertexT], res: list[tuple | VertexT]) -> None:
     total_weight = sum(supply_weights[s] for s in supplies_in_junction)
-    while total_weight >= 5:
+    while total_weight > drone_cap:
         sack, sack_weight = knapsack_capacity(
-            5, [supply_weights[i] for i in supplies_in_junction],
+            drone_cap, [supply_weights[i] for i in supplies_in_junction],
             [supply_weights[i] for i in supplies_in_junction]
         )
 
@@ -225,40 +215,46 @@ def knapsack_supplies(supplies: list[VertexT], supply_weights: list[int], supply
                 collecting_strays = True
                 for supply_index in sack_items[curr_pos]:
                     curr_w = supply_weights[supply_index]
-                    drop_count = 1
-                    while curr_sack_weight + curr_w > 5:
-                        del_supply_index = curr_extra_supplies.pop()
-                        del_pos = prevs[i + drop_count]
-                        res.append(del_pos)
-                        res.append((-1, supply_weights[del_supply_index], supply_priorities[del_supply_index]))
-                        curr_sack_weight -= supply_weights[del_supply_index]
-                        supplies[del_supply_index] = del_pos
-                        drop_count += 1
+                    while curr_sack_weight + curr_w > drone_cap:
+                        del_s_idx = curr_extra_supplies.pop()
+                        bt_i = i
+                        del_pos = prevs[bt_i]
+                        while del_pos != supplies[del_s_idx] and del_pos in supplies:
+                            bt_i += 1
+                            del_pos = prevs[bt_i]
+                        if del_pos == supplies[del_s_idx]:
+                            res.remove((del_pos, "pickup", supply_weights[del_s_idx], supply_priorities[del_s_idx]))
+                            curr_sack_weight -= supply_weights[del_s_idx]
+                        else:
+                            res.append((del_pos, "drop", supply_weights[del_s_idx], supply_priorities[del_s_idx]))
+                            curr_sack_weight -= supply_weights[del_s_idx]
+                            supplies[del_s_idx] = del_pos
 
                     curr_sack_weight += curr_w
-                    res.append(curr_pos)
-                    res.append((-2, supply_weights[supply_index], supply_priorities[supply_index]))
-            elif collecting_strays and curr_pos in supplies and supplies.index(curr_pos) in supplies_in_junction:
-                supply_index = supplies.index(curr_pos)
-                curr_weight = supply_weights[supply_index]
-                if curr_sack_weight + curr_weight <= 5:
-                    curr_sack_weight += curr_weight
-                    res.append(curr_pos)
-                    res.append((-2, supply_weights[supply_index], supply_priorities[supply_index]))
-                    curr_extra_supplies.append(supply_index)
+                    res.append((curr_pos, "pickup", supply_weights[supply_index], supply_priorities[supply_index]))
+            elif collecting_strays:
+                supply_index = -1
+                while curr_pos in supplies[supply_index + 1:] and supplies.index(curr_pos, supply_index + 1) in supplies_in_junction:
+                    supply_index = supplies.index(curr_pos, supply_index + 1)
+                    curr_weight = supply_weights[supply_index]
+                    if curr_sack_weight + curr_weight <= drone_cap:
+                        curr_sack_weight += curr_weight
+                        if curr_pos == (2, 1, 9):
+                            pass
+                        res.append((curr_pos, "pickup", supply_weights[supply_index], supply_priorities[supply_index]))
+                        curr_extra_supplies.append(supply_index)
 
-        res.append(entry)
         for i in sack:
             s = supplies_in_junction[i]
             # order matters
             supplies[s] = (0, -1, -1)
             supplies_in_junction.pop(i)
             total_weight -= supply_weights[s]
-            res.append((-1, supply_weights[s], supply_priorities[s]))
+            res.append((entry, "drop", supply_weights[s], supply_priorities[s]))
         for s in curr_extra_supplies:
             supplies[s] = (0, -1, -1)
             total_weight -= supply_weights[s]
-            res.append((-1, supply_weights[s], supply_priorities[s]))
+            res.append((entry, "drop", supply_weights[s], supply_priorities[s]))
 
 
 def get_curr_pos(res, orig):
@@ -268,7 +264,7 @@ def get_curr_pos(res, orig):
     return orig
 
 
-def clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, prevs, inter_wing_path, supply_paths, curr, res):
+def clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, prevs, inter_wing_path, supply_paths, curr, res, drone_cap):
     junction_other = None
     for j in G[1]:
         if curr == j[0]:
@@ -287,55 +283,41 @@ def clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, p
                 break
 
         if worth_doing:
-            res.append(curr)
+            res.append((curr, "move", 0, 0))
+            res.append((junction_other, "move", 0, 0))
             n_wing = get_which_wing(G, junction_other)
             surviving_supplies = []
             for n in n_wing.neighbors(junction_other):
                 new_branch_prevs = [junction_other]
-                branch_res = clear_branch(G, entry, junction_other, n, n_wing, new_branch_prevs, supply_paths, supply_weights, supply_priorities, supplies, new_inter_wing_path)
+                branch_res = clear_branch(G, entry, junction_other, n, n_wing, new_branch_prevs, supply_paths, supply_weights, supply_priorities, supplies, new_inter_wing_path, drone_cap)
                 if len(branch_res) > 0:
-                    res.append(junction_other)
+
+                    supplies_in_junction = [s for s in supply_paths[new_inter_wing_path] if supplies[s] == junction_other]
+
+                    bt_i = len(prevs) - 1
+                    for i in range(len(branch_res) - 1, -1, -1):
+                        instruction = branch_res[i]
+                        if instruction[0] == junction_other and instruction[1] == "drop":
+                            w = instruction[2]
+                            v = instruction[3]
+                            for s_idx_i in range(len(supplies_in_junction)):
+                                s_idx = supplies_in_junction[s_idx_i]
+                                if supplies[s_idx] == junction_other and supply_weights[s_idx] == w and supply_priorities[s_idx] == v:
+                                    curr_bt = prevs[bt_i]
+                                    while bt_i > 0 and curr_bt in supplies:
+                                        bt_i -= 1
+                                        curr_bt = prevs[bt_i]
+                                    supplies[s_idx] = curr_bt
+                                    surviving_supplies.append(s_idx)
+                                    supplies_in_junction.remove(s_idx)
+                                    bt_i = max(0, bt_i - 1)
+                                    branch_res[i] = (curr_bt, instruction[1], w, v)
+                                    break
+
+
                     res += branch_res
 
-                    supplies_in_junction = [s for s in supply_paths[new_inter_wing_path] if
-                                            supplies[s] is not None and supplies[s] == junction_other]
-
-                    knapsack_supplies(supplies, supply_weights, supply_priorities, supplies_in_junction, entry, prevs + [junction_other], res)
-
-                    if len(supplies_in_junction) > 0:
-                        storage = []
-                        for s in supplies_in_junction:
-                            storage.append(s)
-                            res.append(junction_other)
-                            res.append((-2, supply_weights[s], supply_priorities[s]))
-
-                        i = len(prevs) - 1
-                        while i >= 0 and len(storage) > 0:
-                            if prevs[i] not in supplies:
-                                supply_index = storage.pop()
-                                supplies[supply_index] = prevs[i]
-                                res.append(prevs[i])
-                                surviving_supplies.append(supply_index)
-                                res.append((-1, supply_weights[supply_index], supply_priorities[supply_index]))
-                                if len(storage) == 0:
-                                    break
-                            i -= 1
-
-                        if i == -1 and len(storage) != 0:
-                            c_prevs = prevs[0]
-                            res.append(c_prevs)
-                            while len(storage) > 0:
-                                supply_index = storage.pop()
-                                if c_prevs == entry:
-                                    supplies[supply_index] = None
-                                else:
-                                    supplies[supply_index] = c_prevs
-                                res.append((-1, supply_weights[supply_index], supply_priorities[supply_index]))
-
-                    if len(supplies_in_junction) > 1:
-                        res.append(curr)
-
-            knapsack_supplies(supplies, supply_weights, supply_priorities, surviving_supplies, entry, prevs, res)
+            knapsack_supplies(supplies, supply_weights, supply_priorities, surviving_supplies, entry, drone_cap, prevs, res)
 
             if new_inter_wing_path in supply_paths:
                 supply_paths[inter_wing_path] |= supply_paths.pop(new_inter_wing_path)
@@ -344,15 +326,15 @@ def clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, p
 def clear_branch(
     G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: VertexT, orig: VertexT, branch: VertexT,
     orig_wing: WingT, prevs: list[VertexT], supply_paths: dict[tuple[VertexT, ...], set[int]],
-    supply_weights: list[int], supply_priorities: list[int], supplies: list[VertexT], inter_wing_path: tuple[VertexT, ...]
-) -> list[tuple | VertexT]:
+    supply_weights: list[int], supply_priorities: list[int], supplies: list[VertexT], inter_wing_path: tuple[VertexT, ...], drone_cap: int
+) -> list[tuple[VertexT, str, int, int]]:
     res = []
 
     end_branch_pos = branch
     prev = orig
     prevs.append(end_branch_pos)
 
-    clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, prevs, inter_wing_path, supply_paths, end_branch_pos, res)
+    clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, prevs, inter_wing_path, supply_paths, end_branch_pos, res, drone_cap)
     while orig_wing.degree[end_branch_pos] == 2:
         n = list(orig_wing.neighbors(end_branch_pos))
         if n[0] == prev:
@@ -363,14 +345,14 @@ def clear_branch(
             end_branch_pos = n[0]
         prevs.append(end_branch_pos)
 
-        clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, prevs, inter_wing_path, supply_paths, end_branch_pos, res)
+        clear_junction_path(G, supplies, supply_weights, supply_priorities, entry, prevs, inter_wing_path, supply_paths, end_branch_pos, res, drone_cap)
 
     end_branch_degree = orig_wing.degree[end_branch_pos]
     if end_branch_degree >= 3:
         for n in orig_wing.neighbors(end_branch_pos):
             if n == prev:
                 continue
-            branch_res = clear_branch(G, entry, end_branch_pos, n, orig_wing, prevs.copy(), supply_paths, supply_weights, supply_priorities, supplies, inter_wing_path)
+            branch_res = clear_branch(G, entry, end_branch_pos, n, orig_wing, prevs.copy(), supply_paths, supply_weights, supply_priorities, supplies, inter_wing_path, drone_cap)
             if len(branch_res) > 0:
                 res += branch_res
 
@@ -378,7 +360,7 @@ def clear_branch(
         i for i in range(len(supplies)) if supplies[i] in prevs and i in supply_paths[inter_wing_path]
     )
 
-    knapsack_supplies(supplies, supply_weights, supply_priorities, supply_to_collect, entry, prevs, res)
+    knapsack_supplies(supplies, supply_weights, supply_priorities, supply_to_collect, entry, drone_cap, prevs, res)
 
     curr_pos = end_branch_pos
     storage = []
@@ -386,47 +368,39 @@ def clear_branch(
     for s in supply_to_collect:
         vertex_to_collect[supplies[s]].append(s)
 
-    if get_curr_pos(res, orig) != entry and len(res) > 0 and res[-1][0] == -1:
-        i: int = len(res) - 2
-        while i >= 0:
-            if res[i][0] >= 0:
-                curr_pos = res[i]
-                break
-            i -= 1
+    res_len = len(res) - 1
+    if res_len != -1:
+        res_last = res[res_len]
+        if res_last[0] != entry and res_last[1] == "drop":
+            curr_pos = res[res_len - 1][0]
+            if curr_pos != end_branch_pos and curr_pos != entry:
+                while res_last[0] == curr_pos:
+                    res.pop()
+                    res_len -= 1
 
-        if curr_pos != end_branch_pos and curr_pos != entry:
-            for j in range(len(res) - i - 1):
-                _, weight, priority = res.pop(i + 1)
-                added = False
-                for k in range(len(vertex_to_collect[curr_pos])):
-                    supply_index = vertex_to_collect[curr_pos][k]
-                    if supply_weights[supply_index] == weight and supply_priorities[supply_index] == priority:
-                        storage.append(supply_index)
-                        vertex_to_collect[curr_pos].pop(k)
-                        added = True
-                        break
-                assert added, f"no supply with weight {weight} and priority {priority} was found in {vertex_to_collect[curr_pos]} (at {curr_pos})"
-
-            res.pop(i)
-
-            i -= 1
-            while i >= 0:
-                if res[i][0] == -2:
-                    break
-                elif res[i][0] == -1:
-                    curr_pos = res[i - 1]
-                    _, weight, priority = res.pop(i)
-                    added = False
-                    for j in range(len(vertex_to_collect[curr_pos])):
-                        supply_index = vertex_to_collect[curr_pos][j]
-                        if supply_weights[supply_index] == weight and supply_priorities[supply_index] == priority:
-                            storage.append(supply_index)
-                            added = True
+                    for i in range(len(vertex_to_collect[res_last[0]]) - 1, -1, -1):
+                        s_idx = vertex_to_collect[res_last[0]][i]
+                        if supply_weights[s_idx] == res_last[2] and supply_priorities[s_idx] == res_last[3]:
+                            storage.append(s_idx)
+                            vertex_to_collect[res_last[0]].pop(i)
                             break
-                    assert added, f"no supply with weight {weight} and priority {priority} was found in {vertex_to_collect[curr_pos]} (at {curr_pos})"
-                    i -= 1
-                res.pop(i)
-                i -= 1
+                    res_last = res[res_len]
+
+                while res_len >= 0:
+                    if res_last[1] == "pickup":
+                        break
+
+                    if res_last[1] == "drop":
+                        res.pop()
+                        res_len -= 1
+
+                        for i in range(len(vertex_to_collect[res_last[0]]) - 1, -1, -1):
+                            s_idx = vertex_to_collect[res_last[0]][i]
+                            if supply_weights[s_idx] == res_last[2] and supply_priorities[s_idx] == res_last[3]:
+                                storage.append(s_idx)
+                                vertex_to_collect[res_last[0]].pop(i)
+                                break
+                    res_last = res[res_len]
 
     i: int = len(prevs) - 1
     while i >= 0:
@@ -434,14 +408,15 @@ def clear_branch(
         if curr_pos == orig:
             break
 
-        if curr_pos in vertex_to_collect:
+        if curr_pos in vertex_to_collect and vertex_to_collect[curr_pos]:
             j = len(vertex_to_collect[curr_pos]) - 1
             while j >= 0:
                 if vertex_to_collect[curr_pos][j] not in storage:
                     supply_index = vertex_to_collect[curr_pos].pop(j)
                     storage.append(supply_index)
-                    res.append(curr_pos)
-                    res.append((-2, supply_weights[supply_index], supply_priorities[supply_index]))
+                    if curr_pos == (2, 1, 9):
+                        pass
+                    res.append((curr_pos, "pickup", supply_weights[supply_index], supply_priorities[supply_index]))
                 j -= 1
 
         i -= 1
@@ -454,8 +429,7 @@ def clear_branch(
                 supplies[supply_index] = (0, -1, -1)
             else:
                 supplies[supply_index] = curr_pos
-            res.append(curr_pos)
-            res.append((-1, supply_weights[supply_index], supply_priorities[supply_index]))
+            res.append((curr_pos, "drop", supply_weights[supply_index], supply_priorities[supply_index]))
             if len(storage) == 0:
                 break
 
@@ -463,14 +437,13 @@ def clear_branch(
 
     if i == -1 and len(storage) != 0:
         curr_pos = prevs[0]
-        res.append(curr_pos)
         while len(storage) > 0:
             supply_index = storage.pop()
             if curr_pos == entry:
                 supplies[supply_index] = (0, -1, -1)
             else:
                 supplies[supply_index] = curr_pos
-            res.append((-1, supply_weights[supply_index], supply_priorities[supply_index]))
+            res.append((curr_pos, "drop", supply_weights[supply_index], supply_priorities[supply_index]))
 
     return res
 
@@ -529,20 +502,18 @@ def ember_rescue(G: tuple[set[WingT], set[tuple[VertexT, VertexT]]], entry: Vert
 
     supply_wing_paths = get_supply_wing_paths(G, reduced_supplies, entry_paths)
 
-    # print(f"supply candidates: {reduced_supplies}")
-    # print(f"number of supplies: {len(reduced_supplies)}")
-    super_path = clear_branch(G, entry, entry, list(flat_G.neighbors(entry))[0], get_which_wing(G, entry), [entry], supply_wing_paths, [supply_weights[s] for s in reduced_supplies], [supply_priorities[s] for s in reduced_supplies], reduced_supplies, tuple())
     res = []
     prev_pos = entry
-    for i in range(len(super_path)):
-        curr = super_path[i]
-        if curr[0] < 0:
+    for n in flat_G.neighbors(entry):
+        curr_plan = clear_branch(G, entry, entry, n, get_which_wing(G, entry), [entry], supply_wing_paths, [supply_weights[s] for s in reduced_supplies], [supply_priorities[s] for s in reduced_supplies], reduced_supplies, tuple(), drone_capacity)
+        for i in range(len(curr_plan)):
+            curr = curr_plan[i]
+            if curr[0] != prev_pos:
+                res += [(v, "move", 0, 0) for v in reconstruct_path_to(entry_prevs, prev_pos, curr[0])]
+            prev_pos = curr[0]
             res.append(curr)
-        else:
-            res += dijkstra_to(flat_G, prev_pos, curr)[1:]
-            prev_pos = curr
 
     if prev_pos != entry:
-        res += dijkstra_to(flat_G, prev_pos, entry)[1:]
-    res += exit_run[1:]
+        res += [(v, "move", 0, 0) for v in reconstruct_path_to(entry_prevs, prev_pos, entry)]
+    res += [(v, "move", 0, 0) for v in exit_run[1:]]
     return res

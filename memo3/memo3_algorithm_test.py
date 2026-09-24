@@ -65,24 +65,25 @@ class GraphDrawer:
         trip_move_supplies = [{}]
         if plan and len(plan) > 0:
             i = 0
-            curr_loc = self.entry
+            prev_loc = self.entry
             curr_supplies = []
             while i < len(plan):
                 curr = plan[i]
-                if curr[0] == -2:
-                    supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2] and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
+                curr_loc, ins, curr_w, curr_v = curr
+                if ins == "pickup":
+                    supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr_w and self.values[self.supplies[x]] == curr_v and x not in curr_supplies and curr_supply_locations[x] == curr_loc, range(len(curr_supply_locations))))[-1]
                     curr_supplies.append(supply_index)
-                elif curr[0] == -1:
-                    supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr[1] and self.values[self.supplies[x]] == curr[2], curr_supplies))[-1]
+                elif ins == "drop":
+                    supply_index = list(filter(lambda x: self.masses[self.supplies[x]] == curr_w and self.values[self.supplies[x]] == curr_v, curr_supplies))[-1]
                     curr_supplies.remove(supply_index)
                     trip_move_supplies[len(trip_supplies)][supply_index] = curr_loc
                     curr_supply_locations[supply_index] = curr_loc
-                else:
+                if prev_loc != curr_loc:
                     mass_total = sum([self.masses[self.supplies[s]] for s in curr_supplies])
-                    total_energy_cost += (1 + mass_total) * self.G.get_edge_data(curr_loc, curr)["weight"]
-                    curr_loc = curr
+                    total_energy_cost += (1 + mass_total) * self.G.get_edge_data(prev_loc, curr_loc)["weight"]
+                    prev_loc = curr_loc
 
-                    if curr == self.entry or i == len(plan) - 1:
+                    if curr_loc == self.entry or i == len(plan) - 1:
                         # number the trip at its first collection point
                         trip_supplies.append(set(self.supplies[i] for i, s in enumerate(curr_supply_locations) if s == self.entry).difference(s for trip_s in trip_supplies for s in trip_s))
                         trip_move_supplies.append({})
@@ -407,7 +408,7 @@ if __name__ == "__main__":
         )
         match test_id:
             case "1":
-                test_seed(10012699)  # 10012696)
+                test_seed(10012084)  # 10012696)
                 break
             case "2":
                 test_facilities()

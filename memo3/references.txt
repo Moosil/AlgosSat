@@ -1,6 +1,12 @@
 Abhijit, S. (n.d.). Undirected Single Source Shortest Paths in Linear Time. Retrieved 10 July 2026, from https://blogs.asarkar.com/assets/docs/algorithms/Undirected%20Single%20Source%20Shortest%20Paths%20in%20Linear%20Time%20-%20Thorup.pdf
 
+0/1 knapsack problem. (2012, March 19). GeeksforGeeks. https://www.geeksforgeeks.org/dsa/0-1-knapsack-problem-dp-10/
+
 2-opt. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=2-opt&oldid=1360572175
+
+AMD. (2026). AMD μProf (Version 5.3.521) [Windows 11 64-bit]. AMD. https://www.amd.com/en/developer/uprof.html
+
+Belgacem, T., & Hifi, M. (2008). Sensitivity analysis of the optimum to perturbation of the profit of a subset of items in the binary knapsack problem. Discrete Optimization, 5(4), 755–761. https://doi.org/10.1016/j.disopt.2008.05.001
 
 Borůvka’s algorithm. (2026). In Wikipedia. https://en.wikipedia.org/w/index.php?title=Bor%C5%AFvka%27s_algorithm&oldid=1344994202
 
@@ -72,6 +78,8 @@ symbolic computing in Python. PeerJ Computer Science 3:e103
 https://doi.org/10.7717/peerj-cs.103
 
 mzspivey. (2021, April 1). Intuition for the dual in linear programming. A Narrow Margin. https://mikespivey.wordpress.com/2021/03/31/intuition-for-the-dual-in-linear-programming/
+
+Neal, Y. (2020, August 20). Is the knapsack variant with small profit and unlimited repetition of items NP-hard? https://cstheory.stackexchange.com/q/47443
 
 Nick, P. (2009, September 30). Implementation of Thorup’s Linear Time Algorithm for Undirected Single Source Shortest Paths with Positive Integer Weights. Slideshare. https://www.slideshare.net/slideshow/implementation-of-thorups-linear-time-algorithm-for-undirected-single-source-shortest-paths-with-positive-integer-weights/29906703#1
 

@@ -657,7 +657,7 @@ def graph_drawer_impl(itertools, mcolors, nx, plt, random, seed_input):
 def _(mo, np, re):
     class PseudocodeExplorer:
         def __init__(self, fp: str):
-            self.raw_pseudocode = open(fp, encoding="utf-8").read()
+            self.raw_pseudocode = mo.watch.file(fp).read_text()
             self.full_pseudocode = self._parse_pseudocode(self.raw_pseudocode)
 
         def get_fn_fancy(self, name: str, font_size: int = 12, numbered: bool = False, *, start_offset: int = 0, start_offset_function_name_prefix: bool = True, end_offset: int = 0, start_elipsis=True, end_elipsis=True):
@@ -857,7 +857,7 @@ def introduction(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 2 Problem abstraction
+    # 2 Problem Abstraction
     Let $G = (V_w, E_w, w)$ be a meta-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
 
     $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the total cost of traversing the span of sectors  which are adjacent to just two other sectors and between two salient sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
@@ -878,7 +878,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.1 Main problem instance
+    ## 2.1 Main Problem Instance
     We have been tasked with creating an algorithm that works for a facility with the following values: $|V_w| \in [2, 4]$, $|E_w| = 2(|V_w| - 1)$, $|S| = 50$, $C = 5$, $\delta: S \to [1, 3]$, $p: S \to \mathbb{{N}}$. For other problem instances, the algorithm may solve them, but that has been a side-effort, and incorrectness can be found with lower budgets, supply capacities and supply counts in the facility.
     """
           )
@@ -889,7 +889,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-            ## 2.2 Signature specification:
+            ## 2.2 Signature Specification
             $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{List}[\text{SupplyID}] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \times \mathbb{N} \to \text{List}[\text{Vertex}] \times \text{List}[\mathbb{N}]$
             """
         )
@@ -914,16 +914,16 @@ def output_constraints(mo):
 @app.cell(hide_code=True)
 def _(mo):
     _title = mo.md(fr"""
-    ## 2.4 ADT revisions
-    ### Main revisions:
+    ## 2.4 ADT Revisions
+    ### 2.4.1 Justification
     - Making more functions inline, which reduces unnecessary copy instructions
     - adding indexed pop/push functions
     - adding set insertion/removal functions.
 
-    ### Semantic changes:
+    ### 2.4.2 Semantic Changes
     - Algorithm and procedure parameters are now passed by reference instead of copies.
     <hr>
-    ### New Signatures
+    ### 2.4.3 New Signatures
     """)
 
     _graphs_md = mo.md(r"""
@@ -1015,7 +1015,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2.5 Data model revisions
+    ## 2.5 Data Model Revisions
     Due to the dropping supplies feature of the revised problem, abstracting 2-degree vertices as weight between 3+ degree vertices loses data. This is because supplies must be dropped on these 2-degree sectors in optimal solutions.
 
     This change causes a redesign, as $|V|$ and $|E|$ are now larger.
@@ -1052,16 +1052,15 @@ def _(mo):
     ## 3.1 Efficiency
     The revised algorithm is much more efficient that memo 2's algorithm, running in $O(n^k), k \in N$ for $n$ being the worst-case variable and $k$ being independent of $n$, compared with memo 2's $O(n^2 2^n)$ complexity. This latter complexity is intractable and would not work on the larger supply count in the updated situation.
 
-    The algorithm proposed in this memo could be more efficient, but would come with tradeoffs
+    The algorithm proposed in this memo could be more efficient, and the reasons for not implementing these will be discussed in Section 5.
 
     ## 3.2 Coherence
-    Not really sure what to put here
+    Both problem abstractions were concise and coherant, without redundant elements. They also aim to be as unopinionated as is useful: allowing a variety of algorithms to be used without being so general as to become useless.
 
-    ## 3.3 Fitness for purpose
+    ## 3.3 Fitness for Purpose
     Due to the heuristic nature of the algorithm, a memo 2-like exact algorithm will arrive at a better solution than this memo's algorithm. This of course comes at the cost of efficiency, and difficulty to encapsulate all features of the problem: multiple-trips, trip-dependent supply collection costs and dropping supplies, into an exact algorithm, which is why a heuristic algorithm is more fit for purpose than an exact algorithm like memo 2's
 
     ## 3.4 Counter-example
-    ???
     """)
     return
 
@@ -1069,7 +1068,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 4 Time Complexity & Optimisations
+    # 4 Time & Space Complexity and Optimisations
     """)
     return
 
@@ -1077,7 +1076,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 4.1 Worst-case
+    ## 4.1 Worst-case
     """)
     return
 
@@ -1147,7 +1146,7 @@ def _(mo, pseudocode_explorer, re):
                 "S": "set of supply vertices"
             }
 
-            big_os = open("memo3/big_os.txt").read()
+            big_os = mo.watch.file("memo3/big_os.txt").read_text()
             t_n_big_o_latex = list(filter(lambda x: name in x, big_os.split('\n')))[0].replace(f"{name}: ", "")
 
             pseudocode = pseudocode_explorer.get_fn_fancy(name, numbered=True)
@@ -1225,7 +1224,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 4.2 Average-case
+    ## 4.2 Average-case
     """)
     return
 
@@ -1309,7 +1308,6 @@ def _(
 
     def _get_df(names=[]):
         df = get_df("memo3/data/data_facility.csv")
-        print(df.size)
 
         for n in _variables:
             if n in ["junction count"]:
@@ -1425,7 +1423,7 @@ def _(mo, np, pd, plt):
         return fig
 
     _df = pd.read_csv("memo3/data/flame_facility_small.csv")
-    mo.lazy(_get_flame_graph(_df, sum(1 for _ in open("memo3/data/data_facility_small.csv", "rb"))), show_loading_indicator=True)
+    mo.lazy(_get_flame_graph(_df, sum(1 for _ in mo.watch.file("memo3/data/data_facility_small.csv").read_text())), show_loading_indicator=True)
     return
 
 
@@ -1457,7 +1455,7 @@ def _(get_fig, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 4.3 Best-case
+    ## 4.3 Best-case
     c++ impl data, check a bunch of facilities
     """)
     return
@@ -1466,8 +1464,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 4.4 Optimsations
-    flame graph, knapsack discussion
+    ## 4.4 Space Complexity
     """)
     return
 
@@ -1485,8 +1482,18 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-            ## 5.1 Intractability of exact solution
-            ### 5.1.1 No supply dropping
+            ## 5.1 Intractability of Exact Approaches
+            The following discussions on intractability will be split into two cases: the case where CRUDY-1's ability to drop supplies is present and the case where it is not.
+            """
+        )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ### 5.1.1 No Supply Dropping
             Without supply dropping, the problem is equivalent to the **knapsack problem on dependent costs**, with capacity $C$ and costs dependent on other items in the knapsack. Since the knapsack problem is a reduction of this problem, the resulting problem is $\text{NP-Hard}$, unless $\text{P} = \text{NP}$.
         
             While $\text{NP-Hard}$ problems can be solved exactly, the algorithms to solve them will grow exponentially with $n$. For the **dependent-cost 0/1 knapsack problem**, it can be solved by a linear problem:
@@ -1510,8 +1517,16 @@ def _(mo):
             \end{aligned}
             $$
             Integer linear programs are NP-Complete, and this one has $3 \times |K|!$ constaints, meaning it would in theory be solved by a branch-and-bound algorithm.
-        
-            ### 5.1.2 With supply dropping
+            """
+        )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ### 5.1.2 With Supply Dropping
             With supply dropping, we can notice that we should never travel away from the entrance while holding a supply. This variation of the problem can be solved with the same dependent-cost 0/1 knapsack problem linear program, with different $v_k$.
         
             However, with supply order becoming non-salient with this change, near-optimal paths collecting a certain subset of the supplies can be found in polynomial time.
@@ -1526,8 +1541,10 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-            ## 5.2 Local optimal
-            The algorithm presented finds a local optimal guided by the initial guess of supply costs in the knapsack step. While earlier other inaccuracies were disucssed in the `clear branches` procedure, these can only create marginal optimisations which add optimisation-like properties to the algorithm, which would make this algorithm run in exponential time. The knapsack supply cost estimation is the main loss of precision, as the algorithm will never collect more than the initial guess in value.
+            ## 5.2 Local Optimal
+            The algorithm presented finds a local optimal guided by the initial guess of supply costs in the knapsack step. While earlier other inaccuracies were disucssed in the `clear branches` procedure, these can only create marginal optimisations which add optimisation-like properties to the algorithm, which would make this algorithm run in exponential time.
+        
+            The knapsack supply cost estimation is the main loss of precision, as the algorithm will never collect more than the initial guess in value.
             """
         )
     return
@@ -1764,7 +1781,7 @@ def _(get_fig, mo):
 
     Which means the proportion between them is constantly decreasing, so the maximum proportion will be for 1-weight supplies, which is $\epsilon = \frac{{f(1, 5) - f_{{lb}}(1, 5)}}{{f_{{lb}}(1, 5)}} \approx 0.5539$. 
 
-    While this in theory could have a error on value $(1 - \epsilon)$, this problem is unsolved as far as I can tell, with only sensitivity analysis on the knapsack problem being done on 1-item perturbations: [Sensitivity analysis of the optimum to perturbation of the profit of a subset of items in the binary knapsack problem](10.1016/j.disopt.2008.05.001).
+    While this in theory could have a error on value $(1 - \epsilon)$, this problem is unsolved as far as I can tell, with only sensitivity analysis on the knapsack problem being done on 1-item perturbations: [Sensitivity analysis of the optimum to perturbation of the profit of a subset of items in the binary knapsack problem](https://doi.org/10.1016/j.disopt.2008.05.001).
     """)
     return
 
@@ -1893,6 +1910,40 @@ def _(get_fig, mo, np, pd, scipy):
     return
 
 
+@app.cell
+def _(mo, np, pd, plt):
+    _df = pd.read_csv("memo3/data/data_facility_small.csv")
+    _fig, _ax = plt.subplots(figsize=(14, 6))
+
+    _max_budget = _df["budget"].max()
+    _max_budget_used = _df["budget used"].max()
+
+    _x = np.linspace(0, max(_max_budget, _max_budget_used), 1000)
+    _ax.scatter(_df["budget"], _df["budget used"], c=[0 if i < 50 else 1 for i in _df["budget percent"]], alpha=1, cmap="RdYlBu")
+    _ax.plot(_x, _x, c="green")
+    _ax.set_xlim(0, _max_budget)
+    _ax.set_ylim(0, _max_budget_used)
+
+    _fig.tight_layout()
+
+    mo.lazy(_fig, show_loading_indicator=True)
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo):
+    mo.md(
+        rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Budget vs Budget Used")}</span>
+
+    Figure {get_fig("Budget vs Budget Used")} shows the budget vs budget used, along with a line with gradient = 1. This shows the 4 outliers that go over budget: all between 2000 and 6000 budget. This likely means the cost function should take the budget amount as an input.
+
+    This cost function optimisation could also be done by a neural network and the `get_weight_cost` function could become a neural network instead of a multi-variable mathematical function. In future, this network could also take as input the rest of the supplies' distances from the current or various other variables to more closely approximate the real cost which is dependent on all these factors
+    """
+        )
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -1902,12 +1953,16 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(get_fig, mo):
     mo.md(
         rf"""
     ## 6.1 Real Hardware
     {mo.image("memo3/media/c++impl_flame.png")}
-    When implemented in c++, the algorithm has greater costs in clear_branch, likely due to me treating copying of lists into other lists to be constant time, which it isn't in practise. There are likely also other costs like function call, vector resizing and non-constant costs for each ADT operation which contribute to the predicted operation count being different from the one in the implementation.
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("C++ flame graph")}</span>
+
+    Figure {get_fig("C++ flame graph")} shows a flame graph of the run-time costs of the algorithm implemented in C++. 
+
+    The algorithm has greater costs in clear_branch, likely due to me treating copying of lists into other lists to be constant time, which it isn't in practise. There are likely also other costs like function call, vector resizing and non-constant costs for each ADT operation which contribute to the predicted operation count being different from the one in the implementation.
     """
         )
     return
@@ -1917,7 +1972,27 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-            ## 6.2 IDK
+            ## 6.2 Real Guarantees
+            As discussed previously, the algorithm has very low probability of going over budget. This can be increased by changing the cost function's $\Delta(w, C)$ function to be closer to $f_{ub}(w, C)$ if more precision is required.
+        
+            If a guarantee is required, though, the algorithm is not very efficient, as a trip as good as the upper bound function is trivial to create by collecting each supply individually. Additionally, a optimisation of this trip is also trivial: for each supply, it can check if collecting that supply in the same trip as the current one is cheaper than collecting the supplies individually.
+        
+            In this case &mdash; a hard guarantee required as opposed to a probablistic one &mdash; this algorithm would *not* be as suitable as the previously suggested one. Even in the 40000 trials used in testing the algorithm, an outlier which went over budget was found. This result will on average (median) appear every 250 million trials.
+            """
+        )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ## 6.3 Real Implementation
+            Due to time restrictions, the coherance of the algorithm was compromised for it's safety guarantees. Some optimisations, such as not checking for supplies in the same sectors in *all* supply collecting loops even when the algorithm guarantees they cannot be there, were not made which has effects on theoretical worst-case time complexity of the algorithm.
+        
+            Other optimisations not made include not checking for supplies in the branch-origin sector, which *does* have real effects on the algorithm's run-time. This reduces the conciseness of the algorithm, but overall it doesn't reduce the many edge-case checking which leads to bloated procedures.
+        
+            These all reduce coherance, but the actual control flow of the algorithm: being depth-first search helps aid it's coherance.
             """
         )
     return
@@ -1926,8 +2001,18 @@ def _(mo):
 @app.cell(hide_code=True)
 def algorithm_explorer_header(mo):
     mo.md(r"""
-    # 6 Algorithm
-    """)
+    # 7 Algorithm
+    """
+          )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ## 7.1 Pseudocode
+            """)
     return
 
 
@@ -2174,6 +2259,11 @@ def _(mo):
     return
 
 
+@app.cell
+def _():
+    return
+
+
 @app.cell(hide_code=True)
 def appendix(mo):
     mo.md(r"""
@@ -2182,10 +2272,10 @@ def appendix(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def references(mo):
     mo.md(f"""
-    ## 8.1 References\n{open("memo2/references.txt", "r", encoding="utf-8").read()}
+    ## 8.1 References\n{open("memo3/references.txt", "r", encoding="utf-8").read()}
     """)
     return
 

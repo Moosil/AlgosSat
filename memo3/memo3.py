@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.25.0"
+__generated_with = "0.24.2"
 app = marimo.App(width="medium", app_title="Memo3", css_file="../custom.css")
 
 
@@ -1219,7 +1219,6 @@ def _(mo):
         {"vertex count": 70,  "wing count": 150, "supply count": 11, "exit count": 4,  "edge count": 150, "junction count": 150, "supply cap": 50},
         None
     )
-    operation_cost_explorer
     return (VariableSetter,)
 
 
@@ -1310,6 +1309,7 @@ def _(
 
     def _get_df(names=[]):
         df = get_df("memo3/data/data_facility.csv")
+        print(df.size)
 
         for n in _variables:
             if n in ["junction count"]:
@@ -1491,24 +1491,23 @@ def _(mo):
         
             While $\text{NP-Hard}$ problems can be solved exactly, the algorithms to solve them will grow exponentially with $n$. For the **dependent-cost 0/1 knapsack problem**, it can be solved by a linear problem:
             $$
-            \begin{array}{rcrll}
-                \text{max} &\displaystyle\sum_{k \in \mathcal{P}(K)} & v_k x_k & & & \\
-                \text{s.t.} &\displaystyle\sum_{k \in \mathcal{P}(K) \vert i \in k} & x_k &= 1 &\forall i \in K; \\
-                &\displaystyle\sum_{k \in \mathcal{P}(K)} & c_k x_k &\leq C; \\
-            \end{array}
+            \begin{darray}{rrll}
+                \text{max} &\sum_{\mathclap{k \in \mathcal{P}(K)}} v_k x_k & & & \\
+                \text{s.t.} &\sum_{\mathclap{k \in \mathcal{P}(K) \vert i \in k}} x_k &= 1 &\forall i \in K; \\
+                &\sum_{\mathclap{k \in \mathcal{P}(K)}} c_k x_k &\leq C; \\
+            \end{darray}
             $$
             where
             $$
-            x_k = \begin{cases}
+            \begin{aligned}
+            x_k &= \begin{dcases}
             1 & \text{all } i \in k \text{ are collected in one trip}\\
             0 & \text{otherwise}
-            \end{cases}
-            \\
-            v_k = \displaystyle\sum_{i \in k} \text{value of } k
-            \\
-            c_k = \text{minimum cost of collection all } i \in k
-            \\
-            C = \text{budget given to CRUDY-1}
+            \end{dcases}\\
+            v_k &= \displaystyle\sum\limits_{i \in k} \text{value of } k\\
+            c_k &= \text{minimum cost of collection all } i \in k\\
+            C &= \text{budget given to CRUDY-1}
+            \end{aligned}
             $$
             Integer linear programs are NP-Complete, and this one has $3 \times |K|!$ constaints, meaning it would in theory be solved by a branch-and-bound algorithm.
         
@@ -1819,7 +1818,7 @@ def _(get_fig, mo, np, pd, scipy):
         df = df[df["budget percent"] == budget_percent]
         data = df["budget used"] / df["budget"]
         p_val = scipy.stats.norm.pdf(1, loc=data.mean(), scale=data.std())
-        return fr"""With $B_{{\small {budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(B_{{\small {budget_percent}}} > 1) = {_scientific_latex(p_val)}$ chance of going over budget, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
+        return fr"""With $B_{{{budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(B_{{{budget_percent}}} \gt 1) = {_scientific_latex(p_val)}$ chance of going over budget, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
 
     _df = pd.read_csv("memo3/data/data_facility_small.csv")
 
@@ -1879,7 +1878,7 @@ def _(get_fig, mo, np, pd, scipy):
         df = df[df["budget percent"] == budget_percent]
         data = df["value collected"] / df["value total"]
         p_val = scipy.stats.norm.pdf(budget_percent, loc=data.mean(), scale=data.std())
-        return fr"""With $V_{{\small {budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(V_{{\small {budget_percent}}} < {budget_percent / 100}) \approx {_scientific_latex(p_val)}$ chance of collecting less than the amount of value that the budget was calculated to collect, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
+        return fr"""With $V_{{{budget_percent}}} \sim N(\mu \approx {data.mean().round(4)}, \sigma^2 \approx {data.std().round(4)} ^ 2)$, we can calculate there is a $p = \Pr(V_{{{budget_percent}}} \lt {budget_percent / 100}) \approx {_scientific_latex(p_val)}$ chance of collecting less than the amount of value that the budget was calculated to collect, equivalent to a **1 in {str(int(np.floor(np.reciprocal(p_val))) if not p_val == 0.0 else np.inf).replace("inf", r"$\infty$")}** chance."""
 
     mo.md(
         rf"""

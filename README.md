@@ -22,3 +22,21 @@
 - 5 should be sufficient for Side Memo 2C
 - 6 contains updates to the algorithm's pseudocode
 
+## Memo3
+
+- 5.2.2 should be sufficient for Side Memo 3A (my version)
+- 3.4 and 5.3.5 should be sufficient for Side Memo 3B
+- 5.3 should be sufficient for Side memo 3C
+- 5.1 and 6 should be sufficient for Side Memo 3D
+
+## Criterions
+
+- 1: Memo 1,2,3 section 2
+- 2: Memo 1a2 section 3
+- 3: Memo 1 section 4 and 6, Memo 2 section 6, Memo 3 section 7
+- 4: Memo 1 section 5, Memo 3 section 3 and 6
+- 5: Memo 2, Memo 3 section 4
+- 6: Memo 2 section 2.3, Memo 3 section 6
+- 7: Memo 3 section 3 and 6
+- 8: Memo 3
+- 9: Memo 3 section 3

@@ -26,7 +26,7 @@ Dantzig, G., Fulkerson, R., & Johnson, S. (1954). Solution of a large-scale trav
 
 David P., W. (2014, October 2). ORIE 6300 Mathematical Programming I. Cornell University. https://people.orie.cornell.edu/dpw/orie6300/Lectures/lec12.pdf
 
-​Gianni A., D. C. (n.d.). TSP formulations. Retrieved 10 July 2026, from  https://web2.qatar.cmu.edu/~gdicaro/15382/additional/tsp-formulations.pdf
+Gianni A., D. C. (n.d.). TSP formulations. Retrieved 10 July 2026, from  https://web2.qatar.cmu.edu/~gdicaro/15382/additional/tsp-formulations.pdf
 
 gskinner. (n.d.). Regexr. Retrieved 10 July 2026, from https://regexr.com/
 
@@ -89,6 +89,8 @@ Omar, A. C. (n.d.-b). The dual simplex method. Universidad Nacional Autónoma de
 
 Omar, A. C. (n.d.-c). The revised simplex method [Digital Course]. Universidad Nacional Autónoma de México. The Revised Simplex Method. Retrieved 10 July 2026, from https://www.matem.unam.mx/~omar/math340/revised-simplex.html
 
+Papadimitriou, C. H. (1981). On the complexity of integer programming. Journal of the ACM, 28(4), 765–768. https://doi.org/10.1145/322276.322287
+
 Professor Nuke. (2020, December 11). How does one use LaTeX/amsmath with matplotlib? Stackoverflow. https://stackoverflow.com/a/65257846
 
 Rafał Dowgird & Stackoverflow community. (2009, January 9). How can I get the source code of a Python function? [Forum]. Stackoverflow. https://stackoverflow.com/a/427533
@@ -120,3 +122,5 @@ Virtanen, P., Gommers, R., Oliphant, T. E., Haberland, M., Reddy, T., Cournapeau
 Wei, Y., & Tanaka, S. (2013). An improved Thorup shortest paths algorithm with a modified component tree. 2013 Ninth International Conference on Natural Computation (ICNC), 1160–1165. https://doi.org/10.1109/ICNC.2013.6818153
 
 Zoterobib: Fast, free bibliography generator—Mla, apa, chicago, harvard citations. (n.d.). Retrieved 10 July 2026, from https://zbib.org/
+
+(https://zbib.org/29ecb02bd8ac4c71b59a6534bf632c02)

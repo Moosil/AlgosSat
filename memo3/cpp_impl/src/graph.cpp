@@ -156,6 +156,17 @@ std::unordered_map<Graph::VertexT, std::vector<Graph::VertexT> > Graph::sssp(Ver
 	return res;
 }
 
+Graph::WeightT Graph::get_path_length(const std::vector<VertexT>& path) const {
+	if (path.empty()) {
+		return 0;
+	}
+	WeightT res = 0;
+	for (std::size_t i = 0; i < path.size() - 1; ++i) {
+		res += get_edge_weight(path.at(i), path.at(i + 1));
+	}
+	return res;
+}
+
 std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(const VertexT source) const {
 	return sssp_dist(sssp(source));
 }
@@ -165,10 +176,7 @@ std::unordered_map<Graph::VertexT, std::size_t> Graph::sssp_dist(
 	std::unordered_map<VertexT, std::size_t> res{};
 	res.reserve(size());
 	for (const auto& [k, p] : paths) {
-		res[k] = 0;
-		for (std::size_t i = 0; i < p.size() - 1; ++i) {
-			res[k] += get_edge_weight(p[i], p[i + 1]);
-		}
+		res[k] = get_path_length(p);
 	}
 	return res;
 }

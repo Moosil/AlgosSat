@@ -39,6 +39,8 @@ public:
 
 	[[nodiscard]] std::unordered_map<VertexT, std::vector<VertexT> > sssp(VertexT source) const;
 
+	[[nodiscard]] WeightT get_path_length(const std::vector<VertexT>& path) const;
+
 	[[nodiscard]] std::unordered_map<VertexT, std::size_t> sssp_dist(VertexT source) const;
 
 	[[nodiscard]] std::unordered_map<VertexT, std::size_t> sssp_dist(

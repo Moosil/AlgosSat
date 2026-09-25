@@ -104,7 +104,7 @@ std::tuple<std::vector<std::size_t>, std::size_t> Drone::knapsack_value(
 	return {{}, 0};
 }
 
-Graph::WeightT Drone::get_path_length(const Graph& wing, const std::vector<Graph::VertexT>& path) const {
+Graph::WeightT Drone::get_path_length(const Graph& g, const std::vector<Graph::VertexT>& path) const {
 	complexity->push_stack("get_path_length");
 	complexity->add(Complexity::if_ + 2);
 	if (path.empty()) {
@@ -116,7 +116,7 @@ Graph::WeightT Drone::get_path_length(const Graph& wing, const std::vector<Graph
 	Graph::WeightT res = 0;
 	for (std::size_t i = 0; i < path.size() - 1; ++i) {
 		complexity->add(Complexity::for_inner + 5 + Complexity::get_edge_weight);
-		res += wing.get_edge_weight(path.at(i), path.at(i + 1));
+		res += g.get_edge_weight(path.at(i), path.at(i + 1));
 	}
 	complexity->add(Complexity::return_);
 	complexity->pop_stack();

@@ -34,7 +34,7 @@ public:
 		const std::vector<std::size_t>& val,
 		const std::vector<std::size_t>& cost) const;
 
-	[[nodiscard]] Graph::WeightT get_path_length(const Graph& wing, const std::vector<Graph::VertexT>& path) const;
+	[[nodiscard]] Graph::WeightT get_path_length(const Graph& g, const std::vector<Graph::VertexT>& path) const;
 
 	[[nodiscard]] const Graph& get_which_wing(
 		const Facility_ADT& G,

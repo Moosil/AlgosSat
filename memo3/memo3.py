@@ -860,7 +860,7 @@ def _(mo):
     # 2 Problem Abstraction
     Let $G = (V_w, E_w, w)$ be a meta-graph, with $V_w=\{W_1, W_2, \dots, W_k\}$ being a set of undirected weighted graphs, $E_w \subseteq \{\{u, v\} \vert u \in V_n, v \in V_m, n \neq m\}$ being a set of edges between adjacent wings, $W_n, W_m$ of the facility, with $k$ being the number of wings in the facility, and $\forall n \leq k, W_n = (V_n, E_n)$.
 
-    $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the total cost of traversing the span of sectors  which are adjacent to just two other sectors and between two salient sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$.
+    $V = V_1 \cup V_2 \cup \dots \cup V_k$ and $\forall n, m \leq k, V_n \cap V_m = \varnothing \iff n \neq m$ and $V_n = V_m \iff n = m$, with $V$ representing the salient sectors of the facility $E = E_1 \cup E_2 \cup \dots \cup E_k$ and $\forall n, m \leq k, E_n \cap E_m = \varnothing \iff n \neq m$ and $E_n = E_m \iff n = m$, with $E$ representing the paths between those adjacent salient sectors, and positive integer edge weight function $w: E \cup E_w \to \mathbb{N}$ representing the total cost of traversing the span of sectors  which are adjacent to just two other sectors and between two salient sectors. If $(u, v) \notin E$, define $w(u, v) = \infty$ and if $u = v$, defined $w(u, v) = 0$.
 
     We will designate source vertex $s \in V$, the set of sink vertices $X \subseteq V$, and the set of supply vertices $S \subseteq V$, each representing the entry, exit, and supply unit-containing sectors respectively.
 
@@ -868,9 +868,9 @@ def _(mo):
 
     Mapping $M: S \to \text{SupplyID}$ will mapp each supply vertex to its `SupplyID`, and set $F$ be the set of found `SupplyID`s.
 
-    Finally, we will take the budget $B$ represent CRUDY-1's limited budget.
+    Finally, we will take the budget $B$ represent CRUDY-1's limited budget, and $C$ to be CRUDY-1's carry-weight capacity.
 
-    We will be designing an algorithm to traverse meta-graph $G$, from $s$ to an $x$, returning an ordered sequence of vertices representing which vertices CRUDY-1 will travel through, an ordered sequence of integers which tells CRUDY-1 to traverse normally (0), pick up a supply (1), or drop off a supply (2+) with a specific index, and a ordered sequence of `SupplyID`s representing each supply CRUDY-1 has brought to the entry.
+    We will be designing an algorithm to traverse meta-graph $G$, from $s$ to an $x \in X$, returning an ordered sequence of tuples, with the first element of each tuple being the next sector, the second element corresponding to the command: 1st being MOVE, 2nd being MOVE then DROP, 3 being MOVE then PICKUP, the 3rd being the supply weight for DROP and PICKUP commands, and the 4th being the supply priority for DROP and PICKUP commands. It will also update $F$ in-place.
     """)
     return
 
@@ -890,7 +890,7 @@ def _(mo):
     mo.md(
         r"""
             ## 2.2 Signature Specification
-            $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{List}[\text{SupplyID}] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \times \mathbb{N} \to \text{List}[\text{Vertex}] \times \text{List}[\mathbb{N}]$
+            $\text{ember\_rescue}: \text{Graph} \times \text{Vertex} \times \text{Set}[\text{Vertex}] \times \text{Set}[\text{Vertex}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{Map}[\text{Vertex}, \mathbb{N}] \times \text{List}[\text{SupplyID}] \times \text{Map}[\text{Vertex}, \text{SupplyID}] \times \text{Set}[\text{SupplyID}] \times \mathbb{N} \to \text{List}[\text{Tuple}[\text{Vertex}, \mathbb{Z}^+, \mathbb{Z}^+, \mathbb{Z}^+]]$
             """
         )
     return
@@ -900,13 +900,33 @@ def _(mo):
 def output_constraints(mo):
     mo.md(r"""
     ## 2.3 Output Constraints
-    The algorithm's 3 outputs:
-    - $W$, an ordered sequence of vertices (List)
-    - $A$, an ordered sequence of 3-tuples of natural numbers (List)
+    To concisely present a set of constraints on the output, it is necessary to define the following functions:
 
-    The first value of each index $A$ should be 2 iff there is a supply below CRUDY-1 at that point in the walk, 3 iff there is a empty sector below CRUDY-1 at that point in the walk, and 1 otherwise. The second and third values are the picked-up supply's weight and priority respectively.
+    $\delta_{sum}(W, n) = \displaystyle\sum_{\mathclap{k=1}}^n \begin{cases}
+    W[k][3] &, W[k][2] = 3\\
+    -W[k][3] &, W[k][2] = 2\\
+    0 &, \text{ otherwise}
+    \end{cases}$
 
-    $\forall v \in W, v \in V$, $v_1 = s$, and $v_n \in X$. It should aim to collect the greatest total supply priority possible under the energy constraints.
+    which gives the total weight CRUDY-1 carries at the $n$th instruction of $W$, an solution to the problem, and
+
+    $p_{sum}(W, n) = \displaystyle\sum_{\mathclap{k=1}}^{n} \begin{cases}
+    W[k][4] &, W[k][2] = 2 \land W[k][1] = s\\
+    0 &, \text{ otherwise}
+    \end{cases}$
+
+    which gives the total budget CRUDY-1 collects by the $n$th instruction of $W$.
+
+    Output ordered sequence $W$ is valid iff:
+    - $W[1][1] = s$
+    - $W[|W|][1] \in X$
+    - $\forall i \in W : i[2] \in [1, 3]$
+    - $\forall n \in Z^+ : \delta_{sum}(n) \leq C$
+    - $\forall i \in W : i[2] = 3 \implies i[1] \text{ contains a supply of weight } i[3] \text{ and priority } i[4]$
+    - $\forall i \in W : i[2] = 2 \implies i[1] \text{ does not contain a supply} \lor i[1] = s$
+    - $\displaystyle\sum_{\mathclap{k=1}}^{\mathclap{|W| - 1}} (1 + \delta_{sum}(W, n)) \times w(W[k], W[k + 1]) \leq B$.
+
+    $W \text{ is optimal} \iff \forall w \in S_P : p_{sum}(w, |w|) \leq p_{sum}(W, |W|), \text{ where } S_P \text{ is the solution set of problem instance } P$.
     """)
     return
 
@@ -1037,7 +1057,7 @@ def _(mo):
 
     When it has cleared supplies between $u$ and $v$, it will check if the path to the last point of inter-wing transit or to the entry otherwise has total supply weight $\geq 5$, in which case it will run a knapsack dp algorithm on those supplies and take back those supplies to the entrance. After that, it will bring back and drop all supplies between $v$ and $u$ to $u$ and before $u$.
 
-    Supply droppings is an integral part of this algorithm, and its advantages and the margin to which its better will be discussed later.
+    Supply dropping is an integral part of this algorithm, and its advantages and the margin to which its better will be discussed later.
 
     Some further optimisations have been made, but they will be discussed later.
     """)
@@ -1046,7 +1066,6 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    # TODO add more here on each point? need to check criterion
     mo.md(r"""
     # 3 Algorithm Quality
     ## 3.1 Efficiency
@@ -1062,6 +1081,178 @@ def _(mo):
 
     ## 3.4 Counter-example
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(GraphDrawer, plt, random):
+    def draw_sub_facility(title, ax, cols, rows, drone=(0, 0), supplies=[], path=[], path_len=0):
+        COL_BG = '#F5F7FA'
+        COL_GRID = '#C8D0DC'
+        COL_WALL = '#44546A'
+        COL_ENTRY = '#0B6E6B'
+        COL_EXIT = '#7A1E2C'
+        COL_SUPPLY = '#4AA8A0'
+        COL_DRONE = "#eb4034"
+        COL_ROUTE = list(
+            reversed(
+                [
+                    '#83f6b7',
+                    '#00e1ce',
+                    '#00bedc',
+                    '#009aeb',
+                    '#3867f7',
+                    '#6d28d9'
+                ]
+            )
+        )
+
+        g = GraphDrawer._build_wing(cols, rows, random.Random(0))
+
+        ax.set_facecolor(COL_BG)
+
+        for c in range(cols + 1):
+            ax.plot(
+                [c, c], [0, rows],
+                color=COL_GRID, lw=0.3, zorder=1
+            )
+        for r in range(rows + 1):
+            ax.plot(
+                [0, cols], [r, r],
+                color=COL_GRID, lw=0.3, zorder=1
+            )
+
+        ax.add_patch(
+            plt.Rectangle(
+                (0, 0), cols, rows, fill=False,
+                edgecolor=COL_WALL, lw=2.2, zorder=4
+            )
+        )
+
+        for c in range(cols):
+            for r in range(rows):
+                if c + 1 < cols and not g.has_edge((c, r), (c + 1, r)):
+                    ax.plot(
+                        [c + 1, c + 1], [r, r + 1],
+                        color=COL_WALL, lw=1.4, zorder=3
+                    )
+                if r + 1 < rows and not g.has_edge((c, r), (c, r + 1)):
+                    ax.plot(
+                        [c, c + 1], [r + 1, r + 1],
+                        color=COL_WALL, lw=1.4, zorder=3
+                    )
+
+        total_cost = 0
+        storage = []
+        if path:
+            path = path[:path_len]
+            trip_c = 0
+            for i in range(len(path) - 1):
+                x1, y1, i1 = path[i]
+                x2, y2, i2 = path[i + 1]
+                if (x1, y1) == (0, 0):
+                    trip_c += 1
+                ax.plot(
+                    [x1 + 0.5, x2 + 0.5],
+                    [y1 + 0.5, y2 + 0.5], color=COL_ROUTE[trip_c], lw=5.0,
+                    linestyle='-', alpha=1.0, zorder=8, solid_capstyle='round'
+                )
+
+                total_cost += sum(supplies[s_idx][2] for s_idx in storage) + 1
+
+                if i1 == 2:
+                    s_idx = storage.pop()
+                    supplies[s_idx] = (x1, y1, supplies[s_idx][2])
+                elif i1 == 1:
+                    added = False
+                    for s_idx in range(len(supplies)):
+                        if supplies[s_idx][0] == x1 and supplies[s_idx][1] == y1:
+                            storage.append(s_idx)
+                            added = True
+                            break
+                elif i1 == 3:
+                    while len(storage) > 0:
+                        s_idx = storage.pop()
+                        supplies[s_idx] = (x1, y1, supplies[s_idx][2])
+
+            x1, y1, i1 = path[-1]
+            if i1 == 2:
+                s_idx = storage.pop()
+                supplies[s_idx] = (x1, y1, supplies[s_idx][2])
+            elif i1 == 1:
+                added = False
+                for j in range(len(supplies)):
+                    if supplies[j][0] == x1 and supplies[j][1] == y1:
+                        storage.append(j)
+                        added = True
+                        break
+            elif i1 == 3:
+                while len(storage) > 0:
+                    s_idx = storage.pop()
+                    supplies[s_idx] = (x1, y1, supplies[s_idx][2])
+
+            drone = path[-1][0], path[-1][1]
+
+        for i, (x, y, w) in enumerate(supplies):
+            if i in storage or (x == 0 and y == 0):
+                continue
+            ax.plot(
+                x + 0.5, y + 0.5, marker='*', markersize=40,
+                color=COL_SUPPLY, markeredgecolor=COL_ENTRY,
+                markeredgewidth=3, zorder=7
+            )
+            ax.text(x + .5, y + .5 - .01, w, fontsize=16, color="#ffffff", zorder=8, ha="center", va="center")
+
+        ax.plot(
+            drone[0] + 0.5, drone[1] + 0.5, marker="o", markersize=40,
+            color=COL_DRONE, markeredgecolor="#94283c",
+            markeredgewidth=3, zorder=9
+        )
+        ax.text(drone[0] + 0.515, drone[1] + 0.495, r"$\mathbf{C}_1$", fontsize=20, color="#ffffff", zorder=10, ha="center", va="center")
+
+        ax.set_aspect('equal')
+        ax.axis('off')
+        ax.set_title(
+            title, fontsize=14, fontweight='bold',
+            color='#0B1F3B', pad=10
+        )
+        return ax, total_cost
+
+    return (draw_sub_facility,)
+
+
+@app.cell
+def _(mo):
+    counter_example_slider = mo.ui.slider(0, 17, 1, show_value=True, label="Path length")
+    return (counter_example_slider,)
+
+
+@app.cell
+def _(counter_example_slider, draw_sub_facility, mo, plt):
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(16, 8))
+    _fig.patch.set_facecolor('#F5F7FA')
+    _, _nearest_first_budget = draw_sub_facility(
+        "Greedy (nearest-first)", _ax1, 4, 4, (0, 0), [(1, 1, 3), (2, 2, 1)],
+        [(0, 0, 0), (1, 0, 0), (1, 1, 1), (2, 1, 0), (3, 1, 0), (3, 2, 0), (3, 3, 0), (2, 3, 0), (2, 2, 1), (2, 3, 0), (3, 3, 0), (3, 2, 0), (3, 1, 0), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3)], counter_example_slider.value + 1
+    )
+    _, _algorithm_budget = draw_sub_facility(
+        "My algorithm", _ax2, 4, 4, (0, 0), [(1, 1, 3), (2, 2, 1)],
+        [(0, 0, 0), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 2, 0), (3, 3, 0), (2, 3, 0), (2, 2, 1), (2, 3, 0), (3, 3, 0), (3, 2, 0), (3, 1, 0), (2, 1, 0), (1, 1, 1), (1, 0, 0), (0, 0, 3)], counter_example_slider.value + 1
+    )
+
+    mo.vstack([mo.lazy(_fig, show_loading_indicator=True), mo.hstack([counter_example_slider, mo.md(fr"""total budget used: {_nearest_first_budget} (greedy) / {_algorithm_budget} (my algorithm)""")])])
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo):
+    mo.md(
+        rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Greedy counter-example")}</span>
+
+    Figure {get_fig("Greedy counter-example")} shows the large difference between nearest-first greedy and my algorithm, which is closer to further-first greedy. Nearest-first fails to account for the cost of moving the supply it is carrying the distance to supplies later in the trip, which is accounted for in my algorithm. This is never better than the furthest-first approach with supply dropping and is most often better unless budget restrictions get tight.
+    """
+        )
     return
 
 
@@ -1132,7 +1323,9 @@ def _(mo, pseudocode_explorer, re):
                       <li>The double nested while loop (74) (80) backtracking through `res`. The inner loop amortises to $|S|$, as it can only be called $|S|$ times because it's checking for supplies in the current vertex.</li>
                       <li>he double nested while loop below (92) (101) has the outer running $C$ times at most for dropping at most $C$ 1-weight supplies (given supply weights $\in \mathbb{N}$), while the inner loop amortises to $|S|$ runnings for the same reason as the previous part.</li></ul></li></ul></div>"""
                 case "ember_rescue":
-                    return r"""The $|X| |V|$ cost can be attributed to finding length of paths to each exit (12 - 19). The $|V|^3$ cost is from reconstructing the paths between at most $|V| |S|$ vertices (44, 54), in the worst case where CRUDY-1 collects each supply one at a time. The rest of the cost is from the `clear_branch` call (41) which is amortised on each vertex (hence it's not $|V| \times$ that cost)."""
+                    return r"""The $|X| |V|$ cost can be attributed to finding length of paths to each exit (12 - 19). The $|V|^3$ cost is from reconstructing the paths between at most $|V| |S|$ vertices (44, 54), in the worst case where CRUDY-1 collects each supply one at a time. The rest of the cost is from the `clear_branch` call (41) which is amortised on each vertex (hence it's not $|V| \times$ that cost).
+                
+    In terms of the byte-length of the input $n$, this gives $O(n^6)$ time complexity."""
 
         @classmethod
         def get_function(cls, name: str):
@@ -1373,6 +1566,16 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ### 4.2.1 Average Case Operations
+            """
+        )
+    return
+
+
 @app.cell
 def _(mo, np, pd, plt):
     def _get_flame_graph(df, samples):
@@ -1455,8 +1658,19 @@ def _(get_fig, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 4.3 Best-case
-    c++ impl data, check a bunch of facilities
+    ## 4.3 Space Complexity
+    One of the major improvements to the algorithm comes from the semantic change of *default copy* to *default in-place*. This small change reduces the main space costs of the recursive call to the only 1 variable not passed by reference: the backtrack list.
+
+    The salient factors contributing to the space complexity are as follows:
+    - The backtrack lists in `clear_junction_path`: Since CRUDY-1 will never need to go through the same junction more than once, it can only recurse at a depth $\propto |W_E|$. Each call of `clear_junction_path` can create a backtrack list of length at most $|V|$
+    - The return value length is amortised to $O(|V| |S|)$ as discussed in the time complexity of `clear_junction_path`
+    - The knapsack step in `get_reduced_supplies` creates a results list of at most length $C |S|$ which contains lists of length at most $|S|$
+    - The knapsack step in `knapsack_supplies` creates a results list of length $B + 1$ which contains lists of length at most $|S|$.
+
+
+    This gives a worst-case space complexity of $O(|V| |S| + |V| |W_E| + C|S|^2 + B|S|)$.
+
+    In terms of the byte-length of the input $n$, this gives $O(n^3)$ space complexity.
     """)
     return
 
@@ -1464,7 +1678,8 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 4.4 Space Complexity
+    ## 5.1 Intractability of Exact Approaches
+    The following discussions on intractability will be split into two cases: the case where CRUDY-1's ability to drop supplies is present and the case where it is not.
     """)
     return
 
@@ -1472,53 +1687,34 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # 5 Heuristic discussion
+    ### 5.1.1 No Supply Dropping
+    Without supply dropping, the problem is equivalent to the **knapsack problem on dependent costs**, with capacity $C$ and costs dependent on other items in the knapsack. Since the knapsack problem is a reduction of this problem, the resulting problem is $\text{NP-Hard}$, unless $\text{P} = \text{NP}$.
+
+    While $\text{NP-Hard}$ problems can be solved exactly, the algorithms to solve them will grow exponentially with $n$. For the **dependent-cost 0/1 knapsack problem**, it can be solved by a linear problem:
+    $$
+    \begin{darray}{rrll}
+        \text{max} &\sum_{\mathclap{k \in \mathcal{P}(K)}} v_k x_k & & & \\
+        \text{s.t.} &\sum_{\mathclap{k \in \mathcal{P}(K) \vert i \in k}} x_k &= 1 &\forall i \in K; \\
+        &\sum_{\mathclap{k \in \mathcal{P}(K)}} c_k x_k &\leq C; \\
+    \end{darray}
+    $$
+    where
+    $$
+    \begin{aligned}
+    x_k &= \begin{dcases}
+    1 & \text{all } i \in k \text{ are collected in one trip}\\
+    0 & \text{otherwise}
+    \end{dcases}\\
+    v_k &= \displaystyle\sum\limits_{i \in k} \text{value of } k\\
+    c_k &= \text{minimum cost of collection all } i \in k\\
+    C &= \text{budget given to CRUDY-1}
+    \end{aligned}
+    $$
+    Integer linear programs are NP-Complete, and this one has $3 \times |K|!$ constaints, meaning it would in theory be solved by a branch-and-bound algorithm.
+
+    Furthermore, since the number of constrains, $m$, is fixed, and the coefficients of $x$ in a tabular (matrix) form the linear program are independent of other variables and bound within $[0, w_{max}]$, we know an algorithm exists that solves this in $O(n^{2m + 2} (m a)^{(m + 1) (2m + 1)}) = O(n^{6|K|! + 2} (3|K|! + w_{max})^{(3|K|! + 1)(6|K|! + 1)})$, but since the number of coefficients is dependent on $n$ non-polynomialy (notice $|K|!$ means $O(n!)$ bytes), there is no known pseudopolynomial time equation to solve this problem.
     """
           )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-            ## 5.1 Intractability of Exact Approaches
-            The following discussions on intractability will be split into two cases: the case where CRUDY-1's ability to drop supplies is present and the case where it is not.
-            """
-        )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-            ### 5.1.1 No Supply Dropping
-            Without supply dropping, the problem is equivalent to the **knapsack problem on dependent costs**, with capacity $C$ and costs dependent on other items in the knapsack. Since the knapsack problem is a reduction of this problem, the resulting problem is $\text{NP-Hard}$, unless $\text{P} = \text{NP}$.
-        
-            While $\text{NP-Hard}$ problems can be solved exactly, the algorithms to solve them will grow exponentially with $n$. For the **dependent-cost 0/1 knapsack problem**, it can be solved by a linear problem:
-            $$
-            \begin{darray}{rrll}
-                \text{max} &\sum_{\mathclap{k \in \mathcal{P}(K)}} v_k x_k & & & \\
-                \text{s.t.} &\sum_{\mathclap{k \in \mathcal{P}(K) \vert i \in k}} x_k &= 1 &\forall i \in K; \\
-                &\sum_{\mathclap{k \in \mathcal{P}(K)}} c_k x_k &\leq C; \\
-            \end{darray}
-            $$
-            where
-            $$
-            \begin{aligned}
-            x_k &= \begin{dcases}
-            1 & \text{all } i \in k \text{ are collected in one trip}\\
-            0 & \text{otherwise}
-            \end{dcases}\\
-            v_k &= \displaystyle\sum\limits_{i \in k} \text{value of } k\\
-            c_k &= \text{minimum cost of collection all } i \in k\\
-            C &= \text{budget given to CRUDY-1}
-            \end{aligned}
-            $$
-            Integer linear programs are NP-Complete, and this one has $3 \times |K|!$ constaints, meaning it would in theory be solved by a branch-and-bound algorithm.
-            """
-        )
     return
 
 
@@ -1550,153 +1746,34 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ### 5.2.1 Supply Juggling Optimisation
+            """
+        )
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo):
     juggling_slider = mo.ui.slider(0, 34, 1, value=0, show_value=True, label="Path length")
     return (juggling_slider,)
 
 
 @app.cell(hide_code=True)
-def _(GraphDrawer, juggling_slider, mo, plt, random):
-    def draw_sub_facility(title, ax, cols, rows, drone=(0, 0), supplies=[], path=[]):
-        COL_BG = '#F5F7FA'
-        COL_GRID = '#C8D0DC'
-        COL_WALL = '#44546A'
-        COL_ENTRY = '#0B6E6B'
-        COL_EXIT = '#7A1E2C'
-        COL_SUPPLY = '#4AA8A0'
-        COL_DRONE = "#eb4034"
-        COL_ROUTE = list(
-            reversed(
-                [
-                    '#83f6b7',
-                    '#00e1ce',
-                    '#00bedc',
-                    '#009aeb',
-                    '#3867f7',
-                    '#6d28d9'
-                ]
-            )
-        )
-
-        g = GraphDrawer._build_wing(cols, rows, random.Random(0))
-
-        ax.set_facecolor(COL_BG)
-
-        for c in range(cols + 1):
-            ax.plot(
-                [c, c], [0, rows],
-                color=COL_GRID, lw=0.3, zorder=1
-            )
-        for r in range(rows + 1):
-            ax.plot(
-                [0, cols], [r, r],
-                color=COL_GRID, lw=0.3, zorder=1
-            )
-
-        ax.add_patch(
-            plt.Rectangle(
-                (0, 0), cols, rows, fill=False,
-                edgecolor=COL_WALL, lw=2.2, zorder=4
-            )
-        )
-
-        for c in range(cols):
-            for r in range(rows):
-                if c + 1 < cols and not g.has_edge((c, r), (c + 1, r)):
-                    ax.plot(
-                        [c + 1, c + 1], [r, r + 1],
-                        color=COL_WALL, lw=1.4, zorder=3
-                    )
-                if r + 1 < rows and not g.has_edge((c, r), (c, r + 1)):
-                    ax.plot(
-                        [c, c + 1], [r + 1, r + 1],
-                        color=COL_WALL, lw=1.4, zorder=3
-                    )
-
-        total_cost = 0
-        if path:
-            trip_c = 0
-            storage = []
-            for i in range(len(path) - 1):
-                x1, y1, i1 = path[i]
-                x2, y2, i2 = path[i + 1]
-                ax.plot(
-                    [x1 + 0.5, x2 + 0.5],
-                    [y1 + 0.5, y2 + 0.5], color=COL_ROUTE[trip_c], lw=5.0,
-                    linestyle='-', alpha=1.0, zorder=8, solid_capstyle='round'
-                )
-                if (x1, y1) == (0, 0):
-                    trip_c += 1
-
-                total_cost += sum(supplies[s_idx][2] for s_idx in storage) + 1
-
-                if i1 == 2:
-                    s_idx = storage.pop()
-                    supplies[s_idx] = (x1, y1, supplies[s_idx][2])
-                elif i1 == 1:
-                    added = False
-                    for s_idx in range(len(supplies)):
-                        if supplies[s_idx][0] == x1 and supplies[s_idx][1] == y1:
-                            storage.append(s_idx)
-                            added = True
-                            break
-                elif i1 == 3:
-                    while len(storage) > 0:
-                        s_idx = storage.pop()
-                        supplies[s_idx] = (x1, y1, supplies[s_idx][2])
-
-            x1, y1, i1 = path[-1]
-            if i1 == 2:
-                s_idx = storage.pop()
-                supplies[s_idx] = (x1, y1, supplies[s_idx][2])
-            elif i1 == 1:
-                added = False
-                for j in range(len(supplies)):
-                    if supplies[j][0] == x1 and supplies[j][1] == y1:
-                        storage.append(j)
-                        added = True
-                        break
-            elif i1 == 3:
-                while len(storage) > 0:
-                    s_idx = storage.pop()
-                    supplies[s_idx] = (x1, y1, supplies[s_idx][2])
-
-            drone = path[-1][0], path[-1][1]
-
-        for x, y, w in supplies:
-            ax.plot(
-                x + 0.5, y + 0.5, marker='*', markersize=40,
-                color=COL_SUPPLY, markeredgecolor=COL_ENTRY,
-                markeredgewidth=3, zorder=7
-            )
-            ax.text(x + .5, y + .5 - .01, w, fontsize=16, color="#ffffff", zorder=8, ha="center", va="center")
-
-        ax.plot(
-            drone[0] + 0.5, drone[1] + 0.5, marker="o", markersize=40,
-            color=COL_DRONE, markeredgecolor="#94283c",
-            markeredgewidth=3, zorder=9
-        )
-        ax.text(drone[0] + 0.515, drone[1] + 0.495, r"$\mathbf{C}_1$", fontsize=20, color="#ffffff", zorder=10, ha="center", va="center")
-
-        ax.set_aspect('equal')
-        ax.axis('off')
-        ax.set_title(
-            title, fontsize=14, fontweight='bold',
-            color='#0B1F3B', pad=10
-        )
-        return ax, total_cost
-
+def _(draw_sub_facility, juggling_slider, mo, plt):
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(16, 8))
     _fig.patch.set_facecolor('#F5F7FA')
     _, _juggle_budget = draw_sub_facility(
         "With Juggling", _ax1, 4, 4, (2, 2), [(3, 3, 3), (2, 3, 3), (2, 0, 2), (3, 0, 2)],
-        [(2, 2, 0), (2, 3, 1), (3, 3, 0), (3, 2, 0), (3, 1, 2), (3, 2, 0), (3, 3, 1), (3, 2, 0), (3, 1, 0), (2, 1, 2), (3, 1, 0), (3, 0, 1), (3, 1, 1), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 0, 0), (2, 0, 1), (3, 0, 0), (3, 1, 0), (2, 1, 1), (1, 1, 0), (1, 0, 0), (0, 0, 3)][:juggling_slider.value + 1]
-        )
+        [(2, 2, 0), (2, 3, 1), (3, 3, 0), (3, 2, 0), (3, 1, 2), (3, 2, 0), (3, 3, 1), (3, 2, 0), (3, 1, 0), (2, 1, 2), (3, 1, 0), (3, 0, 1), (3, 1, 1), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 0, 0), (2, 0, 1), (3, 0, 0), (3, 1, 0), (2, 1, 1), (1, 1, 0), (1, 0, 0), (0, 0, 3)], juggling_slider.value + 1
+    )
     _, _non_juggle_budget = draw_sub_facility(
         "Without Juggling", _ax2, 4, 4, (2, 2), [(3, 3, 3), (2, 3, 3), (2, 0, 2), (3, 0, 2)],
-        [(2, 2, 0), (2, 3, 1), (3, 3, 0), (3, 2, 0), (3, 1, 0), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 2, 0), (3, 3, 1), (3, 2, 0), (3, 1, 2), (3, 0, 1), (3, 1, 1), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 0, 0), (2, 0, 1), (3, 0, 0), (3, 1, 0), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3)][:juggling_slider.value + 1]
-        )
+        [(2, 2, 0), (2, 3, 1), (3, 3, 0), (3, 2, 0), (3, 1, 0), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 2, 0), (3, 3, 1), (3, 2, 0), (3, 1, 2), (3, 0, 1), (3, 1, 1), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 0, 0), (2, 0, 1), (3, 0, 0), (3, 1, 0), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3)], juggling_slider.value + 1
+    )
 
     mo.vstack([mo.lazy(_fig, show_loading_indicator=True), mo.hstack([juggling_slider, mo.md(fr"""total budget used: {_juggle_budget} (juggle) / {_non_juggle_budget} (non-juggle)""")])])
     return
@@ -1714,6 +1791,51 @@ def _(get_fig, mo):
 
     In the algorithm, it is randomised which branch it chooses: if it picks the one with the two 2-weight supplies, it will be better than the juggling algorithm. This choice, if made smartly by the algorithm reduces the number of situations juggling is preffered, but was not implemented due to time restrictions.
     """
+        )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    supply_dropping_slider = mo.ui.slider(0, 38, 1, value=0, show_value=True, label="Path length")
+    return (supply_dropping_slider,)
+
+
+@app.cell
+def _(draw_sub_facility, mo, plt, supply_dropping_slider):
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(16, 8))
+    _fig.patch.set_facecolor('#F5F7FA')
+    _, _dropping_budget = draw_sub_facility(
+        "With supply dropping", _ax1, 4, 4, (0, 0), [(3, 3, 3), (2, 3, 3), (2, 0, 2), (3, 0, 2)],
+        [(0, 0, 0), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 0, 0), (2, 0, 1), (3, 0, 1), (3, 1, 2), (2, 1, 2), (3, 1, 0), (3, 2, 0), (3, 3, 0), (2, 3, 1), (3, 3, 0), (3, 2, 0), (3, 1, 1), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 2, 0), (3, 3, 1), (3, 2, 0), (3, 1, 0), (2, 1, 1), (1, 1, 0), (1, 0, 0), (0, 0, 3)], supply_dropping_slider.value + 1
+    )
+    _, _non_dropping_budget = draw_sub_facility(
+        "Without supply dropping", _ax2, 4, 4, (0, 0), [(3, 3, 3), (2, 3, 3), (2, 0, 2), (3, 0, 2)],
+        [(0, 0, 0), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 0, 0), (2, 0, 1), (3, 0, 1), (3, 1, 0), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 2, 0), (3, 3, 0), (2, 3, 1), (3, 3, 0), (3, 2, 0), (3, 1, 0), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3), (1, 0, 0), (1, 1, 0), (2, 1, 0), (3, 1, 0), (3, 2, 0), (3, 3, 1), (3, 2, 0), (3, 1, 0), (2, 1, 0), (1, 1, 0), (1, 0, 0), (0, 0, 3)], supply_dropping_slider.value + 1
+    )
+
+    mo.vstack([mo.lazy(_fig, show_loading_indicator=True), mo.hstack([supply_dropping_slider, mo.md(fr"""total budget used: {_dropping_budget} (supply drop) / {_non_dropping_budget} (no supply drop)""")])])
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo):
+    mo.md(
+        rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Supply drop vs no supply drop")}</span>
+
+    Figure {get_fig("Supply drop vs no supply drop")} shows a marginal difference between supply dropping and non-supply dropping walks. Without supply dropping, CRUDY-1 cannot collect the supply in the bottom right in the 2nd trip without incurring a cost of traversing with a large weight. With supply dropping it can do this
+    """
+        )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ## 5.2.3 Supply Cost Bounds
+            """
         )
     return
 
@@ -1747,8 +1869,16 @@ def _(mo, np, plt, supply_cost_bound_slider):
     _ax.set_xlim(0, supply_cost_bound_slider.value)
     _ax.set_ylim(0, supply_cost_bound_slider.value + 2)
 
+    _ax.set_xlabel("Supply weight")
+    _ax.set_ylabel("Supply cost")
+
     _fig.tight_layout()
-    mo.lazy(_fig, show_loading_indicator=True)
+    mo.vstack(
+        [
+            mo.lazy(_fig, show_loading_indicator=True),
+            supply_cost_bound_slider,
+        ], align="center"
+    )
     return
 
 
@@ -1795,6 +1925,26 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            While it is difficult to bound the error by a value $\epsilon$, it is possible to determine probabilities of using a certain percentage of the budget or collecting a percentage of the total value of the supplies. After presenting these, I will present a hard, likely unachievable upper bound on value collected, graphed against the output's collected value to find the average maximal difference between the value collected by the algorithm and the optimal value collected, which will then be compared against a naive, greedy approach.
+            """
+        )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ### 5.3.1 Budget Proportion
+            """
+        )
+    return
+
+
+@app.cell(hide_code=True)
 def _(math, mo, np, pd, plt, scipy):
     _df = pd.read_csv("memo3/data/data_facility_small.csv")
     _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 6))
@@ -1811,11 +1961,15 @@ def _(math, mo, np, pd, plt, scipy):
 
         ax.hist(data, density=True, bins=[float(i) / 100 for i in range(math.floor(data.min() * 100), math.ceil(data.max() * 100), 1)], color="#74c7ec")
 
+        ax.set_title(f"Proportion of budget used with {budget_percent}% budget")
+
         return ax.plot(xx, kde(xx), color="#ff4d00")
 
     _graph(_df, _ax1, 60)
     _graph(_df, _ax2, 35)
 
+    _fig.supxlabel("Proportion of budget used")
+    _fig.supylabel("Percent")
     _fig.tight_layout()
 
     mo.lazy(_fig, show_loading_indicator=True)
@@ -1852,6 +2006,16 @@ def _(get_fig, mo, np, pd, scipy):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ### 5.3.2 Value Proportion
+            """
+        )
+    return
+
+
 @app.cell
 def _(math, mo, np, pd, plt, scipy):
     _df = pd.read_csv("memo3/data/data_facility_small.csv")
@@ -1869,11 +2033,15 @@ def _(math, mo, np, pd, plt, scipy):
 
         ax.hist(data, density=True, bins=[float(i) / 100 for i in range(math.floor(data.min() * 100), math.ceil(data.max() * 100), 1)], color="#74c7ec")
 
+        ax.set_title(f"Proportion of value collected with {budget_percent}% budget")
+
         return ax.plot(xx, kde(xx), color="#ff4d00")
 
     _graph(_df, _ax1, 60)
     _graph(_df, _ax2, 35)
 
+    _fig.supxlabel("Proportion of value collected")
+    _fig.supylabel("Percent")
     _fig.tight_layout()
 
     mo.lazy(_fig, show_loading_indicator=True)
@@ -1910,6 +2078,16 @@ def _(get_fig, mo, np, pd, scipy):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ### 5.3.3 Over Budget
+            """
+        )
+    return
+
+
 @app.cell
 def _(mo, np, pd, plt):
     _df = pd.read_csv("memo3/data/data_facility_small.csv")
@@ -1919,10 +2097,19 @@ def _(mo, np, pd, plt):
     _max_budget_used = _df["budget used"].max()
 
     _x = np.linspace(0, max(_max_budget, _max_budget_used), 1000)
-    _ax.scatter(_df["budget"], _df["budget used"], c=[0 if i < 50 else 1 for i in _df["budget percent"]], alpha=1, cmap="RdYlBu")
-    _ax.plot(_x, _x, c="green")
+    for _c, _percent in [("blue", 35), ("red", 60)]:
+        _c_df = _df[_df["budget percent"] == _percent]
+        _ax.scatter(_c_df["budget"], _c_df["budget used"], c=_c, alpha=1, label=f"{_percent}% budget")
+    _ax.plot(_x, _x, c="green", label="Over/Under budget seperator")
+
     _ax.set_xlim(0, _max_budget)
     _ax.set_ylim(0, _max_budget_used)
+
+    _ax.set_xlabel("Budget")
+    _ax.set_ylabel("Budget used")
+
+    _ax.legend()
+    _ax.set_title("Over/Under Budget of Outputs")
 
     _fig.tight_layout()
 
@@ -1939,6 +2126,120 @@ def _(get_fig, mo):
     Figure {get_fig("Budget vs Budget Used")} shows the budget vs budget used, along with a line with gradient = 1. This shows the 4 outliers that go over budget: all between 2000 and 6000 budget. This likely means the cost function should take the budget amount as an input.
 
     This cost function optimisation could also be done by a neural network and the `get_weight_cost` function could become a neural network instead of a multi-variable mathematical function. In future, this network could also take as input the rest of the supplies' distances from the current or various other variables to more closely approximate the real cost which is dependent on all these factors
+    """
+        )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ### 5.3.4 Optimality Bounding
+            """
+        )
+    return
+
+
+@app.cell
+def _(math, mo, np, pd, plt, scipy):
+    _df = pd.read_csv("memo3/data/data_facility_small.csv")
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    def _graph(df, ax, budget_percent):
+        df = df[df["value total"] != 0]
+
+        df = df[df["budget percent"] == budget_percent]
+
+        data = 1 - df["value collected"] / df["value upper"]
+
+        kde = scipy.stats.gaussian_kde(data)
+        xx = np.linspace(data.min(), data.max(), 1000)
+
+        ax.hist(data, density=True, bins=[float(i) / 100 for i in range(math.floor(data.min() * 100), math.ceil(data.max() * 100), 1)], color="#74c7ec")
+
+        ax.set_title(f"Maximal optimality gap with {budget_percent}% budget")
+        ax.set_xlabel("Maximal optimality gap")
+        ax.set_ylabel("Percentage")
+
+        return ax.plot(xx, kde(xx), color="#ff4d00")
+
+    _graph(_df, _ax1, 60)
+    _graph(_df, _ax2, 35)
+
+    _fig.tight_layout()
+
+    mo.lazy(_fig, show_loading_indicator=True)
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo):
+    mo.md(
+        rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("Optimality gap")}</span>
+
+    Figure {get_fig("Optimality gap")} shows the maximal gap between a optimal output and the output given by the algorithm. This shows the algorithm, in the 60% budget case, is on average within 25% of this optimal &mdash; which is likely not achieveable. T
+
+    his helps explain the 40% gap seen in the 35% budget case: it is very likely the optimal will be much lower and be closer to the gap seen in the 60% case as more trips will be not full capacity ones in the 35% budget case. 
+
+    Additionally, there is **always** a section of the collection of a supply: the part until it reaches a sector of the facility that lies in the least-cost path to the entrance of another supply which is always evaluated with the upper-bound cost
+    """
+        )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+            ### 5.3.5 Naive Lower Bounding
+            """
+        )
+    return
+
+
+@app.cell
+def _(math, mo, np, pd, plt, scipy):
+    _df = pd.read_csv("memo3/data/data_facility_small.csv")
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    def _graph(df, ax, budget_percent):
+        df = df[df["value total"] != 0]
+
+        df = df[df["budget percent"] == budget_percent]
+
+        data = 1 - df["value collected"] / df["value lower"]
+
+        kde = scipy.stats.gaussian_kde(data)
+        xx = np.linspace(data.min(), data.max(), 1000)
+
+        ax.hist(data, density=True, bins=[float(i) / 100 for i in range(math.floor(data.min() * 100), math.ceil(data.max() * 100), 1)], color="#74c7ec")
+
+        ax.set_title(f"Maximal naive lower-bound gap with {budget_percent}% budget")
+        ax.set_xlabel("Maximal naive lower-bound gap")
+        ax.set_ylabel("Percentage")
+
+        return ax.plot(xx, kde(xx), color="#ff4d00")
+
+    _graph(_df, _ax1, 60)
+    _graph(_df, _ax2, 35)
+
+    _fig.tight_layout()
+
+    mo.lazy(_fig, show_loading_indicator=True)
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_fig, mo):
+    mo.md(
+        rf"""
+    <span style="color: var(--ctp-mocha-subtext0); ">Figure {get_fig("lower-bound gap")}</span>
+
+    Figure {get_fig("lower-bound gap")} shows the gap between the algorithmic output and a naive lower-bound, calculated with each supply being collected individually. These graphs show what I have previously mentioned: this algorithm will always return a walk that is at least as good as these lower bounds, and that this 'naive' lower-bound is actually pretty good.
+
+    This might mean local-search methods like 2-opt and Lin-Kernighan, which were tested on the first memo, may have fared well on both the non-supply dropping and supply dropping sub-problems, as this almost instantly calculatable lower-bound value collection is within 8-10% of a much more complex algorithm's output.
     """
         )
     return
@@ -1963,6 +2264,8 @@ def _(get_fig, mo):
     Figure {get_fig("C++ flame graph")} shows a flame graph of the run-time costs of the algorithm implemented in C++. 
 
     The algorithm has greater costs in clear_branch, likely due to me treating copying of lists into other lists to be constant time, which it isn't in practise. There are likely also other costs like function call, vector resizing and non-constant costs for each ADT operation which contribute to the predicted operation count being different from the one in the implementation.
+
+    For this algorithm to be suitable for real-world problems &mdash; where time and effort of computation directly reduces battery and can be the difference between a successful extraction and a failed one &mdash; this algorithm sacrifices optimality for its speed: 1.5 MOP/s can be calculated in 10ms on a 120MOP/s CPU. Due to the main DFS structure of `clear_branch` it is easily parallelisable with few changes, which would also aids its computational efficiency.
     """
         )
     return
@@ -2012,7 +2315,8 @@ def _(mo):
     mo.md(
         r"""
             ## 7.1 Pseudocode
-            """)
+            """
+        )
     return
 
 
@@ -2248,19 +2552,6 @@ def algorithm_explorer(
     _path = ember_rescue_cached()
 
     mo.lazy(facility_drawer.draw_multi_wing(plan=_path[:path_len.value + 1], highlight_trip=highlight_trip.value - 1 if highlight_trip.value != highlight_trip.stop else None), show_loading_indicator=True)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    # 7 Reflection
-    """)
-    return
-
-
-@app.cell
-def _():
     return
 
 

@@ -3,6 +3,7 @@
 - memo1a1/ folder contains work for Memo1 amendment 1
 - memo1a2/ folder contains work for Memo1 amendment 2
 - memo2/ folder contains work for Memo2
+- memo3/ folder contains work for Memo3
 - proof_of_work/ folder contains proof of work for simplex, LK, branch and bound, and more
 - custom.css is the css file for Memo1 amendment 1 & 2
 - referenes.txt contains references for all submissions (combined cause I forgot to keep track of when I accessed them)

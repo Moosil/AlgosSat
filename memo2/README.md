@@ -1,6 +1,6 @@
-This folder contains all the code for Memo1 Amendment 1
+This folder contains all the code for Memo2
 
-average_case/ contains the empirical-data-generating algorithm, implemented in c++ (it has its own README file)
+cpp_impl/ contains the empirical-data-generating algorithm, implemented in c++ (it has its own README file)
 
 average_tc.py was used to try and generate average-case empirical data, but *man* python is slow.
 

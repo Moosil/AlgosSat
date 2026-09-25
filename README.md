@@ -40,4 +40,4 @@
 - 6: Memo 2 section 2.3, Memo 3 section 6
 - 7: Memo 3 section 3 and 6
 - 8: Memo 3
-- 9: Memo 3 section 3
+- 9: Memo 3 section 3 and 6

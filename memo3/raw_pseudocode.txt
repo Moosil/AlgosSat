@@ -230,7 +230,7 @@ PROCEDURE get_reduced_supplies(g: Graph, supplies: Set[Vertex], supply_weight: M
 END PROCEDURE
 
 PROCEDURE get_other_junction(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], v: Vertex) -> Vertex
-    FOR EACH je in G[2] DO
+    FOR EACH je IN G[2] DO
         IF je[1] = v THEN
             RETURN je[2]
         END IF
@@ -242,7 +242,7 @@ PROCEDURE get_other_junction(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], v
 END PROCEDURE
 
 PROCEDURE get_supplies_to_collect(supplies: Set[Vertex], vertex_to_supply_id: Map[Vertex, SupplyID], found_supply_ids: Set[SupplyID]) -> Set[Supply]
-    res <- ∅
+    res <- {}
     FOR EACH supply IN supplies DO
         IF NOT element_of(found_supply_ids, vertex_to_supply_id[supply]) THEN
             insert(res, supply)
@@ -415,7 +415,7 @@ PROCEDURE clear_junction_path(G: Tuple[Set[Graph], Set[Tuple[Vertex, Vertex]]], 
 
             IF NOT length(branch_res) = 0 THEN
                 supplies_in_junction <- []
-                FOR EACH s_idx in supply_path[new_inter_wing_path] DO
+                FOR EACH s_idx IN supply_path[new_inter_wing_path] DO
                     IF supplies[s_idx] = junction_other THEN
                         push_back(supplies_in_junction, s_idx)
                     END IF
